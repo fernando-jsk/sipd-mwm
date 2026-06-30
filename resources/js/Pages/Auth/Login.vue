@@ -26,10 +26,10 @@ const submit = () => {
         
         <Card class="w-full max-w-md z-10 shadow-xl border-zinc-200/60 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-sm">
             <CardHeader class="space-y-2 text-center pb-6">
-                <div class="w-12 h-12 bg-blue-600 rounded-xl mx-auto flex items-center justify-center mb-2 shadow-lg shadow-blue-600/20">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg>
+                <div class="mb-4 flex justify-center">
+                    <img src="/images/logo-mwm.png" alt="SIPD-MWM Logo" class="h-16 object-contain" />
                 </div>
-                <CardTitle class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">KeuanganKu</CardTitle>
+                <CardTitle class="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">SIPD MWM</CardTitle>
                 <CardDescription class="text-zinc-500">
                     Sistem Informasi Manajemen Keuangan
                 </CardDescription>
