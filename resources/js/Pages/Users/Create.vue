@@ -1,10 +1,11 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/Components/ui/button';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/Components/ui/card';
+import { Label } from '@/Components/ui/label';
+import { Input } from '@/Components/ui/input';
 import {
   Select,
   SelectContent,
@@ -12,7 +13,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/Components/ui/select';
 
 const props = defineProps({
     roles: Array,
@@ -35,62 +36,83 @@ const submit = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center space-x-4">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    Tambah User Baru
-                </h2>
+            <div class="flex items-center justify-between w-full">
+                <div class="flex flex-col">
+                    <Breadcrumb class="mb-1">
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <span class="text-xs text-muted-foreground">Pengaturan</span>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbLink as-child>
+                                    <Link href="/users" class="text-xs">User</Link>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage class="text-xs">Tambah</BreadcrumbPage>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                    <h2 class="text-xl font-bold tracking-tight text-secondary dark:text-foreground">
+                        Tambah User Baru
+                    </h2>
+                </div>
             </div>
         </template>
 
-        <div class="py-12">
-            <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Data User</CardTitle>
-                        <CardDescription>Masukkan detail user baru di bawah ini.</CardDescription>
-                    </CardHeader>
-                    <form @submit.prevent="submit">
+        <div class="max-w-3xl mx-auto">
+            <form @submit.prevent="submit">
+                <Card class="border border-border/80 shadow-sm">
+                <CardHeader class="border-b border-border/80">
+                    <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Data User</CardTitle>
+                    <CardDescription class="text-xs text-muted-foreground mt-0.5">Masukkan detail user baru di bawah ini.</CardDescription>
+                </CardHeader>
                         <CardContent class="space-y-4">
-                            <div class="space-y-2">
-                                <Label for="name">Nama Lengkap</Label>
+                            <div class="grid gap-1.5">
+                                <Label for="name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.name}">Nama Lengkap</Label>
                                 <Input 
                                     id="name" 
                                     type="text" 
                                     v-model="form.name" 
-                                    :class="{'border-red-500': form.errors.name}"
+                                    :class="{'border-destructive focus-visible:ring-destructive/20': form.errors.name, 'focus-visible:ring-primary': !form.errors.name}"
+                                    :aria-invalid="!!form.errors.name"
                                     required 
                                 />
-                                <p v-if="form.errors.name" class="text-sm text-red-500">{{ form.errors.name }}</p>
+                                <p v-if="form.errors.name" class="text-[11px] text-destructive">{{ form.errors.name }}</p>
                             </div>
                             
-                            <div class="space-y-2">
-                                <Label for="username">Username</Label>
+                            <div class="grid gap-1.5">
+                                <Label for="username" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.username}">Username</Label>
                                 <Input 
                                     id="username" 
                                     type="text" 
                                     v-model="form.username" 
-                                    :class="{'border-red-500': form.errors.username}"
+                                    :class="{'border-destructive focus-visible:ring-destructive/20': form.errors.username, 'focus-visible:ring-primary': !form.errors.username}"
+                                    :aria-invalid="!!form.errors.username"
                                     required 
                                 />
-                                <p v-if="form.errors.username" class="text-sm text-red-500">{{ form.errors.username }}</p>
+                                <p v-if="form.errors.username" class="text-[11px] text-destructive">{{ form.errors.username }}</p>
                             </div>
 
-                            <div class="space-y-2">
-                                <Label for="password">Password</Label>
+                            <div class="grid gap-1.5">
+                                <Label for="password" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.password}">Password</Label>
                                 <Input 
                                     id="password" 
                                     type="password" 
                                     v-model="form.password" 
-                                    :class="{'border-red-500': form.errors.password}"
+                                    :class="{'border-destructive focus-visible:ring-destructive/20': form.errors.password, 'focus-visible:ring-primary': !form.errors.password}"
+                                    :aria-invalid="!!form.errors.password"
                                     required 
                                 />
-                                <p v-if="form.errors.password" class="text-sm text-red-500">{{ form.errors.password }}</p>
+                                <p v-if="form.errors.password" class="text-[11px] text-destructive">{{ form.errors.password }}</p>
                             </div>
 
-                            <div class="space-y-2">
-                                <Label for="role">Role (Hak Akses)</Label>
+                            <div class="grid gap-1.5">
+                                <Label for="role" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.role}">Role (Hak Akses)</Label>
                                 <Select v-model="form.role" required>
-                                    <SelectTrigger :class="{'border-red-500': form.errors.role}">
+                                    <SelectTrigger :class="{'border-destructive focus-visible:ring-destructive/20': form.errors.role, 'focus-visible:ring-primary': !form.errors.role}" :aria-invalid="!!form.errors.role">
                                         <SelectValue placeholder="Pilih role..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -101,18 +123,17 @@ const submit = () => {
                                         </SelectGroup>
                                     </SelectContent>
                                 </Select>
-                                <p v-if="form.errors.role" class="text-sm text-red-500">{{ form.errors.role }}</p>
+                                <p v-if="form.errors.role" class="text-[11px] text-destructive">{{ form.errors.role }}</p>
                             </div>
                         </CardContent>
                         <CardFooter class="flex justify-end space-x-2">
                             <Link href="/users">
                                 <Button variant="outline" type="button">Batal</Button>
                             </Link>
-                            <Button type="submit" :disabled="form.processing">Simpan</Button>
+                            <Button type="submit" :disabled="form.processing">Simpan User</Button>
                         </CardFooter>
-                    </form>
                 </Card>
-            </div>
+            </form>
         </div>
     </AuthenticatedLayout>
 </template>

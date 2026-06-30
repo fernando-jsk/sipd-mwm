@@ -4,25 +4,25 @@ import Sidebar from '@/Components/Sidebar.vue';
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-100 flex">
+    <div class="h-screen bg-background text-foreground flex overflow-hidden">
         <!-- Sidebar -->
         <Sidebar />
 
         <!-- Main Content Wrapper -->
         <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <!-- Navbar -->
-            <Navbar />
-
-            <!-- Page Header -->
-            <header class="bg-white shadow" v-if="$slots.header">
-                <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <!-- Navbar / Header Area -->
+            <Navbar>
+                <template v-if="$slots.header">
                     <slot name="header" />
-                </div>
-            </header>
+                </template>
+            </Navbar>
 
             <!-- Page Content -->
-            <main class="flex-1 overflow-y-auto bg-gray-50">
-                <slot />
+            <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+                <!-- Outer container based on STYLE_GUIDE -->
+                <div class="max-w-7xl mx-auto space-y-6">
+                    <slot />
+                </div>
             </main>
         </div>
     </div>

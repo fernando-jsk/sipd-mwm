@@ -15,10 +15,28 @@ class ActivityLogController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $activities = Activity::with('causer')->latest()->paginate(20);
+        $query = Activity::with('causer')->latest();
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhereHas('causer', function($qCauser) use ($search) {
+                      $qCauser->where('name', 'like', "%{$search}%")
+                              ->orWhere('username', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('event') && $request->input('event') !== 'all') {
+            $query->where('event', $request->input('event'));
+        }
+
+        $activities = $query->paginate(20)->withQueryString();
 
         return Inertia::render('ActivityLogs/Index', [
-            'activities' => $activities
+            'activities' => $activities,
+            'filters' => $request->only(['search', 'event']),
         ]);
     }
 }

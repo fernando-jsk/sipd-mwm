@@ -9,6 +9,10 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
+Route::get('/dev-components', function () {
+    return Inertia::render('DevComponents');
+});
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);

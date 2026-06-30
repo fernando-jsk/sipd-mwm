@@ -13,9 +13,18 @@ class RoleController extends Controller
 {
     public function index(Request $request)
     {
-        $roles = Role::withCount('users')->latest()->paginate(10);
+        $query = Role::withCount('users')->latest();
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        $roles = $query->paginate(10)->withQueryString();
+
         return Inertia::render('Roles/Index', [
-            'roles' => $roles
+            'roles' => $roles,
+            'filters' => $request->only(['search']),
         ]);
     }
 
