@@ -20,6 +20,8 @@ Route::middleware('guest')->group(function () {
 
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
+use App\Http\Controllers\AccountCodeController;
+use App\Http\Controllers\SettingController;
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -31,4 +33,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('users', UserController::class);
     Route::resource('roles', RoleController::class);
     Route::get('/activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs.index');
+    
+    Route::resource('account-codes', AccountCodeController::class);
+    Route::resource('settings', SettingController::class)->only(['index', 'store']);
 });

@@ -40,6 +40,8 @@ Semua komponen Vue harus menggunakan utilitas Tailwind yang konsisten. Hindari p
 * Radius sudut menggunakan `rounded-xl` (`--radius: 0.75rem`).
 * Border tipis menggunakan `border border-border/80` dengan bayangan sangat halus (`shadow-sm`).
 * Untuk kartu dalam layout *grid* yang berpotensi memiliki tinggi bervariasi, selalu gunakan class `mt-auto` pada `<CardFooter>` agar posisinya sejajar menempel di dasar kartu.
+* **PENTING (Jarak & Padding)**: Komponen bawaan Shadcn UI (`Card`, `CardHeader`, `CardContent`, `CardFooter`) sudah memiliki struktur *flex* dan *padding* bawaan (contoh: `Card` menggunakan `gap-4`, `CardContent` menggunakan padding kiri-kanan). **Jangan menambahkan class padding eksplisit secara berlebihan (seperti `p-5`, `pt-6`, `pb-6`)** pada `<CardContent>` karena akan melipatgandakan *white space*. Biarkan struktur alami komponen yang mengatur jaraknya.
+* Pastikan struktur HTML `<form>` **membungkus komponen `<Card>` secara penuh dari luar**, bukan diletakkan di dalam `<Card>`. Meletakkan `<form>` di dalam `<Card>` akan merusak struktur `flex gap` bawaannya.
 
 ### C. Form & Input
 Setiap input harus selalu dibungkus dengan layout grid yang rapi:
