@@ -38,4 +38,5 @@ Route::middleware('auth')->group(function () {
     Route::resource('account-codes', AccountCodeController::class);
     Route::resource('vendors', VendorController::class);
     Route::resource('settings', SettingController::class)->only(['index', 'store']);
+    Route::post('/settings/budget-year', [SettingController::class, 'setBudgetYear'])->name('settings.budget-year');
 });

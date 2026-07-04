@@ -1,5 +1,5 @@
 <script setup>
-import { Link, usePage } from '@inertiajs/vue3';
+import { Link, usePage, router } from '@inertiajs/vue3';
 import { LogOut, User, Calendar } from '@lucide/vue';
 import { ref } from 'vue';
 import {
@@ -15,9 +15,14 @@ const page = usePage();
 const activeYear = ref(page.props.active_budget_year || new Date().getFullYear().toString());
 
 const changeYear = (year) => {
-    // Logic to save the selected budget year to backend/session will be handled here
-    activeYear.value = year;
-    console.log('Tahun Anggaran diubah ke:', year);
+    router.post('/settings/budget-year', {
+        year: year
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            activeYear.value = year;
+        }
+    });
 };
 </script>
 

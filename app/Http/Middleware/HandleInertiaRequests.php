@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'message' => fn () => $request->session()->get('message')
             ],
+            'active_budget_year' => $request->session()->get('active_budget_year', date('Y')),
         ];
     }
 }
