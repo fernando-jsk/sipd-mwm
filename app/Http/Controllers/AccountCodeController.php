@@ -76,9 +76,15 @@ class AccountCodeController extends Controller
 
     public function destroy(AccountCode $accountCode)
     {
-        $code = $accountCode->code;
-        $accountCode->delete();
-
-        return redirect()->route('account-codes.index')->with('message', 'Kode rekening berhasil dihapus');
+        try {
+            $code = $accountCode->code;
+            $accountCode->delete();
+            return redirect()->route('account-codes.index')->with('message', 'Kode rekening berhasil dihapus');
+        } catch (\Illuminate\Database\QueryException $e) {
+            if ($e->getCode() == "23000") { // Integrity constraint violation
+                return redirect()->route('account-codes.index')->with('error', 'Gagal dihapus: Kode Rekening ini sudah memiliki rincian RBA atau masih memiliki sub-rekening.');
+            }
+            throw $e;
+        }
     }
 }

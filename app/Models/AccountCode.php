@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
@@ -26,9 +27,14 @@ class AccountCode extends Model
         return $this->belongsTo(AccountCode::class, 'parent_id');
     }
 
-    public function children()
+    public function children(): HasMany
     {
         return $this->hasMany(AccountCode::class, 'parent_id');
+    }
+
+    public function rbaDocuments(): HasMany
+    {
+        return $this->hasMany(RbaDocument::class);
     }
 
     public function getActivitylogOptions(): LogOptions

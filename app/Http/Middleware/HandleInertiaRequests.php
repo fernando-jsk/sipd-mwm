@@ -42,8 +42,10 @@ class HandleInertiaRequests extends Middleware
                 'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name') : [],
             ],
             'flash' => [
-                'message' => fn () => $request->session()->get('message')
+                'message' => fn () => $request->session()->get('message'),
+                'error' => fn () => $request->session()->get('error')
             ],
+            'active_budget_year' => $request->session()->get('active_budget_year', date('Y')),
         ];
     }
 }

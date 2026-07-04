@@ -34,4 +34,15 @@ class SettingController extends Controller
 
         return redirect()->back()->with('message', 'Pengaturan berhasil disimpan');
     }
+
+    public function setBudgetYear(Request $request)
+    {
+        $validated = $request->validate([
+            'year' => 'required|string|size:4'
+        ]);
+
+        $request->session()->put('active_budget_year', $validated['year']);
+
+        return redirect()->back()->with('message', "Tahun Anggaran diubah ke {$validated['year']}");
+    }
 }
