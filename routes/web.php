@@ -23,6 +23,8 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AccountCodeController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\RbaDocumentController;
+use App\Http\Controllers\RbaDetailController;
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -39,4 +41,12 @@ Route::middleware('auth')->group(function () {
     Route::resource('vendors', VendorController::class);
     Route::resource('settings', SettingController::class)->only(['index', 'store']);
     Route::post('/settings/budget-year', [SettingController::class, 'setBudgetYear'])->name('settings.budget-year');
+
+    // Modul RBA (Perencanaan)
+    Route::get('/rba', [RbaDocumentController::class, 'index'])->name('rba.index');
+    Route::post('/rba/documents', [RbaDocumentController::class, 'store'])->name('rba.documents.store');
+    Route::get('/rba/{rbaDocument}', [RbaDetailController::class, 'builder'])->name('rba.builder');
+    Route::post('/rba/{rbaDocument}/details', [RbaDetailController::class, 'store'])->name('rba.store');
+    Route::put('/rba/details/{rbaDetail}', [RbaDetailController::class, 'update'])->name('rba.update');
+    Route::delete('/rba/details/{rbaDetail}', [RbaDetailController::class, 'destroy'])->name('rba.destroy');
 });
