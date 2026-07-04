@@ -17,7 +17,7 @@ class AccountCodeController extends Controller
                   ->orWhere('name', 'like', '%' . $request->search . '%');
         }
 
-        $accountCodes = $query->latest()->paginate(10)->withQueryString();
+        $accountCodes = $query->orderBy('code')->paginate(20)->withQueryString();
 
         return Inertia::render('AccountCodes/Index', [
             'accountCodes' => $accountCodes,
@@ -27,12 +27,17 @@ class AccountCodeController extends Controller
 
     public function create()
     {
-        return Inertia::render('AccountCodes/Create');
+        $parents = AccountCode::orderBy('code')->get(['id', 'code', 'name', 'level']);
+        return Inertia::render('AccountCodes/Create', [
+            'parents' => $parents
+        ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
+            'parent_id' => 'nullable|exists:account_codes,id',
+            'level' => 'required|integer|min:1|max:6',
             'code' => 'required|string|unique:account_codes,code',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -46,14 +51,18 @@ class AccountCodeController extends Controller
 
     public function edit(AccountCode $accountCode)
     {
+        $parents = AccountCode::where('id', '!=', $accountCode->id)->orderBy('code')->get(['id', 'code', 'name', 'level']);
         return Inertia::render('AccountCodes/Edit', [
-            'accountCode' => $accountCode
+            'accountCode' => $accountCode,
+            'parents' => $parents
         ]);
     }
 
     public function update(Request $request, AccountCode $accountCode)
     {
         $validated = $request->validate([
+            'parent_id' => 'nullable|exists:account_codes,id',
+            'level' => 'required|integer|min:1|max:6',
             'code' => 'required|string|unique:account_codes,code,' . $accountCode->id,
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',

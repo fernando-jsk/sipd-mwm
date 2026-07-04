@@ -22,6 +22,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\AccountCodeController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\VendorController;
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -35,5 +36,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/activity-logs', [App\Http\Controllers\ActivityLogController::class, 'index'])->name('activity-logs.index');
     
     Route::resource('account-codes', AccountCodeController::class);
+    Route::resource('vendors', VendorController::class);
     Route::resource('settings', SettingController::class)->only(['index', 'store']);
 });

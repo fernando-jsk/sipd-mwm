@@ -1,0 +1,8 @@
+feat: implement account code hierarchy & vendor master data
+
+- feat(account-codes): refactor schema to support tree hierarchy (parent_id, level)
+- feat(account-codes): add visual indentation & parent selector dropdown in UI
+- feat(vendors): create full CRUD module for Master Rekanan
+- feat(vendors): integrate vendor module to sidebar navigation
+- ui: install and implement shadcn Select component
+- docs(style-guide): enforce strict rules against explicit padding on CardContent

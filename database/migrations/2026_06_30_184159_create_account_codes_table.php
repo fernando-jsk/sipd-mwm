@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('account_codes', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('parent_id')->nullable()->constrained('account_codes')->restrictOnDelete();
+            $table->unsignedTinyInteger('level')->default(1);
             $table->string('code')->unique();
             $table->string('name');
             $table->text('description')->nullable();

@@ -37,8 +37,11 @@ const changeYear = (year) => {
             <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
                 Master Data
             </div>
-            <Link href="/account-codes" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
+            <Link href="/account-codes" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/account-codes') }">
                 Kode Rekening
+            </Link>
+            <Link href="/vendors" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/vendors') }">
+                Data Rekanan
             </Link>
 
             <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
