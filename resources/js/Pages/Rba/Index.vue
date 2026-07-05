@@ -43,7 +43,7 @@ const createDocument = (accountCodeId) => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="w-full flex justify-between items-end">
+            <div class="w-full flex justify-between items-center">
                 <div>
                     <Breadcrumb class="mb-1">
                         <BreadcrumbList>
