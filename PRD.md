@@ -38,7 +38,11 @@ Berikut adalah urutan prioritas pengerjaan berdasarkan *flow* data keuangan:
 - Master Data Kode Rekening (Bagan Akun Standar).
 - Input Kertas Kerja RBA (Pendapatan & Belanja) dengan struktur berjenjang (Header-Detail).
 - Tabel daftar anggaran beserta plafon nilainya (terikat dengan Tahun Anggaran dan Kode Rekening).
-- **Fitur Pergeseran/Perubahan RBA**: Kemampuan untuk menduplikasi Kertas Kerja RBA secara global ke versi terbaru (mendukung lebih dari 1 kali pergeseran per tahun). Eksekusi dilakukan melalui Modul Pengaturan dengan hak akses khusus (*Permission*).
+- **Fitur Replikasi RBA & Manajemen Versi (Multi-tahapan)**: 
+  - Mendukung pembuatan replikasi/tahapan anggaran baru secara dinamis (Induk, Pergeseran 1, Perubahan, dll) dengan meng-copy dari versi sumber pilihan.
+  - Manajemen Versi Aktif secara global yang dikontrol admin melalui menu Pengaturan Sistem (menentukan data versi mana yang tampil pada menu Kertas Kerja RBA).
+  - Fitur penghapusan versi kustom (non-Induk) dengan pengaman konfirmasi ketat (*Strict Confirmation*) guna mencegah salah hapus data anggaran.
+  - Akses fitur dibatasi khusus untuk user dengan hak akses (*permission*) `manage budget revision`.
 
 ### **Fase 3: Modul Bendahara (Penerimaan & Pengeluaran)**
 - **Penerimaan**: Form *input* kas masuk dengan filter tanggal & kategori rekening.
