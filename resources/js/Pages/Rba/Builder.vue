@@ -185,7 +185,12 @@ const submitForm = () => {
                     </Link>
                 </Button>
                 <div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">Susun Rencana Bisnis dan Anggaran (RBA)</h2>
+                    <div class="flex items-center gap-2">
+                        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Susun Rencana Bisnis dan Anggaran (RBA)</h2>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary text-white uppercase tracking-wider">
+                            {{ rbaDocument.version_name }}
+                        </span>
+                    </div>
                     <p class="text-sm text-muted-foreground">{{ rbaDocument.account_code.code }} - {{ rbaDocument.account_code.name }}</p>
                 </div>
             </div>

@@ -34,9 +34,11 @@ Berikut adalah urutan prioritas pengerjaan berdasarkan *flow* data keuangan:
   - *Warning*: Mengizinkan transaksi dengan memunculkan peringatan (Warning).
 - Pembaruan menu *Sidebar* menyesuaikan dengan penambahan modul-modul ini.
 
-### **Fase 2: Modul Perencanaan Anggaran**
-- Form *input* Rencana Anggaran (RBA/RKA) tahunan.
+### **Fase 2: Modul Perencanaan Anggaran (RBA)**
+- Master Data Kode Rekening (Bagan Akun Standar).
+- Input Kertas Kerja RBA (Pendapatan & Belanja) dengan struktur berjenjang (Header-Detail).
 - Tabel daftar anggaran beserta plafon nilainya (terikat dengan Tahun Anggaran dan Kode Rekening).
+- **Fitur Pergeseran/Perubahan RBA**: Kemampuan untuk menduplikasi Kertas Kerja RBA secara global ke versi terbaru (mendukung lebih dari 1 kali pergeseran per tahun). Eksekusi dilakukan melalui Modul Pengaturan dengan hak akses khusus (*Permission*).
 
 ### **Fase 3: Modul Bendahara (Penerimaan & Pengeluaran)**
 - **Penerimaan**: Form *input* kas masuk dengan filter tanggal & kategori rekening.

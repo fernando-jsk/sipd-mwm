@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AccountCode;
 use App\Models\RbaDocument;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -13,9 +14,12 @@ class RbaDocumentController extends Controller
     {
         $budgetYear = $request->session()->get('active_budget_year', date('Y'));
 
-        // 1. Get ALL account codes and their associated document for the active year
-        $allAccounts = AccountCode::with(['rbaDocuments' => function ($query) use ($budgetYear) {
-                $query->where('budget_year', $budgetYear)->where('version', 0);
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? 0);
+        $activeVersionName = RbaDocument::where('budget_year', $budgetYear)->where('version', $activeVersion)->value('version_name') ?? 'Induk';
+
+        // 1. Get ALL account codes and their associated document for the active year and active version
+        $allAccounts = AccountCode::with(['rbaDocuments' => function ($query) use ($budgetYear, $activeVersion) {
+                $query->where('budget_year', $budgetYear)->where('version', $activeVersion);
             }])
             ->orderBy('code')
             ->get();
@@ -87,17 +91,19 @@ class RbaDocumentController extends Controller
         $activeTree = $pruneFn($roots);
 
         // 3. Get Leaf accounts for the Add Modal search
-        // Exclude those that already have a document for this year!
+        // Exclude those that already have a document for this year and active version!
         $leafAccounts = AccountCode::whereDoesntHave('children')
-            ->whereDoesntHave('rbaDocuments', function ($query) use ($budgetYear) {
-                $query->where('budget_year', $budgetYear)->where('version', 0);
+            ->whereDoesntHave('rbaDocuments', function ($query) use ($budgetYear, $activeVersion) {
+                $query->where('budget_year', $budgetYear)->where('version', $activeVersion);
             })
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
         return Inertia::render('Rba/Index', [
             'activeTree' => $activeTree,
-            'leafAccounts' => $leafAccounts
+            'leafAccounts' => $leafAccounts,
+            'currentVersion' => $activeVersion,
+            'currentVersionName' => $activeVersionName
         ]);
     }
 
@@ -109,10 +115,13 @@ class RbaDocumentController extends Controller
 
         $budgetYear = $request->session()->get('active_budget_year', date('Y'));
 
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? 0);
+        $activeVersionName = RbaDocument::where('budget_year', $budgetYear)->where('version', $activeVersion)->value('version_name') ?? 'Induk';
+
         // Ensure not already created
         $exists = RbaDocument::where('account_code_id', $request->account_code_id)
             ->where('budget_year', $budgetYear)
-            ->where('version', 0)
+            ->where('version', $activeVersion)
             ->exists();
 
         if ($exists) {
@@ -122,7 +131,8 @@ class RbaDocumentController extends Controller
         RbaDocument::create([
             'account_code_id' => $request->account_code_id,
             'budget_year' => $budgetYear,
-            'version' => 0,
+            'version' => $activeVersion,
+            'version_name' => $activeVersionName,
             'status' => 'draft',
             'total_budget' => 0
         ]);
