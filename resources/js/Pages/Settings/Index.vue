@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Input } from '@/Components/ui/input';
-import { Trash2, AlertTriangle } from 'lucide-vue-next';
+import { Trash2, AlertTriangle, UploadCloud } from 'lucide-vue-next';
 import { router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -84,6 +84,26 @@ const confirmDeleteVersion = () => {
             versionToDelete.value = null;
         }
     });
+};
+
+const importForm = useForm({
+    file: null,
+    start_row: 4,
+    start_column: 'C'
+});
+
+const submitImport = () => {
+    importForm.post('/settings/import-rba', {
+        preserveScroll: true,
+        onSuccess: () => {
+            importForm.reset('file');
+            // reset file input visually if needed
+        }
+    });
+};
+
+const handleFileChange = (e) => {
+    importForm.file = e.target.files[0];
 };
 
 const form = useForm({
@@ -236,6 +256,62 @@ const submit = () => {
                             </div>
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            <!-- Panel Impor Massal Data RBA -->
+            <Card v-if="canManageRevision" class="border-border/80 shadow-sm mt-6">
+                <CardHeader class="border-b border-border/80 pb-4 bg-muted/10">
+                    <CardTitle class="text-base font-bold text-secondary dark:text-foreground flex items-center gap-2">
+                        <UploadCloud class="w-5 h-5 text-primary" />
+                        Impor Massal Data RBA
+                    </CardTitle>
+                    <CardDescription class="text-xs text-muted-foreground mt-0.5">Unggah file Excel (.xlsx) Kertas Kerja RBA untuk diparsing otomatis menjadi struktur pohon rincian.</CardDescription>
+                </CardHeader>
+                
+                <CardContent class="pt-6">
+                    <form @submit.prevent="submitImport" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="space-y-2">
+                                <Label for="rba_file">File Kertas Kerja RBA (.xlsx) <span class="text-destructive">*</span></Label>
+                                <Input id="rba_file" type="file" accept=".xlsx, .xls" @change="handleFileChange" class="cursor-pointer" required />
+                                <p class="text-[10px] text-muted-foreground">Pastikan format sejajar dengan template ekspor.</p>
+                                <p v-if="importForm.errors.file" class="text-[10px] text-destructive">{{ importForm.errors.file }}</p>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <Label for="start_column">Huruf Kolom "Harga" <span class="text-destructive">*</span></Label>
+                                <Input id="start_column" type="text" maxlength="2" class="uppercase" v-model="importForm.start_column" required />
+                                <p class="text-[10px] text-muted-foreground">Misal: <strong>C</strong> untuk Induk, atau <strong>I</strong> untuk Pergeseran. Sistem akan otomatis membaca 5 kolom berurutan (Harga, Sat1, Vol1, Sat2, Vol2).</p>
+                                <p v-if="importForm.errors.start_column" class="text-[10px] text-destructive">{{ importForm.errors.start_column }}</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <Label for="start_row">Mulai Baca Dari Baris Ke- <span class="text-destructive">*</span></Label>
+                                <Input id="start_row" type="number" min="1" v-model="importForm.start_row" required />
+                                <p class="text-[10px] text-muted-foreground">Abaikan baris kop surat & header tabel di atasnya.</p>
+                                <p v-if="importForm.errors.start_row" class="text-[10px] text-destructive">{{ importForm.errors.start_row }}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-md text-xs font-medium">
+                            <AlertTriangle class="w-4 h-4 shrink-0" />
+                            <p>Proses ini akan mereplace (menimpa) seluruh data rincian RBA pada tahun dan versi aktif saat ini (Versi {{ props.activeVersion }}). Pastikan Anda berada di tahapan versi yang tepat sebelum melakukan impor.</p>
+                        </div>
+
+                        <div class="flex justify-end">
+                            <Button type="submit" variant="default" :disabled="importForm.processing || !importForm.file">
+                                <span v-if="importForm.processing" class="flex items-center gap-2">
+                                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    Memproses Ribuan Baris...
+                                </span>
+                                <span v-else class="flex items-center gap-2">
+                                    <UploadCloud class="w-4 h-4" />
+                                    Mulai Impor Data
+                                </span>
+                            </Button>
+                        </div>
+                    </form>
                 </CardContent>
             </Card>
 

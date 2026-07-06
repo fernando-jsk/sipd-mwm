@@ -219,7 +219,7 @@ const submitForm = () => {
                         <Table>
                             <TableHeader class="bg-muted/50">
                                 <TableRow>
-                                    <TableHead>Uraian</TableHead>
+                                    <TableHead class="min-w-[300px] max-w-[500px]">Uraian</TableHead>
                                     <TableHead class="w-[200px]">Volume</TableHead>
                                     <TableHead class="text-right w-[180px]">Harga</TableHead>
                                     <TableHead class="text-right w-[200px]">Jumlah</TableHead>

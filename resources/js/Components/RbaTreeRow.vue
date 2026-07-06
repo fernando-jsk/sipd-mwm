@@ -70,20 +70,20 @@ const paddingLeft = computed(() => {
     <!-- Render Current Row -->
     <TableRow :class="[row.type === 'header' ? 'bg-muted/30 font-medium' : '']">
         <!-- Uraian -->
-        <TableCell :style="paddingLeft">
-            <div class="flex items-center gap-1">
+        <TableCell :style="paddingLeft" class="align-top py-3 max-w-[500px]">
+            <div class="flex items-start gap-1">
                 <button
                     v-if="row.type === 'header'"
                     @click="toggleExpand"
-                    class="w-5 h-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground focus:outline-none"
+                    class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded hover:bg-muted text-muted-foreground focus:outline-none mt-0.5"
                     :class="{ 'invisible': !hasChildren }"
                 >
                     <ChevronDown v-if="isExpanded" class="w-4 h-4" />
                     <ChevronRight v-else class="w-4 h-4" />
                 </button>
-                <div v-else class="w-5 h-5"></div> <!-- Spacer for items -->
+                <div v-else class="w-5 h-5 flex-shrink-0"></div> <!-- Spacer for items -->
                 
-                <span>{{ row.uraian }}</span>
+                <span class="whitespace-normal break-words leading-tight pt-1">{{ row.uraian }}</span>
             </div>
         </TableCell>
         
