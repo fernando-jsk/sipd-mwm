@@ -47,6 +47,7 @@ class RoleAndUserSeeder extends Seeder
         // Kelompok: Perencanaan
         Permission::create(['name' => 'view rba']);
         Permission::create(['name' => 'manage rba']);
+        Permission::create(['name' => 'manage budget revision']);
 
         // =====================================================
         // DEFINE ROLES

@@ -52,20 +52,28 @@ Route::middleware('auth')->group(function () {
         Route::resource('settings', SettingController::class)->only(['index', 'store']);
     });
 
+    Route::middleware('permission:manage budget revision')->group(function () {
+        Route::post('/settings/replikasi', [SettingController::class, 'buatReplikasi'])->name('settings.replikasi');
+        Route::post('/settings/active-version', [SettingController::class, 'setActiveVersion'])->name('settings.active-version');
+        Route::delete('/settings/version/{version}', [SettingController::class, 'destroyVersion'])->name('settings.destroy-version');
+        
+        Route::post('/settings/import-rba', [\App\Http\Controllers\RbaImportController::class, 'import'])->name('settings.import-rba');
+    });
+
     // Budget year selector dapat diakses semua user yang sudah login
     Route::post('/settings/budget-year', [SettingController::class, 'setBudgetYear'])->name('settings.budget-year');
 
     // =========================================================
     // Master Data (minimal: view master data)
     // =========================================================
-    Route::middleware('permission:view master data')->group(function () {
-        Route::resource('account-codes', AccountCodeController::class)->only(['index', 'show']);
-        Route::resource('vendors', VendorController::class)->only(['index', 'show']);
-    });
-
     Route::middleware('permission:manage master data')->group(function () {
         Route::resource('account-codes', AccountCodeController::class)->except(['index', 'show']);
         Route::resource('vendors', VendorController::class)->except(['index', 'show']);
+    });
+
+    Route::middleware('permission:view master data')->group(function () {
+        Route::resource('account-codes', AccountCodeController::class)->only(['index', 'show']);
+        Route::resource('vendors', VendorController::class)->only(['index', 'show']);
     });
 
     // =========================================================

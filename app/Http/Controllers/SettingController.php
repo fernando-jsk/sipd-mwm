@@ -8,12 +8,32 @@ use Inertia\Inertia;
 
 class SettingController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $settings = Setting::all()->keyBy('key');
         
+        $budgetYear = $request->session()->get('active_budget_year', date('Y'));
+        
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? 0);
+        
+        // Get all unique versions for the active year
+        $availableVersions = \App\Models\RbaDocument::where('budget_year', $budgetYear)
+            ->select('version', 'version_name')
+            ->distinct()
+            ->orderBy('version')
+            ->get();
+        
+        // If empty, mock the default 'Induk'
+        if ($availableVersions->isEmpty()) {
+            $availableVersions = collect([
+                (object) ['version' => 0, 'version_name' => 'Induk']
+            ]);
+        }
+
         return Inertia::render('Settings/Index', [
-            'settings' => $settings
+            'settings' => $settings,
+            'activeVersion' => $activeVersion,
+            'availableVersions' => $availableVersions
         ]);
     }
 
@@ -44,5 +64,104 @@ class SettingController extends Controller
         $request->session()->put('active_budget_year', $validated['year']);
 
         return redirect()->back()->with('message', "Tahun Anggaran diubah ke {$validated['year']}");
+    }
+
+    public function buatReplikasi(Request $request)
+    {
+        $validated = $request->validate([
+            'source_version' => 'required|integer',
+            'version_name' => 'required|string|max:255'
+        ]);
+
+        $budgetYear = $request->session()->get('active_budget_year', date('Y'));
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($budgetYear, $validated) {
+            $maxVersion = \App\Models\RbaDocument::where('budget_year', $budgetYear)->max('version') ?? 0;
+            $newVersion = $maxVersion + 1;
+
+            $documentsToDuplicate = \App\Models\RbaDocument::where('budget_year', $budgetYear)
+                ->where('version', $validated['source_version'])
+                ->get();
+
+            foreach ($documentsToDuplicate as $doc) {
+                $newDoc = $doc->replicate();
+                $newDoc->version = $newVersion;
+                $newDoc->version_name = $validated['version_name'];
+                $newDoc->status = 'draft';
+                $newDoc->save();
+
+                $oldDetails = \App\Models\RbaDetail::where('rba_document_id', $doc->id)
+                    ->orderBy('id', 'asc')
+                    ->get();
+                
+                $idMap = [];
+
+                foreach ($oldDetails as $oldDetail) {
+                    $newDetail = $oldDetail->replicate();
+                    $newDetail->rba_document_id = $newDoc->id;
+                    
+                    if ($oldDetail->parent_id && isset($idMap[$oldDetail->parent_id])) {
+                        $newDetail->parent_id = $idMap[$oldDetail->parent_id];
+                    }
+                    
+                    $newDetail->save();
+                    $idMap[$oldDetail->id] = $newDetail->id;
+                }
+            }
+        });
+
+        activity('setting')
+            ->log("Membuat replikasi RBA '{$validated['version_name']}' untuk tahun {$budgetYear}");
+
+        return redirect()->back()->with('message', 'Replikasi RBA berhasil dibuat.');
+    }
+
+    public function setActiveVersion(Request $request)
+    {
+        $validated = $request->validate([
+            'version' => 'required|integer'
+        ]);
+
+        $budgetYear = $request->session()->get('active_budget_year', date('Y'));
+        
+        Setting::updateOrCreate(
+            ['key' => "rba_active_version_{$budgetYear}"],
+            ['value' => (string) $validated['version']]
+        );
+
+        activity('setting')
+            ->log("Mengubah tahapan aktif RBA tahun {$budgetYear} ke versi {$validated['version']}");
+
+        return redirect()->back()->with('message', 'Tahapan RBA aktif berhasil diubah.');
+    }
+
+    public function destroyVersion(Request $request, $version)
+    {
+        $version = (int) $version;
+        if ($version === 0) {
+            return redirect()->back()->with('error', 'Versi Induk (0) tidak boleh dihapus.');
+        }
+
+        $budgetYear = $request->session()->get('active_budget_year', date('Y'));
+
+        \App\Models\RbaDocument::where('budget_year', $budgetYear)
+            ->where('version', $version)
+            ->delete(); // Cascade will delete rba_details
+
+        // If the active version was deleted, reset active version to 0 or highest remaining
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? 0);
+        
+        if ($activeVersion === $version) {
+            $highestRemaining = \App\Models\RbaDocument::where('budget_year', $budgetYear)->max('version') ?? 0;
+            Setting::updateOrCreate(
+                ['key' => "rba_active_version_{$budgetYear}"],
+                ['value' => (string) $highestRemaining]
+            );
+        }
+
+        activity('setting')
+            ->log("Menghapus permanen RBA versi {$version} tahun anggaran {$budgetYear}");
+
+        return redirect()->back()->with('message', 'Versi RBA berhasil dihapus secara permanen.');
     }
 }

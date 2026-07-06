@@ -14,6 +14,14 @@ import AccountTreeRow from '@/Components/AccountTreeRow.vue';
 const props = defineProps({
     activeTree: Array,
     leafAccounts: Array,
+    currentVersion: {
+        type: Number,
+        default: 0
+    },
+    currentVersionName: {
+        type: String,
+        default: 'Induk'
+    }
 });
 
 const isAddDialogOpen = ref(false);
@@ -58,7 +66,12 @@ const createDocument = (accountCodeId) => {
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
-                    <h2 class="font-semibold text-xl text-secondary leading-tight">Perencanaan RBA</h2>
+                    <div class="flex items-center gap-3">
+                        <h2 class="font-semibold text-xl text-secondary dark:text-foreground leading-tight">Perencanaan RBA</h2>
+                        <div class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                            Versi Aktif: {{ props.currentVersionName }}
+                        </div>
+                    </div>
                 </div>
                 <Dialog v-model:open="isAddDialogOpen">
                     <DialogTrigger as-child>
