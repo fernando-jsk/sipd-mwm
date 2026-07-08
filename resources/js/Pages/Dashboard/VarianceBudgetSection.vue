@@ -209,7 +209,7 @@ const lineChartOptions = {
 const deptBarData = computed(() => ({
     labels: deptWithVariance.value.map(d => d.name.split(' ').slice(-2).join(' ')), // shorten label
     datasets: [{
-        label: 'Variance (%)',
+        label: 'Selisih (%)',
         data: deptWithVariance.value.map(d => d.variancePct),
         backgroundColor: deptWithVariance.value.map(d =>
             d.variancePct > 15  ? 'rgba(251,113,133,0.85)'
@@ -238,7 +238,7 @@ const deptBarOptions = {
                 label: (ctx) => {
                     const d = deptWithVariance.value[ctx.dataIndex];
                     return [
-                        ` Variance: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw}%`,
+                        ` Persentase: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw}%`,
                         ` Selisih: ${formatRupiah(d.variance)}`,
                     ];
                 },
@@ -323,7 +323,7 @@ function deptSeverity(pct) {
         <div class="flex items-center gap-3">
             <div class="w-1 h-8 rounded-full bg-blue-500"></div>
             <div>
-                <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Variance Budget</h2>
+                <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Selisih Anggaran</h2>
                 <p class="text-xs text-muted-foreground mt-0.5">Anggaran vs Realisasi · Periode: Juli 2025</p>
             </div>
         </div>
@@ -337,7 +337,7 @@ function deptSeverity(pct) {
                 revVariance >= 0 ? 'bg-emerald-50/80 border-emerald-200' : 'bg-rose-50/80 border-rose-200'
             ]">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Variance Pendapatan</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Selisih Pendapatan</span>
                     <div :class="['w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200', revVariance >= 0 ? 'bg-emerald-500/15' : 'bg-rose-500/15']">
                         <TrendingUp v-if="revVariance >= 0" class="w-4 h-4 text-emerald-600" />
                         <TrendingDown v-else class="w-4 h-4 text-rose-500" />
@@ -362,7 +362,7 @@ function deptSeverity(pct) {
                 expVariance <= 0 ? 'bg-emerald-50/80 border-emerald-200' : expVariancePct <= 15 ? 'bg-amber-50/80 border-amber-300' : 'bg-rose-50/80 border-rose-300'
             ]">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Variance Pengeluaran</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Selisih Pengeluaran</span>
                     <div :class="[
                         'w-8 h-8 rounded-lg flex items-center justify-center',
                         expVariance <= 0 ? 'bg-emerald-500/15' : expVariancePct <= 15 ? 'bg-amber-500/15' : 'bg-rose-500/15'
@@ -385,7 +385,7 @@ function deptSeverity(pct) {
                 ]">
                     <CheckCircle v-if="expVariance <= 0" class="w-3.5 h-3.5 flex-shrink-0" />
                     <AlertTriangle v-else class="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>{{ expVariance <= 0 ? 'Efisien — Di bawah anggaran' : expVariancePct <= 15 ? 'Over budget (ringan)' : 'OVER BUDGET — Perhatian!' }}</span>
+                    <span>{{ expVariance <= 0 ? 'Efisien — Di bawah anggaran' : expVariancePct <= 15 ? 'Melebihi anggaran (ringan)' : 'MELEBIHI ANGGARAN — Perhatian!' }}</span>
                 </div>
             </div>
 
@@ -415,7 +415,7 @@ function deptSeverity(pct) {
                 netVariance >= 0 ? 'bg-card border-border/80' : 'bg-rose-50/80 border-rose-200'
             ]">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Net Variance (Laba)</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Selisih Bersih (Laba)</span>
                     <div :class="['w-8 h-8 rounded-lg flex items-center justify-center', netVariance >= 0 ? 'bg-blue-500/10' : 'bg-rose-500/15']">
                         <Target :class="['w-4 h-4', netVariance >= 0 ? 'text-blue-600' : 'text-rose-500']" />
                     </div>
@@ -487,7 +487,7 @@ function deptSeverity(pct) {
 
             <!-- Variance Summary Bar per Month -->
             <div class="px-5 pb-5">
-                <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Variance per Bulan</p>
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Selisih per Bulan</p>
                 <div class="grid grid-cols-7 gap-1.5">
                     <div
                         v-for="(m, i) in months"
@@ -525,14 +525,14 @@ function deptSeverity(pct) {
                     <div>
                         <h3 class="text-sm font-semibold text-secondary flex items-center gap-2">
                             <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse inline-block"></span>
-                            Red Flag Departments
+                            Departemen Perlu Perhatian
                         </h3>
                         <p class="text-xs text-muted-foreground mt-0.5">
-                            {{ redFlagDepts.length }} departemen over budget bulan ini
+                            {{ redFlagDepts.length }} departemen melebihi anggaran bulan ini
                         </p>
                     </div>
                     <span class="text-[10px] bg-rose-100 text-rose-700 border border-rose-200 rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">
-                        {{ redFlagDepts.length }} Over Budget
+                        {{ redFlagDepts.length }} Melebihi Anggaran
                     </span>
                 </div>
 
@@ -609,8 +609,8 @@ function deptSeverity(pct) {
             <!-- Variance Horizontal Bar Chart (2/5) -->
             <div class="lg:col-span-2 bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-border/60">
-                    <h3 class="text-sm font-semibold text-secondary">Variance % per Departemen</h3>
-                    <p class="text-xs text-muted-foreground mt-0.5">Merah = over budget · Hijau = efisien</p>
+                    <h3 class="text-sm font-semibold text-secondary">Persentase Selisih per Departemen</h3>
+                    <p class="text-xs text-muted-foreground mt-0.5">Merah = melebihi anggaran · Hijau = efisien</p>
                 </div>
                 <div class="p-4" style="height: 360px;">
                     <Bar :data="deptBarData" :options="deptBarOptions" />
@@ -623,8 +623,8 @@ function deptSeverity(pct) {
         <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                 <div>
-                    <h3 class="text-sm font-semibold text-secondary">Tabel Ringkasan Variance</h3>
-                    <p class="text-xs text-muted-foreground mt-0.5">Pendapatan: variance (+) = bagus · Pengeluaran: variance (+) = bahaya</p>
+                    <h3 class="text-sm font-semibold text-secondary">Tabel Ringkasan Selisih</h3>
+                    <p class="text-xs text-muted-foreground mt-0.5">Pendapatan: selisih (+) = bagus · Pengeluaran: selisih (+) = bahaya</p>
                 </div>
             </div>
 
@@ -636,7 +636,7 @@ function deptSeverity(pct) {
                             <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Anggaran</th>
                             <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Realisasi</th>
                             <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Selisih (Rp)</th>
-                            <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Variance %</th>
+                            <th class="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Selisih %</th>
                             <th class="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
                         </tr>
                     </thead>
@@ -690,7 +690,7 @@ function deptSeverity(pct) {
                                     : expVariancePct <= 15 ? 'bg-amber-100 text-amber-700 border-amber-200'
                                     : 'bg-rose-100 text-rose-700 border-rose-200'
                                 ]">
-                                    {{ expVariance <= 0 ? '✅ Efisien' : expVariancePct <= 15 ? '⚠️ Over' : '🔴 Bahaya' }}
+                                    {{ expVariance <= 0 ? '✅ Efisien' : expVariancePct <= 15 ? '⚠️ Melebihi' : '🔴 Bahaya' }}
                                 </span>
                             </td>
                         </tr>
