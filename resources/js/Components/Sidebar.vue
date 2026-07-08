@@ -1,7 +1,7 @@
 <script setup>
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { LogOut, Calendar } from '@lucide/vue';
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import {
   Select,
   SelectContent,
@@ -36,17 +36,40 @@ const changeYear = (year) => {
         }
     });
 };
+
+const navRef = ref(null);
+
+const handleScroll = (e) => {
+    sessionStorage.setItem('sidebar-scroll', e.target.scrollTop);
+};
+
+onMounted(() => {
+    if (navRef.value) {
+        const savedScroll = sessionStorage.getItem('sidebar-scroll');
+        if (savedScroll) {
+            navRef.value.scrollTop = parseInt(savedScroll, 10);
+            
+            // Double check inside requestAnimationFrame/timeout to ensure layout has settled
+            requestAnimationFrame(() => {
+                if (navRef.value) {
+                    navRef.value.scrollTop = parseInt(savedScroll, 10);
+                }
+            });
+        }
+    }
+});
 </script>
 
 <template>
     <aside class="w-64 bg-card border-r border-border/80 hidden md:flex flex-col h-full shadow-sm">
         <!-- App Title -->
-        <div class="h-16 flex items-center px-6 border-b border-border/80">
+        <div class="h-16 flex items-center px-6 border-b border-border/80 gap-3">
+            <img src="/images/logo-mwm.png" alt="Logo MWM" class="h-8 w-auto shrink-0" />
             <span class="text-xl font-bold tracking-tight text-secondary dark:text-foreground">SIPD MWM</span>
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+        <nav ref="navRef" class="flex-1 overflow-y-auto p-4 space-y-1" @scroll="handleScroll">
             <Link href="/dashboard" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
                 Dashboard
             </Link>
