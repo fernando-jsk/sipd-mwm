@@ -269,7 +269,7 @@ const submit = () => {
                     <CardDescription class="text-xs text-muted-foreground mt-0.5">Unggah file Excel (.xlsx) Kertas Kerja RBA untuk diparsing otomatis menjadi struktur pohon rincian.</CardDescription>
                 </CardHeader>
                 
-                <CardContent class="pt-6">
+                <CardContent>
                     <form @submit.prevent="submitImport" class="space-y-6">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div class="space-y-2">
