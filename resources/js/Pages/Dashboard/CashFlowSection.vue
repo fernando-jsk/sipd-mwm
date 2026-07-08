@@ -177,7 +177,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
         <div class="flex items-center gap-3">
             <div class="w-1 h-8 rounded-full bg-primary"></div>
             <div>
-                <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Cash Flow</h2>
+                <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Arus Kas</h2>
                 <p class="text-xs text-muted-foreground mt-0.5">Arus kas riil · Periode: Juli 2025</p>
             </div>
         </div>
@@ -188,7 +188,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
             <!-- KPI: Cash In -->
             <div class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Cash In</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Pemasukan</span>
                     <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors duration-200">
                         <ArrowUpRight class="w-4 h-4 text-emerald-600" />
                     </div>
@@ -208,7 +208,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
             <!-- KPI: Cash Out -->
             <div class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Cash Out</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Pengeluaran</span>
                     <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-200">
                         <ArrowDownRight class="w-4 h-4 text-primary" />
                     </div>
@@ -233,7 +233,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
                     : 'bg-rose-50/80 border-rose-200'
             ]">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Net Cash Flow</span>
+                    <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Arus Kas Bersih</span>
                     <div :class="[
                         'w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200',
                         netCashFlow >= 0 ? 'bg-emerald-500/15' : 'bg-rose-500/15'
@@ -262,7 +262,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
             <div class="lg:col-span-3 bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-semibold text-secondary">Tren Cash In vs Cash Out</h3>
+                        <h3 class="text-sm font-semibold text-secondary">Tren Pemasukan vs Pengeluaran</h3>
                         <p class="text-xs text-muted-foreground mt-0.5">7 bulan terakhir (Jan – Jul 2025)</p>
                     </div>
                     <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">Bulanan</span>
@@ -276,7 +276,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
             <div class="lg:col-span-2 bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
                 <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                     <div>
-                        <h3 class="text-sm font-semibold text-secondary">Breakdown Cash Out</h3>
+                        <h3 class="text-sm font-semibold text-secondary">Rincian Pengeluaran</h3>
                         <p class="text-xs text-muted-foreground mt-0.5">Distribusi pengeluaran Juli 2025</p>
                     </div>
                 </div>
