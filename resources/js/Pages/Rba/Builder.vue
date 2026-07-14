@@ -13,12 +13,20 @@ import {
 import { 
     Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue 
 } from '@/Components/ui/select';
-import { ArrowLeft, Plus } from 'lucide-vue-next';
+import { ArrowLeft, Plus, Settings } from 'lucide-vue-next';
 import RbaTreeRow from '@/Components/RbaTreeRow.vue';
 
 const props = defineProps({
     rbaDocument: Object,
     rbaDetails: Array,
+    fundingSources: {
+        type: Array,
+        default: () => []
+    },
+    users: {
+        type: Array,
+        default: () => []
+    }
 });
 
 // Convert flat list to recursive tree and calculate Header totals
@@ -171,6 +179,27 @@ const submitForm = () => {
         });
     }
 };
+
+// Document Settings State
+const isSettingsDialogOpen = ref(false);
+const settingsForm = useForm({
+    funding_source_id: props.rbaDocument.funding_source_id ? props.rbaDocument.funding_source_id.toString() : '',
+    pptk_id: props.rbaDocument.pptk_id ? props.rbaDocument.pptk_id.toString() : ''
+});
+
+const openSettingsDialog = () => {
+    settingsForm.funding_source_id = props.rbaDocument.funding_source_id ? props.rbaDocument.funding_source_id.toString() : '';
+    settingsForm.pptk_id = props.rbaDocument.pptk_id ? props.rbaDocument.pptk_id.toString() : '';
+    settingsForm.clearErrors();
+    isSettingsDialogOpen.value = true;
+};
+
+const saveSettings = () => {
+    settingsForm.put(`/rba/documents/${props.rbaDocument.id}`, {
+        preserveScroll: true,
+        onSuccess: () => { isSettingsDialogOpen.value = false; }
+    });
+};
 </script>
 
 <template>
@@ -178,20 +207,26 @@ const submitForm = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center gap-4">
-                <Button as-child variant="outline" size="icon" class="h-8 w-8">
-                    <Link href="/rba">
+            <div class="flex items-center gap-4 w-full">
+                <Button as-child variant="outline" size="icon" class="h-8 w-8 shrink-0">
+                    <Link :href="rbaDocument.account_code.code.startsWith('4') ? '/rba/pendapatan' : '/rba/belanja'">
                         <ArrowLeft class="h-4 w-4" />
                     </Link>
                 </Button>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h2 class="font-semibold text-xl text-gray-800 leading-tight">Susun Rencana Bisnis dan Anggaran (RBA)</h2>
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary text-white uppercase tracking-wider">
-                            {{ rbaDocument.version_name }}
-                        </span>
+                <div class="flex-1 flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ rbaDocument.account_code.code }} - {{ rbaDocument.account_code.name }}</h2>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-primary text-white uppercase tracking-wider">
+                                {{ rbaDocument.version_name }}
+                            </span>
+                        </div>
+                        <p class="text-sm text-muted-foreground">PPTK: {{ rbaDocument.pptk ? rbaDocument.pptk.name : 'Belum Ditentukan' }}</p>
                     </div>
-                    <p class="text-sm text-muted-foreground">{{ rbaDocument.account_code.code }} - {{ rbaDocument.account_code.name }}</p>
+                    
+                    <Button variant="outline" size="sm" class="gap-2 my-auto" @click="openSettingsDialog">
+                        <Settings class="w-4 h-4" /> Pengaturan
+                    </Button>
                 </div>
             </div>
         </template>
@@ -346,6 +381,62 @@ const submitForm = () => {
                     <Button variant="outline" @click="isDeleteDialogOpen = false">Batal</Button>
                     <Button variant="destructive" @click="executeDelete">Ya, Hapus Permanen</Button>
                 </div>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Dialog Pengaturan Dokumen -->
+        <Dialog v-model:open="isSettingsDialogOpen">
+            <DialogContent class="sm:max-w-[450px]">
+                <DialogHeader>
+                    <DialogTitle>Pengaturan Dokumen RBA</DialogTitle>
+                    <DialogDescription>
+                        Ubah pengaturan sumber dana dan penanggung jawab dokumen.
+                    </DialogDescription>
+                </DialogHeader>
+                
+                <form @submit.prevent="saveSettings" class="space-y-4 py-4">
+                    <div class="space-y-2">
+                        <Label for="funding_source_id">Sumber Dana <span class="text-destructive">*</span></Label>
+                        <Select v-model="settingsForm.funding_source_id" required>
+                            <SelectTrigger id="funding_source_id">
+                                <SelectValue placeholder="Pilih Sumber Dana" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="fs in fundingSources" :key="fs.id" :value="fs.id.toString()">
+                                        {{ fs.name }} <span v-if="fs.code" class="text-muted-foreground text-xs ml-1">({{ fs.code }})</span>
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="settingsForm.errors.funding_source_id" class="text-[10px] text-destructive">{{ settingsForm.errors.funding_source_id }}</p>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <Label for="pptk_id">Penanggung Jawab (PPTK) <span class="text-destructive">*</span></Label>
+                        <Select v-model="settingsForm.pptk_id" required>
+                            <SelectTrigger id="pptk_id">
+                                <SelectValue placeholder="Pilih PPTK" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">
+                                        {{ user.name }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="settingsForm.errors.pptk_id" class="text-[10px] text-destructive">{{ settingsForm.errors.pptk_id }}</p>
+                    </div>
+                    
+                    <DialogFooter class="mt-6 pt-4 border-t">
+                        <Button type="button" variant="outline" @click="isSettingsDialogOpen = false" :disabled="settingsForm.processing">Batal</Button>
+                        <Button type="submit" variant="default" :disabled="settingsForm.processing || !settingsForm.funding_source_id || !settingsForm.pptk_id">
+                            <span v-if="settingsForm.processing">Menyimpan...</span>
+                            <span v-else>Simpan Perubahan</span>
+                        </Button>
+                    </DialogFooter>
+                </form>
             </DialogContent>
         </Dialog>
     </AuthenticatedLayout>

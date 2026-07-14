@@ -30,10 +30,13 @@ class SettingController extends Controller
             ]);
         }
 
+        $fundingSources = \App\Models\FundingSource::orderBy('name')->get();
+
         return Inertia::render('Settings/Index', [
             'settings' => $settings,
             'activeVersion' => $activeVersion,
-            'availableVersions' => $availableVersions
+            'availableVersions' => $availableVersions,
+            'fundingSources' => $fundingSources
         ]);
     }
 
@@ -163,5 +166,50 @@ class SettingController extends Controller
             ->log("Menghapus permanen RBA versi {$version} tahun anggaran {$budgetYear}");
 
         return redirect()->back()->with('message', 'Versi RBA berhasil dihapus secara permanen.');
+    }
+
+    public function storeFundingSource(Request $request)
+    {
+        $validated = $request->validate([
+            'code' => 'nullable|string|max:255',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        \App\Models\FundingSource::create($validated);
+
+        activity('setting')->log('Menambahkan master data Sumber Dana baru: ' . $validated['name']);
+
+        return redirect()->back()->with('message', 'Sumber Dana berhasil ditambahkan.');
+    }
+
+    public function updateFundingSource(Request $request, \App\Models\FundingSource $fundingSource)
+    {
+        $validated = $request->validate([
+            'code' => 'nullable|string|max:255',
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        $fundingSource->update($validated);
+
+        activity('setting')->log('Memperbarui master data Sumber Dana: ' . $validated['name']);
+
+        return redirect()->back()->with('message', 'Sumber Dana berhasil diperbarui.');
+    }
+
+    public function destroyFundingSource(\App\Models\FundingSource $fundingSource)
+    {
+        // Check if used in RbaDocuments or AccountCodes
+        if ($fundingSource->rbaDocuments()->exists() || $fundingSource->accountCodes()->exists()) {
+            return redirect()->back()->with('error', 'Sumber Dana tidak dapat dihapus karena sudah digunakan dalam transaksi atau master data kode rekening.');
+        }
+
+        $name = $fundingSource->name;
+        $fundingSource->delete();
+
+        activity('setting')->log('Menghapus master data Sumber Dana: ' . $name);
+
+        return redirect()->back()->with('message', 'Sumber Dana berhasil dihapus.');
     }
 }

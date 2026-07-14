@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/ui/card';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/Components/ui/table';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/Components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/Components/ui/dialog';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { Label } from '@/Components/ui/label';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { ArrowRight, FolderOpen, Plus, Search } from 'lucide-vue-next';
 import AccountTreeRow from '@/Components/AccountTreeRow.vue';
@@ -21,6 +23,18 @@ const props = defineProps({
     currentVersionName: {
         type: String,
         default: 'Induk'
+    },
+    fundingSources: {
+        type: Array,
+        default: () => []
+    },
+    users: {
+        type: Array,
+        default: () => []
+    },
+    rbaType: {
+        type: String,
+        default: 'Belanja'
     }
 });
 
@@ -36,18 +50,58 @@ const filteredLeaves = computed(() => {
     );
 });
 
-const createDocument = (accountCodeId) => {
-    router.post('/rba/documents', { account_code_id: accountCodeId }, {
+const isSetupDialogOpen = ref(false);
+const selectedAccount = ref(null);
+
+const documentForm = useForm({
+    account_code_id: '',
+    funding_source_id: '',
+    pptk_id: ''
+});
+
+const openSetupDocument = (acc) => {
+    selectedAccount.value = acc;
+    documentForm.account_code_id = acc.id;
+    documentForm.funding_source_id = '';
+    documentForm.pptk_id = '';
+    documentForm.clearErrors();
+    
+    isAddDialogOpen.value = false;
+    isSetupDialogOpen.value = true;
+};
+
+const submitDocument = () => {
+    documentForm.post('/rba/documents', {
         onSuccess: () => {
-            isAddDialogOpen.value = false;
+            isSetupDialogOpen.value = false;
             searchQuery.value = '';
+            selectedAccount.value = null;
+        }
+    });
+};
+
+const isDeleteDialogOpen = ref(false);
+const documentToDelete = ref(null);
+
+const confirmDeleteDocument = (row) => {
+    documentToDelete.value = row;
+    isDeleteDialogOpen.value = true;
+};
+
+const deleteDocument = () => {
+    if (!documentToDelete.value || !documentToDelete.value.rba_document_id) return;
+    
+    router.delete(`/rba/documents/${documentToDelete.value.rba_document_id}`, {
+        onSuccess: () => {
+            isDeleteDialogOpen.value = false;
+            documentToDelete.value = null;
         }
     });
 };
 </script>
 
 <template>
-    <Head title="Kertas Kerja RBA" />
+    <Head :title="`Kertas Kerja RBA ${props.rbaType}`" />
 
     <AuthenticatedLayout>
         <template #header>
@@ -62,12 +116,12 @@ const createDocument = (accountCodeId) => {
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
-                                <BreadcrumbPage class="text-xs">RBA</BreadcrumbPage>
+                                <BreadcrumbPage class="text-xs">RBA {{ props.rbaType }}</BreadcrumbPage>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
                     <div class="flex items-center gap-3">
-                        <h2 class="font-semibold text-xl text-secondary dark:text-foreground leading-tight">Perencanaan RBA</h2>
+                        <h2 class="font-semibold text-xl text-secondary dark:text-foreground leading-tight">Kertas Kerja RBA {{ props.rbaType }}</h2>
                         <div class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
                             Versi Aktif: {{ props.currentVersionName }}
                         </div>
@@ -107,8 +161,8 @@ const createDocument = (accountCodeId) => {
                                         <TableCell class="font-medium">{{ acc.code }}</TableCell>
                                         <TableCell>{{ acc.name }}</TableCell>
                                         <TableCell class="text-right">
-                                            <Button @click="createDocument(acc.id)" variant="outline" size="sm">
-                                                Tambah
+                                            <Button @click="openSetupDocument(acc)" variant="outline" size="sm">
+                                                Pilih
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -127,6 +181,82 @@ const createDocument = (accountCodeId) => {
                         </div>
                     </DialogContent>
                 </Dialog>
+
+                <!-- Dialog Setup Document -->
+                <Dialog v-model:open="isSetupDialogOpen">
+                    <DialogContent class="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Pengaturan Dokumen RBA</DialogTitle>
+                            <DialogDescription>
+                                Tentukan sumber dana dan PPTK penanggung jawab untuk <strong>{{ selectedAccount?.name }}</strong>.
+                            </DialogDescription>
+                        </DialogHeader>
+                        
+                        <form @submit.prevent="submitDocument" class="space-y-4 py-4">
+                            <div class="space-y-2">
+                                <Label for="funding_source_id">Sumber Dana <span class="text-destructive">*</span></Label>
+                                <Select v-model="documentForm.funding_source_id" required>
+                                    <SelectTrigger id="funding_source_id">
+                                        <SelectValue placeholder="Pilih Sumber Dana" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem v-for="fs in fundingSources" :key="fs.id" :value="fs.id.toString()">
+                                                {{ fs.name }} <span v-if="fs.code" class="text-muted-foreground text-xs ml-1">({{ fs.code }})</span>
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="documentForm.errors.funding_source_id" class="text-[10px] text-destructive">{{ documentForm.errors.funding_source_id }}</p>
+                            </div>
+                            
+                            <div class="space-y-2">
+                                <Label for="pptk_id">Penanggung Jawab (PPTK) <span class="text-destructive">*</span></Label>
+                                <Select v-model="documentForm.pptk_id" required>
+                                    <SelectTrigger id="pptk_id">
+                                        <SelectValue placeholder="Pilih PPTK" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">
+                                                {{ user.name }}
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="documentForm.errors.pptk_id" class="text-[10px] text-destructive">{{ documentForm.errors.pptk_id }}</p>
+                            </div>
+                            
+                            <DialogFooter class="mt-6 pt-4 border-t">
+                                <Button type="button" variant="outline" @click="isSetupDialogOpen = false; isAddDialogOpen = true" :disabled="documentForm.processing">Kembali</Button>
+                                <Button type="submit" variant="default" :disabled="documentForm.processing || !documentForm.funding_source_id || !documentForm.pptk_id">
+                                    <span v-if="documentForm.processing">Memproses...</span>
+                                    <span v-else>Buat Dokumen</span>
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                <!-- Delete Confirmation Dialog -->
+                <Dialog v-model:open="isDeleteDialogOpen">
+                    <DialogContent class="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Konfirmasi Penghapusan</DialogTitle>
+                            <DialogDescription class="text-destructive font-semibold">
+                                Peringatan! Tindakan ini tidak dapat dibatalkan.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div class="py-4">
+                            <p class="text-sm">Anda yakin ingin menghapus Kertas Kerja RBA untuk rekening <strong>{{ documentToDelete?.code }} - {{ documentToDelete?.name }}</strong>?</p>
+                            <p class="text-sm mt-2 text-muted-foreground">Menghapus dokumen ini juga akan menghapus <strong>seluruh rincian</strong> yang ada di dalamnya secara permanen.</p>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" @click="isDeleteDialogOpen = false">Batal</Button>
+                            <Button variant="destructive" @click="deleteDocument">Hapus Permanen</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </template>
 
@@ -134,7 +264,7 @@ const createDocument = (accountCodeId) => {
             <Card>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">
-                        <FolderOpen class="w-5 h-5" /> Dokumen RBA Aktif
+                        <FolderOpen class="w-5 h-5" /> Dokumen RBA Aktif ({{ props.rbaType }})
                     </CardTitle>
                     <CardDescription>
                         Daftar rekening yang telah dianggarkan pada tahun aktif. Klik tombol Tambah di pojok kanan atas untuk memasukkan rekening baru.
@@ -158,6 +288,7 @@ const createDocument = (accountCodeId) => {
                                         :key="node.id" 
                                         :row="node" 
                                         :level="0" 
+                                        @delete-document="confirmDeleteDocument"
                                     />
                                 </template>
                                 <TableRow v-else>

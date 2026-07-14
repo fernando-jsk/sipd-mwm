@@ -24,7 +24,7 @@ const props = defineProps({
 
 const emit = defineEmits(['addHeader', 'addItem', 'edit', 'delete']);
 
-const isExpanded = ref(true);
+const isExpanded = ref(false);
 
 const hasChildren = computed(() => props.row.children && props.row.children.length > 0);
 

@@ -11,9 +11,7 @@ use Spatie\Activitylog\LogOptions;
 class AccountCode extends Model
 {
     use HasFactory, LogsActivity;
-
-    protected $fillable = ['parent_id', 'level', 'code', 'name', 'description', 'is_active'];
-
+    protected $fillable = ['parent_id', 'level', 'code', 'name', 'description', 'is_active', 'funding_source_id'];
     protected function casts(): array
     {
         return [
@@ -35,6 +33,11 @@ class AccountCode extends Model
     public function rbaDocuments(): HasMany
     {
         return $this->hasMany(RbaDocument::class);
+    }
+
+    public function fundingSource()
+    {
+        return $this->belongsTo(FundingSource::class);
     }
 
     public function getActivitylogOptions(): LogOptions

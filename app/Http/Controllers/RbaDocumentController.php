@@ -17,8 +17,13 @@ class RbaDocumentController extends Controller
         $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? 0);
         $activeVersionName = RbaDocument::where('budget_year', $budgetYear)->where('version', $activeVersion)->value('version_name') ?? 'Induk';
 
+        $isPendapatan = $request->routeIs('rba.pendapatan');
+        $rbaType = $isPendapatan ? 'Pendapatan' : 'Belanja';
+        $prefix = $isPendapatan ? '4' : '5';
+
         // 1. Get ALL account codes and their associated document for the active year and active version
-        $allAccounts = AccountCode::with(['rbaDocuments' => function ($query) use ($budgetYear, $activeVersion) {
+        $allAccounts = AccountCode::where('code', 'like', $prefix . '%')
+            ->with(['rbaDocuments' => function ($query) use ($budgetYear, $activeVersion) {
                 $query->where('budget_year', $budgetYear)->where('version', $activeVersion);
             }])
             ->orderBy('code')
@@ -92,25 +97,34 @@ class RbaDocumentController extends Controller
 
         // 3. Get Leaf accounts for the Add Modal search
         // Exclude those that already have a document for this year and active version!
-        $leafAccounts = AccountCode::whereDoesntHave('children')
+        $leafAccounts = AccountCode::where('code', 'like', $prefix . '%')
+            ->whereDoesntHave('children')
             ->whereDoesntHave('rbaDocuments', function ($query) use ($budgetYear, $activeVersion) {
                 $query->where('budget_year', $budgetYear)->where('version', $activeVersion);
             })
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
+        $fundingSources = \App\Models\FundingSource::orderBy('name')->get(['id', 'name']);
+        $users = \App\Models\User::orderBy('name')->get(['id', 'name']);
+
         return Inertia::render('Rba/Index', [
             'activeTree' => $activeTree,
             'leafAccounts' => $leafAccounts,
             'currentVersion' => $activeVersion,
-            'currentVersionName' => $activeVersionName
+            'currentVersionName' => $activeVersionName,
+            'fundingSources' => $fundingSources,
+            'users' => $users,
+            'rbaType' => $rbaType
         ]);
     }
 
     public function store(Request $request)
     {
         $request->validate([
-            'account_code_id' => 'required|exists:account_codes,id'
+            'account_code_id' => 'required|exists:account_codes,id',
+            'funding_source_id' => 'required|exists:funding_sources,id',
+            'pptk_id' => 'required|exists:users,id'
         ]);
 
         $budgetYear = $request->session()->get('active_budget_year', date('Y'));
@@ -130,6 +144,8 @@ class RbaDocumentController extends Controller
 
         RbaDocument::create([
             'account_code_id' => $request->account_code_id,
+            'funding_source_id' => $request->funding_source_id,
+            'pptk_id' => $request->pptk_id,
             'budget_year' => $budgetYear,
             'version' => $activeVersion,
             'version_name' => $activeVersionName,
@@ -138,5 +154,23 @@ class RbaDocumentController extends Controller
         ]);
 
         return back()->with('message', 'Dokumen RBA berhasil ditambahkan.');
+    }
+
+    public function update(Request $request, RbaDocument $rbaDocument)
+    {
+        $validated = $request->validate([
+            'funding_source_id' => 'required|exists:funding_sources,id',
+            'pptk_id' => 'required|exists:users,id'
+        ]);
+
+        $rbaDocument->update($validated);
+
+        return back()->with('message', 'Pengaturan dokumen RBA berhasil diperbarui.');
+    }
+
+    public function destroy(RbaDocument $rbaDocument)
+    {
+        $rbaDocument->delete();
+        return back()->with('message', 'Dokumen RBA beserta seluruh rinciannya berhasil dihapus.');
     }
 }

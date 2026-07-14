@@ -50,6 +50,11 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:manage settings')->group(function () {
         Route::resource('settings', SettingController::class)->only(['index', 'store']);
+        
+        // Funding Sources
+        Route::post('/settings/funding-sources', [SettingController::class, 'storeFundingSource'])->name('settings.funding-sources.store');
+        Route::put('/settings/funding-sources/{fundingSource}', [SettingController::class, 'updateFundingSource'])->name('settings.funding-sources.update');
+        Route::delete('/settings/funding-sources/{fundingSource}', [SettingController::class, 'destroyFundingSource'])->name('settings.funding-sources.destroy');
     });
 
     Route::middleware('permission:manage budget revision')->group(function () {
@@ -80,12 +85,15 @@ Route::middleware('auth')->group(function () {
     // Modul RBA / Perencanaan (minimal: view rba)
     // =========================================================
     Route::middleware('permission:view rba')->group(function () {
-        Route::get('/rba', [RbaDocumentController::class, 'index'])->name('rba.index');
+        Route::get('/rba/pendapatan', [RbaDocumentController::class, 'index'])->name('rba.pendapatan');
+        Route::get('/rba/belanja', [RbaDocumentController::class, 'index'])->name('rba.belanja');
         Route::get('/rba/{rbaDocument}', [RbaDetailController::class, 'builder'])->name('rba.builder');
     });
 
     Route::middleware('permission:manage rba')->group(function () {
         Route::post('/rba/documents', [RbaDocumentController::class, 'store'])->name('rba.documents.store');
+        Route::put('/rba/documents/{rbaDocument}', [RbaDocumentController::class, 'update'])->name('rba.documents.update');
+        Route::delete('/rba/documents/{rbaDocument}', [RbaDocumentController::class, 'destroy'])->name('rba.documents.destroy');
         Route::post('/rba/{rbaDocument}/details', [RbaDetailController::class, 'store'])->name('rba.store');
         Route::put('/rba/details/{rbaDetail}', [RbaDetailController::class, 'update'])->name('rba.update');
         Route::delete('/rba/details/{rbaDetail}', [RbaDetailController::class, 'destroy'])->name('rba.destroy');

@@ -14,16 +14,21 @@ class RbaDetailController extends Controller
 {
     public function builder(Request $request, RbaDocument $rbaDocument)
     {
-        $rbaDocument->load('accountCode');
+        $rbaDocument->load(['accountCode', 'pptk']);
         
         // Fetch all rba details for this document, order by ID to maintain insertion order
         $rbaDetails = RbaDetail::where('rba_document_id', $rbaDocument->id)
             ->orderBy('id', 'asc')
             ->get();
 
+        $fundingSources = \App\Models\FundingSource::orderBy('name')->get(['id', 'name', 'code']);
+        $users = \App\Models\User::orderBy('name')->get(['id', 'name']);
+
         return Inertia::render('Rba/Builder', [
             'rbaDocument' => $rbaDocument,
-            'rbaDetails' => $rbaDetails
+            'rbaDetails' => $rbaDetails,
+            'fundingSources' => $fundingSources,
+            'users' => $users
         ]);
     }
 
