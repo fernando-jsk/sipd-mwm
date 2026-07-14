@@ -204,7 +204,7 @@ const getEventType = (activity) => {
                     </div>
 
         <Dialog :open="isDetailsOpen" @update:open="isDetailsOpen = $event">
-            <DialogContent class="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogContent class="w-full sm:w-fit sm:max-w-[90vw] sm:min-w-[40rem] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle class="text-secondary dark:text-foreground">Detail Perubahan (Log ID: {{ selectedActivity?.id }})</DialogTitle>
                     <DialogDescription class="text-muted-foreground">

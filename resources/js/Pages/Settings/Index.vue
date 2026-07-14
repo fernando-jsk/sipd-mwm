@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Input } from '@/Components/ui/input';
-import { Trash2, AlertTriangle, UploadCloud } from 'lucide-vue-next';
+import { Trash2, AlertTriangle, UploadCloud, PlusCircle, Pencil } from 'lucide-vue-next';
 import { router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -27,6 +27,10 @@ const props = defineProps({
         default: 0
     },
     availableVersions: {
+        type: Array,
+        default: () => []
+    },
+    fundingSources: {
         type: Array,
         default: () => []
     }
@@ -118,6 +122,59 @@ const form = useForm({
 const submit = () => {
     form.post('/settings');
 };
+
+// ==========================================
+// Funding Source Management
+// ==========================================
+const isFsDialogOpen = ref(false);
+const isFsDeleteDialogOpen = ref(false);
+const fsToEdit = ref(null);
+const fsToDelete = ref(null);
+
+const fsForm = useForm({
+    code: '',
+    name: '',
+    description: ''
+});
+
+const openCreateFs = () => {
+    fsToEdit.value = null;
+    fsForm.reset();
+    fsForm.clearErrors();
+    isFsDialogOpen.value = true;
+};
+
+const openEditFs = (fs) => {
+    fsToEdit.value = fs;
+    fsForm.code = fs.code || '';
+    fsForm.name = fs.name;
+    fsForm.description = fs.description || '';
+    fsForm.clearErrors();
+    isFsDialogOpen.value = true;
+};
+
+const saveFs = () => {
+    if (fsToEdit.value) {
+        fsForm.put(`/settings/funding-sources/${fsToEdit.value.id}`, {
+            onSuccess: () => { isFsDialogOpen.value = false; }
+        });
+    } else {
+        fsForm.post('/settings/funding-sources', {
+            onSuccess: () => { isFsDialogOpen.value = false; }
+        });
+    }
+};
+
+const openDeleteFs = (fs) => {
+    fsToDelete.value = fs;
+    isFsDeleteDialogOpen.value = true;
+};
+
+const executeDeleteFs = () => {
+    router.delete(`/settings/funding-sources/${fsToDelete.value.id}`, {
+        onSuccess: () => { isFsDeleteDialogOpen.value = false; }
+    });
+};
 </script>
 
 <template>
@@ -147,6 +204,10 @@ const submit = () => {
 
         <div v-if="$page.props.flash?.message" class="mb-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 px-4 py-3 rounded-lg relative" role="alert">
             <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.message }}</span>
+        </div>
+        
+        <div v-if="$page.props.flash?.error" class="mb-4 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg relative" role="alert">
+            <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.error }}</span>
         </div>
 
         <div class="max-w-4xl mx-auto py-6">
@@ -190,6 +251,40 @@ const submit = () => {
                     </CardFooter>
                 </Card>
             </form>
+
+            <!-- Manajemen Master Sumber Dana -->
+            <Card class="border-border/80 shadow-sm mt-6">
+                <CardHeader class="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Master Data Sumber Dana</CardTitle>
+                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Kelola jenis-jenis sumber dana yang tersedia untuk RBA.</CardDescription>
+                    </div>
+                    <Button @click="openCreateFs" size="sm" class="gap-2">
+                        <PlusCircle class="w-4 h-4" /> Tambah Sumber Dana
+                    </Button>
+                </CardHeader>
+                <CardContent class="p-0">
+                    <div v-if="fundingSources.length === 0" class="p-6 text-center text-sm text-muted-foreground">
+                        Belum ada data sumber dana. Silakan tambah baru.
+                    </div>
+                    <div v-else class="divide-y divide-border">
+                        <div v-for="fs in fundingSources" :key="fs.id" class="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-sm">{{ fs.name }} <span v-if="fs.code" class="text-xs font-normal text-muted-foreground ml-2 border px-1.5 py-0.5 rounded">{{ fs.code }}</span></span>
+                                <span class="text-xs text-muted-foreground mt-1">{{ fs.description || '-' }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" class="text-muted-foreground hover:text-primary" @click="openEditFs(fs)">
+                                    <Pencil class="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive" @click="openDeleteFs(fs)">
+                                    <Trash2 class="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             <!-- Manajemen Versi RBA (Hanya jika punya akses) -->
             <Card v-if="canManageRevision" class="border-border/80 shadow-sm mt-6">
@@ -384,6 +479,65 @@ const submit = () => {
                                 Ya, Hapus Permanen
                             </Button>
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            <!-- Dialog Create/Edit Funding Source -->
+            <Dialog v-model:open="isFsDialogOpen">
+                <DialogContent class="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>{{ fsToEdit ? 'Edit Sumber Dana' : 'Tambah Sumber Dana Baru' }}</DialogTitle>
+                        <DialogDescription class="mt-2">
+                            Masukkan detail sumber dana yang dapat dipilih saat pembuatan dokumen RBA.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <form @submit.prevent="saveFs" class="space-y-4 py-4">
+                        <div class="space-y-2">
+                            <Label for="fs_code">Kode <span class="text-muted-foreground font-normal">(Opsional)</span></Label>
+                            <Input id="fs_code" v-model="fsForm.code" placeholder="Misal: BLUD" />
+                            <p v-if="fsForm.errors.code" class="text-[10px] text-destructive">{{ fsForm.errors.code }}</p>
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="fs_name">Nama Sumber Dana <span class="text-destructive">*</span></Label>
+                            <Input id="fs_name" v-model="fsForm.name" placeholder="Misal: BLUD RSUD" required />
+                            <p v-if="fsForm.errors.name" class="text-[10px] text-destructive">{{ fsForm.errors.name }}</p>
+                        </div>
+                        <div class="space-y-2">
+                            <Label for="fs_desc">Keterangan <span class="text-muted-foreground font-normal">(Opsional)</span></Label>
+                            <Input id="fs_desc" v-model="fsForm.description" placeholder="Deskripsi singkat..." />
+                            <p v-if="fsForm.errors.description" class="text-[10px] text-destructive">{{ fsForm.errors.description }}</p>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                            <Button type="button" variant="outline" @click="isFsDialogOpen = false" :disabled="fsForm.processing">Batal</Button>
+                            <Button type="submit" variant="default" :disabled="fsForm.processing">
+                                {{ fsForm.processing ? 'Menyimpan...' : 'Simpan' }}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <!-- Dialog Hapus Funding Source -->
+            <Dialog v-model:open="isFsDeleteDialogOpen">
+                <DialogContent class="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle class="text-destructive flex items-center gap-2">
+                            <AlertTriangle class="w-5 h-5" />
+                            Hapus Sumber Dana
+                        </DialogTitle>
+                        <DialogDescription class="mt-2">
+                            Apakah Anda yakin ingin menghapus sumber dana <strong>{{ fsToDelete?.name }}</strong>? Data yang dihapus tidak dapat dikembalikan.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                        <Button type="button" variant="outline" @click="isFsDeleteDialogOpen = false">Batal</Button>
+                        <Button type="button" variant="destructive" @click="executeDeleteFs">
+                            Ya, Hapus
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

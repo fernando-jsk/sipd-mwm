@@ -12,9 +12,7 @@ use Spatie\Activitylog\LogOptions;
 class RbaDocument extends Model
 {
     use HasFactory, LogsActivity;
-
-    protected $fillable = ['account_code_id', 'budget_year', 'version', 'status', 'total_budget'];
-
+    protected $fillable = ['account_code_id', 'funding_source_id', 'pptk_id', 'budget_year', 'version', 'version_name', 'status', 'total_budget'];
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -41,6 +39,16 @@ class RbaDocument extends Model
     public function rbaDetails(): HasMany
     {
         return $this->hasMany(RbaDetail::class);
+    }
+
+    public function fundingSource(): BelongsTo
+    {
+        return $this->belongsTo(FundingSource::class);
+    }
+
+    public function pptk(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pptk_id');
     }
 
     public function recalculateTotalBudget(): void
