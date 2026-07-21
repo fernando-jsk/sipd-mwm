@@ -98,4 +98,18 @@ Route::middleware('auth')->group(function () {
         Route::put('/rba/details/{rbaDetail}', [RbaDetailController::class, 'update'])->name('rba.update');
         Route::delete('/rba/details/{rbaDetail}', [RbaDetailController::class, 'destroy'])->name('rba.destroy');
     });
+
+    // =========================================================
+    // Modul Bendahara / Pengeluaran (SPPD -> OPD -> SPD)
+    // =========================================================
+    Route::get('/expenditures/sppd', [\App\Http\Controllers\ExpenditureController::class, 'sppdIndex'])->name('expenditures.sppd');
+    Route::get('/expenditures/opd', [\App\Http\Controllers\ExpenditureController::class, 'opdIndex'])->name('expenditures.opd');
+    Route::get('/expenditures/spd', [\App\Http\Controllers\ExpenditureController::class, 'spdIndex'])->name('expenditures.spd');
+
+    Route::get('/expenditures/{expenditure}/print-sppd', [\App\Http\Controllers\ExpenditureController::class, 'printSppd'])->name('expenditures.print-sppd');
+    Route::get('/expenditures/{expenditure}/print-opd', [\App\Http\Controllers\ExpenditureController::class, 'printOpd'])->name('expenditures.print-opd');
+    Route::get('/expenditures/{expenditure}/print-spd', [\App\Http\Controllers\ExpenditureController::class, 'printSpd'])->name('expenditures.print-spd');
+
+    Route::resource('expenditures', \App\Http\Controllers\ExpenditureController::class);
+    Route::patch('/expenditures/{expenditure}/status', [\App\Http\Controllers\ExpenditureController::class, 'updateStatus'])->name('expenditures.status');
 });

@@ -16,6 +16,7 @@ const activeYear = ref(page.props.active_budget_year || new Date().getFullYear()
 
 // Helper: cek apakah user memiliki permission tertentu
 const can = (permission) => {
+    if (page.props.auth?.roles?.includes('super-admin')) return true;
     return page.props.auth?.permissions?.includes(permission) ?? false;
 };
 
@@ -100,16 +101,19 @@ onMounted(() => {
                 </Link>
             </template>
 
-            <!-- Bendahara (modul belum aktif) -->
+            <!-- Bendahara -->
             <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                Bendahara
+                Bendahara &amp; Pengeluaran
             </div>
-            <a href="#" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
-                Penerimaan
-            </a>
-            <a href="#" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
-                Pengeluaran
-            </a>
+            <Link v-if="can('manage sppd')" href="/expenditures/sppd" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/expenditures/sppd') || $page.url === '/expenditures' }">
+                1. Pengajuan SPPD
+            </Link>
+            <Link v-if="can('authorize opd')" href="/expenditures/opd" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/expenditures/opd') }">
+                2. Otorisasi OPD (Direktur)
+            </Link>
+            <Link v-if="can('disburse spd')" href="/expenditures/spd" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/expenditures/spd') }">
+                3. Pencairan SPD (Kabag)
+            </Link>
 
             <!-- Akuntansi (modul belum aktif) -->
             <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
