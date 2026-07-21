@@ -49,13 +49,17 @@ class RoleAndUserSeeder extends Seeder
         Permission::create(['name' => 'manage rba']);
         Permission::create(['name' => 'manage budget revision']);
 
+        // Kelompok: Bendahara & Pengeluaran (SPPD -> OPD -> SPD)
+        Permission::create(['name' => 'manage sppd']);
+        Permission::create(['name' => 'authorize opd']);
+        Permission::create(['name' => 'disburse spd']);
+
         // =====================================================
         // DEFINE ROLES
         // =====================================================
 
         // 1. Super Admin — akses penuh ke semua fitur (Via Gate::before)
         $superAdmin = Role::create(['name' => 'super-admin']);
-        // super-admin tidak perlu syncPermissions lagi karena sudah bypass via Gate::before
 
         // 2. Tim Perencanaan — akses ke Master Data & Perencanaan RBA
         $timPerencanaan = Role::create(['name' => 'tim-perencanaan']);
@@ -66,7 +70,31 @@ class RoleAndUserSeeder extends Seeder
             'manage rba',
         ]);
 
-        // 3. Viewer — hanya dapat melihat data (read-only)
+        // 3. Bendahara — pengajuan SPPD
+        $bendaharaRole = Role::create(['name' => 'bendahara']);
+        $bendaharaRole->syncPermissions([
+            'view master data',
+            'view rba',
+            'manage sppd',
+        ]);
+
+        // 4. Direktur — otorisasi OPD
+        $direkturRole = Role::create(['name' => 'direktur']);
+        $direkturRole->syncPermissions([
+            'view master data',
+            'view rba',
+            'authorize opd',
+        ]);
+
+        // 5. Kabag Keuangan — verifikasi & pencairan SPD
+        $kabagRole = Role::create(['name' => 'kabag-keuangan']);
+        $kabagRole->syncPermissions([
+            'view master data',
+            'view rba',
+            'disburse spd',
+        ]);
+
+        // 6. Viewer — hanya dapat melihat data (read-only)
         $viewer = Role::create(['name' => 'viewer']);
         $viewer->syncPermissions([
             'view master data',
@@ -93,12 +121,28 @@ class RoleAndUserSeeder extends Seeder
         ]);
         $perencana->assignRole('tim-perencanaan');
 
-        // User 3: Viewer / Direksi
+        // User 3: Bendahara
+        $bendaharaUser = User::create([
+            'name'     => 'Bendahara Pengeluaran',
+            'username' => 'bendahara',
+            'password' => Hash::make('password'),
+        ]);
+        $bendaharaUser->assignRole('bendahara');
+
+        // User 4: Direktur
         $direksi = User::create([
-            'name'     => 'Direktur',
+            'name'     => 'Direktur Utama',
             'username' => 'direksi',
             'password' => Hash::make('password'),
         ]);
-        $direksi->assignRole('viewer');
+        $direksi->assignRole('direktur');
+
+        // User 5: Kabag Keuangan
+        $kabagUser = User::create([
+            'name'     => 'Kabag Keuangan',
+            'username' => 'kabag',
+            'password' => Hash::make('password'),
+        ]);
+        $kabagUser->assignRole('kabag-keuangan');
     }
 }
