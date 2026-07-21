@@ -84,7 +84,7 @@ class ExpenditureController extends Controller
         $validated = $request->validate([
             'document_number' => 'required|string|unique:expenditures,document_number',
             'date' => 'required|date',
-            'type' => 'required|in:UP,GU,TU,LS',
+            'type' => 'required|in:UP,GU,TU,LS,LS_Pegawai,LS_Barang_Jasa_Modal',
             'description' => 'required|string',
             'treasurer_id' => 'required|exists:users,id',
             'kpa_id' => 'required|exists:users,id',
@@ -188,7 +188,7 @@ class ExpenditureController extends Controller
         $validated = $request->validate([
             'document_number' => 'required|string|unique:expenditures,document_number,' . $expenditure->id,
             'date' => 'required|date',
-            'type' => 'required|in:UP,GU,TU,LS',
+            'type' => 'required|in:UP,GU,TU,LS,LS_Pegawai,LS_Barang_Jasa_Modal',
             'description' => 'required|string',
             'treasurer_id' => 'required|exists:users,id',
             'kpa_id' => 'required|exists:users,id',
