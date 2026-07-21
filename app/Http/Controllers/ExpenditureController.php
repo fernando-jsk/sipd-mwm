@@ -102,7 +102,7 @@ class ExpenditureController extends Controller
             'details.*.account_code_id' => 'required|exists:account_codes,id',
             'details.*.amount' => 'required|numeric|min:0.01',
             'taxes' => 'nullable|array',
-            'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23',
+            'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
             'taxes.*.billing_code' => 'nullable|string',
             'taxes.*.amount' => 'required|numeric|min:0.01',
         ]);
@@ -206,7 +206,7 @@ class ExpenditureController extends Controller
             'details.*.account_code_id' => 'required|exists:account_codes,id',
             'details.*.amount' => 'required|numeric|min:0.01',
             'taxes' => 'nullable|array',
-            'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23',
+            'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
             'taxes.*.billing_code' => 'nullable|string',
             'taxes.*.amount' => 'required|numeric|min:0.01',
         ]);

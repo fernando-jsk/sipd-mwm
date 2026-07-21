@@ -434,6 +434,7 @@ const submitForm = (status) => {
                                                     <SelectItem value="PPh 21">PPh 21</SelectItem>
                                                     <SelectItem value="PPh 22">PPh 22</SelectItem>
                                                     <SelectItem value="PPh 23">PPh 23</SelectItem>
+                                                    <SelectItem value="PPh Final">PPh Final</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                         </TableCell>
