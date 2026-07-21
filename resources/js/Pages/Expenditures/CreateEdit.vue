@@ -241,7 +241,8 @@ const submitForm = (status) => {
                                         <SelectItem value="UP">Uang Persediaan (UP)</SelectItem>
                                         <SelectItem value="GU">Ganti Uang (GU)</SelectItem>
                                         <SelectItem value="TU">Tambahan Uang (TU)</SelectItem>
-                                        <SelectItem value="LS">Langsung (LS)</SelectItem>
+                                        <SelectItem value="LS_Pegawai">LS Pegawai</SelectItem>
+                                        <SelectItem value="LS_Barang_Jasa_Modal">LS Barang, Jasa dan Modal</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
