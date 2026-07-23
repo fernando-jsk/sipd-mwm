@@ -1,10 +1,20 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
-import { Search, Plus, Eye } from '@lucide/vue';
+import { Search, Plus, Eye, FileSpreadsheet, Upload } from '@lucide/vue';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/Components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
+import { Label } from '@/Components/ui/label';
 import { Badge } from '@/Components/ui/badge';
 import {
   Table,
@@ -21,7 +31,28 @@ import { id } from 'date-fns/locale';
 const props = defineProps({
     expenditures: Object,
     filters: Object,
+    users: Array,
 });
+
+const importForm = useForm({
+    file: null,
+    treasurer_id: '',
+    kpa_id: '',
+    status: 'draft',
+    end_row: '',
+});
+
+const isImportModalOpen = ref(false);
+
+const submitImport = () => {
+    importForm.post('/expenditures/import', {
+        preserveScroll: true,
+        onSuccess: () => {
+            isImportModalOpen.value = false;
+            importForm.reset();
+        },
+    });
+};
 
 const search = ref(props.filters?.search || '');
 const statusFilter = ref(props.filters?.status || '');
@@ -81,14 +112,26 @@ const getStatusLabel = (status) => {
                         Daftar Pengajuan SPPD (Surat Permintaan Pencairan Dana)
                     </h2>
                 </div>
-                <Link href="/expenditures/create">
-                    <Button><Plus class="w-4 h-4 mr-2"/> Buat SPPD Baru</Button>
-                </Link>
+                <div class="flex gap-2">
+                    <Button variant="outline" @click="isImportModalOpen = true">
+                        <FileSpreadsheet class="w-4 h-4 mr-2"/> Import Excel
+                    </Button>
+                    <Link href="/expenditures/create">
+                        <Button><Plus class="w-4 h-4 mr-2"/> Buat SPPD Baru</Button>
+                    </Link>
+                </div>
             </div>
         </template>
 
         <div v-if="$page.props.flash?.message" class="mb-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 px-4 py-3 rounded-lg relative" role="alert">
             <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.message }}</span>
+        </div>
+
+        <div v-if="$page.props.flash?.skipped_reasons && $page.props.flash.skipped_reasons.length > 0" class="mb-4 bg-orange-500/10 border border-orange-500/20 text-orange-700 px-4 py-3 rounded-lg relative" role="alert">
+            <h4 class="font-bold text-sm mb-1">Detail Data yang Dilewati:</h4>
+            <ul class="list-disc pl-5 text-xs space-y-1 max-h-40 overflow-y-auto">
+                <li v-for="(reason, index) in $page.props.flash.skipped_reasons" :key="index">{{ reason }}</li>
+            </ul>
         </div>
         <div v-if="$page.props.flash?.error" class="mb-4 bg-red-500/10 border border-red-500/20 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
             <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.error }}</span>
@@ -148,9 +191,11 @@ const getStatusLabel = (status) => {
                                 <div class="text-sm max-w-xs truncate" :title="item.description">{{ item.description }}</div>
                             </TableCell>
                             <TableCell>
-                                <div class="flex items-center gap-2 mb-1">
+                                <div class="flex flex-col items-start gap-1">
                                     <Badge variant="outline" class="text-[10px] font-mono">{{ item.type }}</Badge>
-                                    <span class="text-xs">{{ item.payment_method === 'rekanan' && item.vendor ? item.vendor.name : (item.payment_method === 'pegawai' ? 'Pegawai Internal' : item.payment_method) }}</span>
+                                    <span class="text-xs text-muted-foreground line-clamp-2" :title="item.payment_method === 'rekanan' && item.vendor ? item.vendor.name : (item.payment_method === 'pegawai' ? 'Pegawai Internal' : item.payment_method)">
+                                        {{ item.payment_method === 'rekanan' && item.vendor ? item.vendor.name : (item.payment_method === 'pegawai' ? 'Pegawai Internal' : item.payment_method) }}
+                                    </span>
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -195,5 +240,74 @@ const getStatusLabel = (status) => {
                 </div>
             </div>
         </div>
+        <Dialog :open="isImportModalOpen" @update:open="isImportModalOpen = $event">
+            <DialogContent class="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Import Data SPPD Excel</DialogTitle>
+                    <DialogDescription>
+                        Unggah file Excel yang berisi historis SPPD. Pastikan format kolom sesuai dengan standar.
+                    </DialogDescription>
+                </DialogHeader>
+                
+                <form @submit.prevent="submitImport" class="space-y-4 py-4">
+                    <div class="space-y-2">
+                        <Label>File Excel (.xlsx)</Label>
+                        <Input type="file" accept=".xlsx,.xls,.csv" @change="e => importForm.file = e.target.files[0]" />
+                        <p v-if="importForm.errors.file" class="text-sm text-destructive">{{ importForm.errors.file }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>Bendahara (Default)</Label>
+                        <Select v-model="importForm.treasurer_id">
+                            <SelectTrigger><SelectValue placeholder="Pilih Bendahara..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">{{ user.name }}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="importForm.errors.treasurer_id" class="text-sm text-destructive">{{ importForm.errors.treasurer_id }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>KPA (Default)</Label>
+                        <Select v-model="importForm.kpa_id">
+                            <SelectTrigger><SelectValue placeholder="Pilih KPA..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">{{ user.name }}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="importForm.errors.kpa_id" class="text-sm text-destructive">{{ importForm.errors.kpa_id }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>Status Akhir Data</Label>
+                        <Select v-model="importForm.status">
+                            <SelectTrigger><SelectValue placeholder="Pilih Status..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="draft">Draft SPPD</SelectItem>
+                                <SelectItem value="submitted">Diajukan (Menunggu OPD)</SelectItem>
+                                <SelectItem value="authorized">Diotorisasi (OPD Terbit)</SelectItem>
+                                <SelectItem value="disbursed">Dana Cair (SPD Terbit)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="importForm.errors.status" class="text-sm text-destructive">{{ importForm.errors.status }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>Import Sampai Baris Ke- <span class="text-xs font-normal text-muted-foreground">(Opsional, Min: 2)</span></Label>
+                        <Input type="number" v-model="importForm.end_row" min="2" placeholder="Kosongkan untuk import semua baris" />
+                        <p v-if="importForm.errors.end_row" class="text-sm text-destructive">{{ importForm.errors.end_row }}</p>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" @click="isImportModalOpen = false">Batal</Button>
+                        <Button type="submit" :disabled="importForm.processing">
+                            <Upload class="w-4 h-4 mr-2" v-if="!importForm.processing"/>
+                            <span v-if="importForm.processing">Memproses...</span>
+                            <span v-else>Import Data</span>
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     </AuthenticatedLayout>
 </template>

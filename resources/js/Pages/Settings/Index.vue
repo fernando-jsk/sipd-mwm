@@ -175,6 +175,27 @@ const executeDeleteFs = () => {
         onSuccess: () => { isFsDeleteDialogOpen.value = false; }
     });
 };
+
+const isClearExpendituresDialogOpen = ref(false);
+const clearExpendituresForm = useForm({
+    password: ''
+});
+
+const openClearExpendituresDialog = () => {
+    clearExpendituresForm.password = '';
+    clearExpendituresForm.clearErrors();
+    isClearExpendituresDialogOpen.value = true;
+};
+
+const executeClearExpenditures = () => {
+    clearExpendituresForm.delete('/settings/clear-expenditures', {
+        onSuccess: () => {
+            isClearExpendituresDialogOpen.value = false;
+            clearExpendituresForm.reset();
+        },
+        preserveScroll: true
+    });
+};
 </script>
 
 <template>
@@ -410,6 +431,27 @@ const executeDeleteFs = () => {
                 </CardContent>
             </Card>
 
+            <!-- Danger Zone: Pengeluaran -->
+            <Card class="border-destructive/30 shadow-sm mt-6">
+                <CardHeader class="border-b border-destructive/20 pb-4 bg-destructive/5 rounded-t-xl">
+                    <CardTitle class="text-base font-bold text-destructive flex items-center gap-2">
+                        <AlertTriangle class="w-5 h-5" /> Danger Zone
+                    </CardTitle>
+                    <CardDescription class="text-xs text-destructive/80 mt-0.5">Aksi di area ini bersifat permanen dan tidak dapat dibatalkan.</CardDescription>
+                </CardHeader>
+                <CardContent class="p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h4 class="font-semibold text-sm">Bersihkan Seluruh Data Pengeluaran</h4>
+                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus semua data SPPD, Rincian, Pajak, OPD, dan SPD secara permanen. Master data seperti vendor dan pegawai akan tetap dipertahankan.</p>
+                        </div>
+                        <Button variant="destructive" @click="openClearExpendituresDialog">
+                            Bersihkan Data
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
             <!-- Dialog Konfirmasi Replikasi -->
             <Dialog v-model:open="isRevisionDialogOpen">
                 <DialogContent class="sm:max-w-[425px]">
@@ -480,6 +522,36 @@ const executeDeleteFs = () => {
                             </Button>
                         </div>
                     </div>
+                </DialogContent>
+            </Dialog>
+
+            <!-- Dialog Konfirmasi Hapus Pengeluaran -->
+            <Dialog v-model:open="isClearExpendituresDialogOpen">
+                <DialogContent class="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle class="text-destructive flex items-center gap-2">
+                            <AlertTriangle class="w-5 h-5" />
+                            Konfirmasi Keamanan
+                        </DialogTitle>
+                        <DialogDescription class="mt-2 text-destructive font-medium">
+                            Anda akan menghapus seluruh data transaksi pengeluaran.
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <form @submit.prevent="executeClearExpenditures" class="space-y-4 py-4">
+                        <div class="space-y-3">
+                            <Label for="confirmPassword">Untuk melanjutkan, silakan masukkan password akun Anda:</Label>
+                            <Input id="confirmPassword" type="password" v-model="clearExpendituresForm.password" autocomplete="current-password" required />
+                            <p v-if="clearExpendituresForm.errors.password" class="text-sm text-destructive">{{ clearExpendituresForm.errors.password }}</p>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                            <Button type="button" variant="outline" @click="isClearExpendituresDialogOpen = false">Batal</Button>
+                            <Button type="submit" variant="destructive" :disabled="clearExpendituresForm.processing || !clearExpendituresForm.password">
+                                {{ clearExpendituresForm.processing ? 'Menghapus...' : 'Ya, Bersihkan Data' }}
+                            </Button>
+                        </div>
+                    </form>
                 </DialogContent>
             </Dialog>
 

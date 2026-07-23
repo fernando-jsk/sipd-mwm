@@ -47,7 +47,8 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'message' => fn () => $request->session()->get('message'),
-                'error' => fn () => $request->session()->get('error')
+                'error' => fn () => $request->session()->get('error'),
+                'skipped_reasons' => fn () => $request->session()->get('skipped_reasons'),
             ],
             'active_budget_year' => $request->session()->get('active_budget_year', date('Y')),
         ];

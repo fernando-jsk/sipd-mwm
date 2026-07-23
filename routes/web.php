@@ -55,6 +55,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/funding-sources', [SettingController::class, 'storeFundingSource'])->name('settings.funding-sources.store');
         Route::put('/settings/funding-sources/{fundingSource}', [SettingController::class, 'updateFundingSource'])->name('settings.funding-sources.update');
         Route::delete('/settings/funding-sources/{fundingSource}', [SettingController::class, 'destroyFundingSource'])->name('settings.funding-sources.destroy');
+
+        // Clear Expenditures
+        Route::delete('/settings/clear-expenditures', [SettingController::class, 'clearExpenditures'])->name('settings.clear-expenditures');
     });
 
     Route::middleware('permission:manage budget revision')->group(function () {
@@ -102,6 +105,7 @@ Route::middleware('auth')->group(function () {
     // =========================================================
     // Modul Bendahara / Pengeluaran (SPPD -> OPD -> SPD)
     // =========================================================
+    Route::post('/expenditures/import', [\App\Http\Controllers\ExpenditureImportController::class, 'import'])->name('expenditures.import');
     Route::get('/expenditures/sppd', [\App\Http\Controllers\ExpenditureController::class, 'sppdIndex'])->name('expenditures.sppd');
     Route::get('/expenditures/opd', [\App\Http\Controllers\ExpenditureController::class, 'opdIndex'])->name('expenditures.opd');
     Route::get('/expenditures/spd', [\App\Http\Controllers\ExpenditureController::class, 'spdIndex'])->name('expenditures.spd');

@@ -212,4 +212,32 @@ class SettingController extends Controller
 
         return redirect()->back()->with('message', 'Sumber Dana berhasil dihapus.');
     }
+
+    public function clearExpenditures(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->password, auth()->user()->password)) {
+            return redirect()->back()->with('error', 'Password tidak valid. Operasi dibatalkan.');
+        }
+
+        try {
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            \App\Models\Expenditure::truncate();
+            \App\Models\ExpenditureDetail::truncate();
+            \App\Models\ExpenditureTax::truncate();
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            
+            activity('setting')
+                ->log("Menghapus permanen seluruh data pengeluaran (SPPD, OPD, SPD) beserta rinciannya");
+
+            return redirect()->back()->with('message', 'Seluruh data pengeluaran berhasil dibersihkan.');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            \Illuminate\Support\Facades\Log::error("Failed to clear expenditures: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
+        }
+    }
 }

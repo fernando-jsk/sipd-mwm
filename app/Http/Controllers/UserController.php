@@ -83,7 +83,11 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        $user->delete();
-        return redirect()->route('users.index')->with('message', 'User deleted successfully.');
+        try {
+            $user->delete();
+            return redirect()->route('users.index')->with('message', 'User berhasil dihapus.');
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->back()->with('error', 'User tidak dapat dihapus karena masih digunakan/terikat pada dokumen RBA atau transaksi pengeluaran.');
+        }
     }
 }

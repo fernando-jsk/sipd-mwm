@@ -31,7 +31,8 @@ class ExpenditureController extends Controller
 
         return Inertia::render('Expenditures/SppdIndex', [
             'expenditures' => $expenditures,
-            'filters' => (object) $request->only('search', 'status', 'sort')
+            'filters' => (object) $request->only('search', 'status', 'sort'),
+            'users' => User::all(['id', 'name']),
         ]);
     }
 
@@ -225,9 +226,9 @@ class ExpenditureController extends Controller
         try {
             $expenditure->update($validated);
             
-            // Delete old details
-            $expenditure->details()->delete();
-            $expenditure->taxes()->delete();
+            // Delete old details individually to trigger model events
+            $expenditure->details->each(fn($detail) => $detail->delete());
+            $expenditure->taxes->each(fn($tax) => $tax->delete());
 
             // Insert new details
             foreach ($validated['details'] as $detail) {
@@ -264,6 +265,10 @@ class ExpenditureController extends Controller
         if ($expenditure->attachment_path) {
             \Storage::disk('public')->delete($expenditure->attachment_path);
         }
+
+        // Delete children individually to trigger model events
+        $expenditure->details->each(fn($detail) => $detail->delete());
+        $expenditure->taxes->each(fn($tax) => $tax->delete());
 
         $expenditure->delete();
 
