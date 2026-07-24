@@ -1,5 +1,5 @@
 <script setup>
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
@@ -196,6 +196,27 @@ const executeClearExpenditures = () => {
         preserveScroll: true
     });
 };
+
+const isClearReceiptsDialogOpen = ref(false);
+const clearReceiptsForm = useForm({
+    password: ''
+});
+
+const openClearReceiptsDialog = () => {
+    clearReceiptsForm.password = '';
+    clearReceiptsForm.clearErrors();
+    isClearReceiptsDialogOpen.value = true;
+};
+
+const executeClearReceipts = () => {
+    clearReceiptsForm.delete('/settings/clear-receipts', {
+        onSuccess: () => {
+            isClearReceiptsDialogOpen.value = false;
+            clearReceiptsForm.reset();
+        },
+        preserveScroll: true
+    });
+};
 </script>
 
 <template>
@@ -272,6 +293,21 @@ const executeClearExpenditures = () => {
                     </CardFooter>
                 </Card>
             </form>
+
+            <!-- Master Jenis Penerimaan (Link) -->
+            <Card class="border-border/80 shadow-sm mt-6">
+                <CardHeader class="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Master Jenis Penerimaan</CardTitle>
+                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Kelola jenis penerimaan (Pendapatan Daerah, Pajak, Retribusi, dll).</CardDescription>
+                    </div>
+                    <Link href="/receipt-types">
+                        <Button size="sm" variant="outline" class="gap-2 border-primary text-primary hover:bg-primary hover:text-white">
+                            Kelola Jenis Penerimaan
+                        </Button>
+                    </Link>
+                </CardHeader>
+            </Card>
 
             <!-- Manajemen Master Sumber Dana -->
             <Card class="border-border/80 shadow-sm mt-6">
@@ -449,6 +485,16 @@ const executeClearExpenditures = () => {
                             Bersihkan Data
                         </Button>
                     </div>
+                    <div class="border-t border-destructive/10 my-4"></div>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                            <h4 class="font-semibold text-sm">Bersihkan Seluruh Data Penerimaan</h4>
+                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus semua data Tanda Bukti Penerimaan (TBP/STS) beserta rinciannya secara permanen.</p>
+                        </div>
+                        <Button variant="destructive" @click="openClearReceiptsDialog">
+                            Bersihkan Data
+                        </Button>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -549,6 +595,36 @@ const executeClearExpenditures = () => {
                             <Button type="button" variant="outline" @click="isClearExpendituresDialogOpen = false">Batal</Button>
                             <Button type="submit" variant="destructive" :disabled="clearExpendituresForm.processing || !clearExpendituresForm.password">
                                 {{ clearExpendituresForm.processing ? 'Menghapus...' : 'Ya, Bersihkan Data' }}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <!-- Dialog Konfirmasi Hapus Penerimaan -->
+            <Dialog v-model:open="isClearReceiptsDialogOpen">
+                <DialogContent class="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle class="text-destructive flex items-center gap-2">
+                            <AlertTriangle class="w-5 h-5" />
+                            Konfirmasi Keamanan
+                        </DialogTitle>
+                        <DialogDescription class="mt-2 text-destructive font-medium">
+                            Anda akan menghapus seluruh data transaksi penerimaan (TBP/STS).
+                        </DialogDescription>
+                    </DialogHeader>
+                    
+                    <form @submit.prevent="executeClearReceipts" class="space-y-4 py-4">
+                        <div class="space-y-3">
+                            <Label for="confirmPasswordReceipts">Untuk melanjutkan, silakan masukkan password akun Anda:</Label>
+                            <Input id="confirmPasswordReceipts" type="password" v-model="clearReceiptsForm.password" autocomplete="current-password" required />
+                            <p v-if="clearReceiptsForm.errors.password" class="text-sm text-destructive">{{ clearReceiptsForm.errors.password }}</p>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+                            <Button type="button" variant="outline" @click="isClearReceiptsDialogOpen = false">Batal</Button>
+                            <Button type="submit" variant="destructive" :disabled="clearReceiptsForm.processing || !clearReceiptsForm.password">
+                                {{ clearReceiptsForm.processing ? 'Menghapus...' : 'Ya, Bersihkan Data' }}
                             </Button>
                         </div>
                     </form>

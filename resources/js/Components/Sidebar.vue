@@ -101,9 +101,17 @@ onMounted(() => {
                 </Link>
             </template>
 
+            <!-- Bendahara Penerimaan -->
+            <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
+                Penerimaan
+            </div>
+            <Link href="/receipts" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/receipts') }">
+                1. Tanda Bukti Penerimaan
+            </Link>
+
             <!-- Bendahara -->
             <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                Bendahara &amp; Pengeluaran
+                Pengeluaran
             </div>
             <Link v-if="can('manage sppd')" href="/expenditures/sppd" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/expenditures/sppd') || $page.url === '/expenditures' }">
                 1. Pengajuan SPPD
