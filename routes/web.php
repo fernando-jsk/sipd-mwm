@@ -56,8 +56,9 @@ Route::middleware('auth')->group(function () {
         Route::put('/settings/funding-sources/{fundingSource}', [SettingController::class, 'updateFundingSource'])->name('settings.funding-sources.update');
         Route::delete('/settings/funding-sources/{fundingSource}', [SettingController::class, 'destroyFundingSource'])->name('settings.funding-sources.destroy');
 
-        // Clear Expenditures
+        // Clear Expenditures & Receipts
         Route::delete('/settings/clear-expenditures', [SettingController::class, 'clearExpenditures'])->name('settings.clear-expenditures');
+        Route::delete('/settings/clear-receipts', [SettingController::class, 'clearReceipts'])->name('settings.clear-receipts');
     });
 
     Route::middleware('permission:manage budget revision')->group(function () {
@@ -80,7 +81,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('permission:view master data')->group(function () {
-        Route::resource('account-codes', AccountCodeController::class)->only(['index', 'show']);
+        Route::resource('account-codes', AccountCodeController::class)->except(['show']);
+        Route::resource('receipt-types', \App\Http\Controllers\ReceiptTypeController::class)->except(['show', 'create', 'edit']);
+        Route::resource('settings', SettingController::class)->only(['index', 'store']);
         Route::resource('vendors', VendorController::class)->only(['index', 'show']);
     });
 
@@ -101,6 +104,13 @@ Route::middleware('auth')->group(function () {
         Route::put('/rba/details/{rbaDetail}', [RbaDetailController::class, 'update'])->name('rba.update');
         Route::delete('/rba/details/{rbaDetail}', [RbaDetailController::class, 'destroy'])->name('rba.destroy');
     });
+
+    // =========================================================
+    // Modul Bendahara Penerimaan
+    // =========================================================
+    Route::resource('receipts', \App\Http\Controllers\ReceiptController::class);
+    Route::patch('/receipts/{receipt}/status', [\App\Http\Controllers\ReceiptController::class, 'updateStatus'])->name('receipts.status');
+    Route::get('/receipts/{receipt}/print', [\App\Http\Controllers\ReceiptController::class, 'print'])->name('receipts.print');
 
     // =========================================================
     // Modul Bendahara / Pengeluaran (SPPD -> OPD -> SPD)

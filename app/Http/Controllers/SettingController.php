@@ -240,4 +240,37 @@ class SettingController extends Controller
             return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
         }
     }
+
+    public function clearReceipts(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        if (!\Illuminate\Support\Facades\Hash::check($request->password, auth()->user()->password)) {
+            return redirect()->back()->with('error', 'Password tidak valid. Operasi dibatalkan.');
+        }
+
+        try {
+            // Hapus file lampiran jika ada
+            $attachmentPaths = \App\Models\Receipt::whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
+            if (!empty($attachmentPaths)) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($attachmentPaths);
+            }
+
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+            \App\Models\Receipt::truncate();
+            \App\Models\ReceiptDetail::truncate();
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            
+            activity('setting')
+                ->log("Menghapus permanen seluruh data penerimaan (TBP/STS) beserta rinciannya");
+
+            return redirect()->back()->with('message', 'Seluruh data penerimaan berhasil dibersihkan.');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+            \Illuminate\Support\Facades\Log::error("Failed to clear receipts: " . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
+        }
+    }
 }
