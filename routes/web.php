@@ -48,7 +48,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:manage settings')->group(function () {
         Route::resource('settings', SettingController::class)->only(['index', 'store']);
-        
+
         // Funding Sources
         Route::post('/settings/funding-sources', [SettingController::class, 'storeFundingSource'])->name('settings.funding-sources.store');
         Route::put('/settings/funding-sources/{fundingSource}', [SettingController::class, 'updateFundingSource'])->name('settings.funding-sources.update');
@@ -63,7 +63,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/settings/replikasi', [SettingController::class, 'buatReplikasi'])->name('settings.replikasi');
         Route::post('/settings/active-version', [SettingController::class, 'setActiveVersion'])->name('settings.active-version');
         Route::delete('/settings/version/{version}', [SettingController::class, 'destroyVersion'])->name('settings.destroy-version');
-        
+
         Route::post('/settings/import-rba', [\App\Http\Controllers\RbaImportController::class, 'import'])->name('settings.import-rba');
     });
 
@@ -124,4 +124,38 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('expenditures', \App\Http\Controllers\ExpenditureController::class);
     Route::patch('/expenditures/{expenditure}/status', [\App\Http\Controllers\ExpenditureController::class, 'updateStatus'])->name('expenditures.status');
+});
+
+// HANYA UNTUK DEPLOYMENT AWAL / MAINTENANCE (Hapus atau beri proteksi setelah dipakai)
+Route::get('/dev-artisan/{cmd}', function ($cmd) {
+    if (request('key') !== 'my-secret-key-123') {
+        abort(403, 'Unauthorized');
+    }
+
+    switch ($cmd) {
+        case 'migrate':
+            Artisan::call('migrate', ['--force' => true]);
+            return 'Database Migrated Successfully!<br><pre>' . Artisan::output() . '</pre>';
+
+        case 'db-seed':
+            // Menjalankan DatabaseSeeder
+            Artisan::call('db:seed', ['--force' => true]);
+            return 'Database Seeded Successfully!<br><pre>' . Artisan::output() . '</pre>';
+
+        case 'migrate-seed':
+            // Menjalankan Migration sekaligus Seeder
+            Artisan::call('migrate', ['--force' => true, '--seed' => true]);
+            return 'Database Migrated & Seeded Successfully!<br><pre>' . Artisan::output() . '</pre>';
+
+        case 'storage-link':
+            Artisan::call('storage:link');
+            return 'Storage Link Created!';
+
+        case 'optimize-clear':
+            Artisan::call('optimize:clear');
+            return 'Cache Cleared!';
+
+        default:
+            return 'Command not allowed!';
+    }
 });
