@@ -128,7 +128,7 @@ Route::middleware('auth')->group(function () {
 
 // HANYA UNTUK DEPLOYMENT AWAL / MAINTENANCE (Hapus atau beri proteksi setelah dipakai)
 Route::get('/dev-artisan/{cmd}', function ($cmd) {
-    if (request('key') !== 'my-secret-key-123') {
+    if (request('key') !== 'secret') {
         abort(403, 'Unauthorized');
     }
 
