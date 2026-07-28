@@ -1,4 +1,4 @@
-name: Deploy Laravel to cPanel
+name: Deploy Laravel to cPanel (Fast Zip Method)
 
 on:
   push:
@@ -16,13 +16,13 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2' # Sesuaikan dengan versi PHP Laravel Anda
+          php-version: '8.2'
           coverage: none
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Install Composer Dependencies
         run: |
@@ -33,7 +33,12 @@ jobs:
           npm install
           npm run build
 
-      # Step 1: Upload Core Laravel
+      # 1. Compress folder vendor menjadi 1 file zip agar upload super cepat
+      - name: Zip Vendor Directory
+        run: |
+          zip -r vendor.zip vendor/
+
+      # 2. Deploy Core App (Abaikan folder vendor uncompressed, hanya upload vendor.zip)
       - name: Deploy Core App
         uses: SamKirkland/ftp-deploy-action@v4.3.5
         with:
@@ -46,9 +51,16 @@ jobs:
             **/.git*/**
             **/node_modules/**
             **/tests/**
+            vendor/**
             public/**
 
-      # Step 2: Upload Public Assets
+      # 3. Trigger Unzip via URL HTTP ke cPanel
+      - name: Trigger Remote Unzip
+        run: |
+          curl -s "https://domainanda.com/../laravel-app/unzip.php?key=my-secret-key-123" || true
+          # Catatan: Sesuaikan URL di atas atau buat route khusus jika perlu.
+
+      # 4. Deploy Public Assets
       - name: Deploy Public Folder
         uses: SamKirkland/ftp-deploy-action@v4.3.5
         with:
