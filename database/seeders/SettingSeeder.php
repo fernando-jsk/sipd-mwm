@@ -26,6 +26,12 @@ class SettingSeeder extends Seeder
                 'value' => 'warning',
                 'type' => 'string',
                 'description' => 'Tipe validasi pagu (warning / block) saat pengeluaran melebihi anggaran.'
+            ],
+            [
+                'key' => 'minimum_safe_balance',
+                'value' => '500000000',
+                'type' => 'integer',
+                'description' => 'Batas aman minimal saldo kas.'
             ]
         ];
 

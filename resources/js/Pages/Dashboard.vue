@@ -4,6 +4,10 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import CashFlowSection from '@/Pages/Dashboard/CashFlowSection.vue';
 import AgingPiutangSection from '@/Pages/Dashboard/AgingPiutangSection.vue';
 import VarianceBudgetSection from '@/Pages/Dashboard/VarianceBudgetSection.vue';
+
+const props = defineProps({
+    cashFlowData: Object,
+});
 </script>
 
 <template>
@@ -22,7 +26,7 @@ import VarianceBudgetSection from '@/Pages/Dashboard/VarianceBudgetSection.vue';
         </template>
 
         <!-- Section 1: Cash Flow -->
-        <CashFlowSection />
+        <CashFlowSection :data="cashFlowData" />
 
         <!-- Section 2: Aging Piutang (hidden) -->
         <!-- <AgingPiutangSection /> -->
