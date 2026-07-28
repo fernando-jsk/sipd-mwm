@@ -3,44 +3,39 @@ name: Deploy Laravel to cPanel
 on:
   push:
     branches:
-      - main # Workflow jalan otomatis saat push ke branch main
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Ambil kode terbaru dari GitHub
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Setup PHP di server GitHub untuk jalankan composer
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2' # Sesuaikan dengan versi PHP Laravel Anda
           coverage: none
 
-      # 3. Setup Node.js di server GitHub untuk kompilasi CSS/JS
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # 4. Install dependency Composer (Tanpa package dev seperti phpunit)
       - name: Install Composer Dependencies
         run: |
           composer install --no-dev --optimize-autoloader --prefer-dist --no-interaction
 
-      # 5. Build assets frontend (Vite / Tailwind / Bootstrap)
       - name: Install NPM & Build Assets
         run: |
           npm install
           npm run build
 
-      # 6. Upload Core Laravel ke folder /laravel-app/
+      # Step 1: Upload Core Laravel
       - name: Deploy Core App
-        uses: SamKirsch/ftp-deploy-action@v4.3.5
+        uses: SamKirkland/ftp-deploy-action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
@@ -53,9 +48,9 @@ jobs:
             **/tests/**
             public/**
 
-      # 7. Upload isi folder public ke /public_html/
+      # Step 2: Upload Public Assets
       - name: Deploy Public Folder
-        uses: SamKirsch/ftp-deploy-action@v4.3.5
+        uses: SamKirkland/ftp-deploy-action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
