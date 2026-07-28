@@ -29,9 +29,7 @@ use App\Http\Controllers\RbaDetailController;
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
 
     // =========================================================
     // Manajemen User & Sistem (hanya super-admin)

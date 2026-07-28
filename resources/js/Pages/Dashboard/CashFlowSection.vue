@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { Bar, Doughnut } from 'vue-chartjs';
 import {
     Chart as ChartJS,
@@ -21,35 +22,58 @@ import {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-// ============================================================
-// DATA DUMMY — akan diganti dengan data dari API/props nantinya
-// ============================================================
-const months      = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'];
-const cashInData  = [1_850_000_000, 2_100_000_000, 1_950_000_000, 2_300_000_000, 2_150_000_000, 2_450_000_000, 2_200_000_000];
-const cashOutData = [1_600_000_000, 1_800_000_000, 2_050_000_000, 1_900_000_000, 2_000_000_000, 2_100_000_000, 2_380_000_000];
+const props = defineProps({
+    data: {
+        type: Object,
+        default: () => ({})
+    }
+});
 
-const currentMonthIn    = cashInData.at(-1);
-const currentMonthOut   = cashOutData.at(-1);
-const netCashFlow       = currentMonthIn - currentMonthOut;
+const startMonth = ref(props.data.startMonth?.toString() || '1');
+const endMonth = ref(props.data.endMonth?.toString() || (new Date().getMonth() + 1).toString());
 
-const endingBalance      = 1_420_000_000;   // Saldo akhir kas bulan ini
-const minimumSafeBalance = 500_000_000;     // Batas aman minimal operasional
-const dailyBurnRate      = currentMonthOut / 30;
-const runway             = Math.floor(endingBalance / dailyBurnRate); // Hari bisa bertahan
+const selectedMonthLabel = computed(() => {
+    const startIdx = parseInt(startMonth.value) - 1;
+    const endIdx = parseInt(endMonth.value) - 1;
+    if (startIdx === 0 && endIdx === 11) return 'Seluruh Tahun';
+    if (startIdx === endIdx) return props.data.months?.[startIdx] || '';
+    return `${props.data.months?.[startIdx] || ''} - ${props.data.months?.[endIdx] || ''}`;
+});
+
+const applyFilter = () => {
+    if (parseInt(startMonth.value) > parseInt(endMonth.value)) {
+        startMonth.value = endMonth.value;
+    }
+
+    router.get('/dashboard', { 
+        startMonth: startMonth.value, 
+        endMonth: endMonth.value 
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const currentMonthIn    = computed(() => props.data.currentMonthIn || 0);
+const currentMonthOut   = computed(() => props.data.currentMonthOut || 0);
+const netCashFlow       = computed(() => props.data.netCashFlow || 0);
+const endingBalance     = computed(() => props.data.endingBalance || 0);
+const minimumSafeBalance = computed(() => props.data.minimumSafeBalance || 500000000);
+const dailyBurnRate     = computed(() => props.data.dailyBurnRate || 0);
 
 // Threshold alarm
-const isBalanceDanger   = endingBalance < minimumSafeBalance;
-const isBalanceCritical = !isBalanceDanger && endingBalance < minimumSafeBalance * 1.5;
+const isBalanceDanger   = computed(() => endingBalance.value < minimumSafeBalance.value);
+const isBalanceCritical = computed(() => !isBalanceDanger.value && endingBalance.value < minimumSafeBalance.value * 1.5);
 
 // ============================================================
 // CHART 1 — Bar: Cash In vs Cash Out bulanan
 // ============================================================
 const barChartData = computed(() => ({
-    labels: months,
+    labels: props.data.months || [],
     datasets: [
         {
             label: 'Cash In',
-            data: cashInData,
+            data: props.data.cashInData || [],
             backgroundColor: 'rgba(74,222,128,0.82)',
             borderColor:     'rgba(74,222,128,1)',
             borderWidth: 1.5,
@@ -58,7 +82,7 @@ const barChartData = computed(() => ({
         },
         {
             label: 'Cash Out',
-            data: cashOutData,
+            data: props.data.cashOutData || [],
             backgroundColor: 'rgba(255,135,129,0.82)',
             borderColor:     'rgba(255,135,129,1)',
             borderWidth: 1.5,
@@ -108,17 +132,22 @@ const barChartOptions = {
 // ============================================================
 // CHART 2 — Doughnut: Breakdown pengeluaran
 // ============================================================
-const breakdownLabels = ['Gaji & SDM', 'Supplier', 'Operasional', 'Pajak', 'Lainnya'];
-const breakdownValues = [980_000_000, 620_000_000, 480_000_000, 180_000_000, 120_000_000];
-const breakdownBg     = ['rgba(255,135,129,0.80)', 'rgba(74,222,128,0.80)', 'rgba(96,165,250,0.80)', 'rgba(251,191,36,0.80)', 'rgba(167,139,250,0.80)'];
-const breakdownBorder = ['#E64E47', '#22c55e', '#3b82f6', '#F59E0B', '#8B5CF6'];
+const baseBg     = ['rgba(255,135,129,0.80)', 'rgba(74,222,128,0.80)', 'rgba(96,165,250,0.80)', 'rgba(251,191,36,0.80)', 'rgba(167,139,250,0.80)', 'rgba(244,114,182,0.80)', 'rgba(56,189,248,0.80)', 'rgba(250,204,21,0.80)', 'rgba(163,230,53,0.80)', 'rgba(168,162,158,0.80)'];
+const baseBorder = ['#E64E47', '#22c55e', '#3b82f6', '#F59E0B', '#8B5CF6', '#ec4899', '#0ea5e9', '#eab308', '#84cc16', '#78716c'];
+
+const breakdownBg = computed(() => {
+    return (props.data.breakdownValues || []).map((_, i) => baseBg[i % baseBg.length]);
+});
+const breakdownBorder = computed(() => {
+    return (props.data.breakdownValues || []).map((_, i) => baseBorder[i % baseBorder.length]);
+});
 
 const doughnutData = computed(() => ({
-    labels: breakdownLabels,
+    labels: props.data.breakdownLabels || [],
     datasets: [{
-        data: breakdownValues,
-        backgroundColor: breakdownBg,
-        borderColor:     breakdownBorder,
+        data: props.data.breakdownValues || [],
+        backgroundColor: breakdownBg.value,
+        borderColor:     breakdownBorder.value,
         borderWidth: 2,
         hoverOffset: 8,
     }],
@@ -141,7 +170,7 @@ const doughnutOptions = {
         },
         tooltip: {
             callbacks: {
-                label: (ctx) => ` ${ctx.label}: ${formatRupiah(ctx.raw)} (${((ctx.raw / currentMonthOut) * 100).toFixed(1)}%)`,
+                label: (ctx) => ` ${ctx.label}: ${formatRupiah(ctx.raw)} (${((ctx.raw / (currentMonthOut.value || 1)) * 100).toFixed(1)}%)`,
             },
         },
     },
@@ -164,7 +193,7 @@ function formatRupiahShort(val) {
     return String(val);
 }
 
-const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance * 3)) * 100));
+const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value / (minimumSafeBalance.value * 3)) * 100)) || 0);
 </script>
 
 <template>
@@ -174,11 +203,37 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
     <section class="space-y-5">
 
         <!-- ── Section Header ──────────────────────────────────── -->
-        <div class="flex items-center gap-3">
-            <div class="w-1 h-8 rounded-full bg-primary"></div>
-            <div>
-                <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Arus Kas</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Arus kas riil · Periode: Juli 2025</p>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-1 h-8 rounded-full bg-primary"></div>
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Arus Kas</h2>
+                    <p class="text-xs text-muted-foreground mt-0.5">Arus kas riil · Periode: {{ selectedMonthLabel }}</p>
+                </div>
+            </div>
+            
+            <!-- Month Filter -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground font-medium">Dari</span>
+                <select 
+                    v-model="startMonth" 
+                    @change="applyFilter"
+                    class="text-sm border-border/80 rounded-lg bg-card text-secondary shadow-sm focus:ring-primary focus:border-primary px-3 py-1.5 cursor-pointer"
+                >
+                    <option v-for="(m, i) in props.data.months" :key="i" :value="(i + 1).toString()">
+                        {{ m }}
+                    </option>
+                </select>
+                <span class="text-xs text-muted-foreground font-medium">sampai</span>
+                <select 
+                    v-model="endMonth" 
+                    @change="applyFilter"
+                    class="text-sm border-border/80 rounded-lg bg-card text-secondary shadow-sm focus:ring-primary focus:border-primary px-3 py-1.5 cursor-pointer"
+                >
+                    <option v-for="(m, i) in props.data.months" :key="i" :value="(i + 1).toString()">
+                        {{ m }}
+                    </option>
+                </select>
             </div>
         </div>
 
@@ -245,7 +300,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
                 <p :class="['text-2xl font-bold tracking-tight leading-none', netCashFlow >= 0 ? 'text-emerald-700' : 'text-rose-600']">
                     {{ netCashFlow >= 0 ? '+' : '' }}{{ formatRupiahShort(netCashFlow) }}
                 </p>
-                <p class="text-[11px] text-muted-foreground mt-1.5">Selisih bulan berjalan</p>
+                <p class="text-[11px] text-muted-foreground mt-1.5">Selisih periode berjalan</p>
                 <div :class="['mt-3 flex items-center gap-1 text-[11px] font-semibold', netCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-500']">
                     <Minus class="w-3.5 h-3.5 flex-shrink-0" />
                     <span>In − Out</span>
@@ -277,7 +332,7 @@ const balancePct = Math.min(100, Math.round((endingBalance / (minimumSafeBalance
                 <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-semibold text-secondary">Rincian Pengeluaran</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">Distribusi pengeluaran Juli 2025</p>
+                        <p class="text-xs text-muted-foreground mt-0.5">Distribusi pengeluaran {{ selectedMonthLabel }}</p>
                     </div>
                 </div>
                 <div class="p-4 flex items-center justify-center" style="height: 288px;">
