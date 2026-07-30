@@ -203,6 +203,26 @@ const getEventType = (activity) => {
                         </Table>
                     </div>
 
+            <!-- Pagination -->
+            <div class="p-4 border-t border-border/80 bg-muted/20 flex items-center justify-between" v-if="activities.data.length > 0">
+                <span class="text-xs text-muted-foreground">
+                    Menampilkan {{ activities.from }} - {{ activities.to }} dari {{ activities.total }} data
+                </span>
+                <div class="flex space-x-1">
+                    <Link 
+                        v-for="(link, index) in activities.links" 
+                        :key="index"
+                        :href="link.url || '#'"
+                        class="px-3 py-1 text-xs border rounded-md"
+                        :class="[
+                            link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted',
+                            !link.url ? 'opacity-50 cursor-not-allowed' : ''
+                        ]"
+                        v-html="link.label"
+                    ></Link>
+                </div>
+            </div>
+
         <Dialog :open="isDetailsOpen" @update:open="isDetailsOpen = $event">
             <DialogContent class="w-full sm:w-fit sm:max-w-[90vw] sm:min-w-[40rem] max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
