@@ -58,7 +58,7 @@ const totalTaxes = props.expenditure.taxes?.reduce((sum, item) => sum + Number(i
 
             <!-- Pernyataan Pencairan -->
             <div class="mb-6 text-sm leading-relaxed border p-4 rounded-lg bg-emerald-500/5 border-emerald-500/20 print:border-black print:bg-transparent">
-                <p>Berdasarkan Surat Otorisasi Pengeluaran Direktur (OPD) Nomor <strong>{{ expenditure.opd_number || '-' }}</strong>, dengan ini Kabag Keuangan menerbitkan Surat Pencairan Dana (SPD) dan mentransfer sejumlah dana kepada penerima terkait:</p>
+                <p>Berdasarkan Surat Otorisasi Pencairan Dana (OPD) Nomor <strong>{{ expenditure.opd_number || '-' }}</strong>, dengan ini Kabag Keuangan menerbitkan Surat Pencairan Dana (SPD) dan mentransfer sejumlah dana kepada penerima terkait:</p>
             </div>
 
             <!-- Detail Transfer -->

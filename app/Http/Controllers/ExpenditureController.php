@@ -372,6 +372,10 @@ class ExpenditureController extends Controller
         $sort = $request->input('sort', 'newest');
         if ($sort === 'oldest') {
             $query->orderBy($sortColumn, 'asc');
+        } elseif ($sort === 'doc_asc') {
+            $query->orderBy('document_number', 'asc');
+        } elseif ($sort === 'doc_desc') {
+            $query->orderBy('document_number', 'desc');
         } else {
             $query->orderBy($sortColumn, 'desc');
         }

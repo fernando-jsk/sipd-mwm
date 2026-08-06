@@ -76,7 +76,7 @@ const getStatusLabel = (status) => {
                         </BreadcrumbList>
                     </Breadcrumb>
                     <h2 class="text-xl font-bold tracking-tight text-secondary dark:text-foreground">
-                        Daftar Otorisasi OPD (Surat Otorisasi Pengeluaran Direktur)
+                        Daftar Otorisasi OPD (Surat Otorisasi Pencairan Dana)
                     </h2>
                 </div>
             </div>
@@ -105,6 +105,8 @@ const getStatusLabel = (status) => {
                     <select v-model="sortFilter" class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                         <option value="newest">Terbaru</option>
                         <option value="oldest">Terlama</option>
+                        <option value="doc_asc">No. SPPD (A-Z)</option>
+                        <option value="doc_desc">No. SPPD (Z-A)</option>
                     </select>
 
                     <div class="relative w-full sm:w-64">

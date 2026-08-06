@@ -51,7 +51,7 @@ const totalTaxes = props.expenditure.taxes?.reduce((sum, item) => sum + Number(i
 
             <!-- Title -->
             <div class="text-center mb-8">
-                <h2 class="text-lg font-bold uppercase underline">SURAT OTORISASI PENGELUARAN DIREKTUR (OPD)</h2>
+                <h2 class="text-lg font-bold uppercase underline">SURAT OTORISASI Pencairan Dana (OPD)</h2>
                 <p class="text-sm font-mono mt-1">Nomor OPD: {{ expenditure.opd_number || '-' }}</p>
                 <p class="text-xs text-slate-500 font-mono">Referensi SPPD No: {{ expenditure.document_number }}</p>
             </div>
