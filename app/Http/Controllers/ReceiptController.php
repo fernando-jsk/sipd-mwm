@@ -21,10 +21,10 @@ class ReceiptController extends Controller
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('document_number', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('payer_name', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('payer_name', 'like', "%{$search}%");
             });
         }
 
@@ -32,11 +32,15 @@ class ReceiptController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->has('date') && $request->date !== '') {
+            $query->whereDate('date', $request->date);
+        }
+
         $receipts = $query->paginate(15)->withQueryString();
 
         return Inertia::render('Receipts/Index', [
             'receipts' => $receipts,
-            'filters' => $request->only('search', 'status')
+            'filters' => $request->only('search', 'status', 'date')
         ]);
     }
 
@@ -71,9 +75,9 @@ class ReceiptController extends Controller
             'bank_name' => 'nullable|required_if:payment_method,transfer|string|max:255',
             'bank_account_number' => 'nullable|required_if:payment_method,transfer|string|max:255',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            
+
             'details' => 'required|array|min:1',
-            'details.*.account_code_id' => 'required|exists:account_codes,id',
+            'details.*.account_code_id' => 'nullable|exists:account_codes,id',
             'details.*.funding_source_id' => 'nullable|exists:funding_sources,id',
             'details.*.amount' => 'required|numeric|min:0.01',
         ]);
@@ -102,7 +106,7 @@ class ReceiptController extends Controller
 
             foreach ($validated['details'] as $detail) {
                 $receipt->details()->create([
-                    'account_code_id' => $detail['account_code_id'],
+                    'account_code_id' => $detail['account_code_id'] ?? null,
                     'funding_source_id' => $detail['funding_source_id'] ?? null,
                     'amount' => $detail['amount'],
                 ]);
@@ -115,7 +119,7 @@ class ReceiptController extends Controller
     public function show(Receipt $receipt)
     {
         $receipt->load(['type', 'subType', 'treasurer', 'creator', 'details.accountCode', 'details.fundingSource']);
-        
+
         return Inertia::render('Receipts/Show', [
             'receipt' => $receipt
         ]);
@@ -161,10 +165,10 @@ class ReceiptController extends Controller
             'bank_name' => 'nullable|required_if:payment_method,transfer|string|max:255',
             'bank_account_number' => 'nullable|required_if:payment_method,transfer|string|max:255',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
-            
+
             'details' => 'required|array|min:1',
             'details.*.id' => 'nullable|integer',
-            'details.*.account_code_id' => 'required|exists:account_codes,id',
+            'details.*.account_code_id' => 'nullable|exists:account_codes,id',
             'details.*.funding_source_id' => 'nullable|exists:funding_sources,id',
             'details.*.amount' => 'required|numeric|min:0.01',
         ]);
@@ -198,7 +202,7 @@ class ReceiptController extends Controller
                 if (isset($detail['id']) && in_array($detail['id'], $existingDetailIds)) {
                     // Update existing
                     $receipt->details()->where('id', $detail['id'])->update([
-                        'account_code_id' => $detail['account_code_id'],
+                        'account_code_id' => $detail['account_code_id'] ?? null,
                         'funding_source_id' => $detail['funding_source_id'] ?? null,
                         'amount' => $detail['amount'],
                     ]);
@@ -206,7 +210,7 @@ class ReceiptController extends Controller
                 } else {
                     // Create new
                     $newDetail = $receipt->details()->create([
-                        'account_code_id' => $detail['account_code_id'],
+                        'account_code_id' => $detail['account_code_id'] ?? null,
                         'funding_source_id' => $detail['funding_source_id'] ?? null,
                         'amount' => $detail['amount'],
                     ]);
@@ -260,9 +264,25 @@ class ReceiptController extends Controller
     public function print(Receipt $receipt)
     {
         $receipt->load(['details.accountCode', 'details.fundingSource', 'type', 'subType', 'treasurer']);
-        
+
         return Inertia::render('Receipts/Print', [
             'receipt' => $receipt
         ]);
+    }
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt',
+            'status' => 'required|in:draft,submitted',
+        ]);
+
+        try {
+            $service = new \App\Services\ReceiptImportService();
+            $count = $service->import($request->file('file')->getRealPath(), $request->input('status'));
+
+            return redirect()->route('receipts.index')->with('message', "Berhasil import {$count} dokumen penerimaan.");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Terjadi kesalahan saat import: ' . $e->getMessage());
+        }
     }
 }

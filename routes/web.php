@@ -106,6 +106,7 @@ Route::middleware('auth')->group(function () {
     // =========================================================
     // Modul Bendahara Penerimaan
     // =========================================================
+    Route::post('/receipts/import', [\App\Http\Controllers\ReceiptController::class, 'import'])->name('receipts.import');
     Route::resource('receipts', \App\Http\Controllers\ReceiptController::class);
     Route::patch('/receipts/{receipt}/status', [\App\Http\Controllers\ReceiptController::class, 'updateStatus'])->name('receipts.status');
     Route::get('/receipts/{receipt}/print', [\App\Http\Controllers\ReceiptController::class, 'print'])->name('receipts.print');

@@ -21,6 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/Components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/Components/ui/dialog';
+import { Label } from '@/Components/ui/label';
 import { ref, watch } from 'vue';
 
 const props = defineProps({
@@ -30,14 +40,16 @@ const props = defineProps({
 
 const search = ref(props.filters?.search || '');
 const status = ref(props.filters?.status || 'all');
+const date = ref(props.filters?.date || '');
 let searchTimeout = null;
 
-watch([search, status], ([newSearch, newStatus]) => {
+watch([search, status, date], ([newSearch, newStatus, newDate]) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
         let params = {};
         if (newSearch) params.search = newSearch;
         if (newStatus && newStatus !== 'all') params.status = newStatus;
+        if (newDate) params.date = newDate;
         
         router.get('/receipts', params, { preserveState: true, replace: true });
     }, 300);
@@ -45,6 +57,25 @@ watch([search, status], ([newSearch, newStatus]) => {
 
 const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
+};
+
+const isImportModalOpen = ref(false);
+const importForm = useForm({
+    file: null,
+    status: 'draft'
+});
+
+const submitImport = () => {
+    importForm.post('/receipts/import', {
+        onSuccess: () => {
+            isImportModalOpen.value = false;
+            importForm.reset();
+        }
+    });
+};
+
+const handleFileChange = (e) => {
+    importForm.file = e.target.files[0];
 };
 </script>
 
@@ -70,9 +101,52 @@ const formatCurrency = (value) => {
                         Tanda Bukti Penerimaan
                     </h2>
                 </div>
-                <Link href="/receipts/create">
-                    <Button>Buat Penerimaan</Button>
-                </Link>
+                <div class="flex items-center gap-2">
+                    <Dialog v-model:open="isImportModalOpen">
+                        <DialogTrigger as-child>
+                            <Button variant="outline">Import CSV</Button>
+                        </DialogTrigger>
+                        <DialogContent class="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Import Data Penerimaan</DialogTitle>
+                                <DialogDescription>
+                                    Pilih file CSV hasil export. Pastikan format kolom sesuai dengan template.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form @submit.prevent="submitImport" class="space-y-4 py-4">
+                                <div class="space-y-2">
+                                    <Label>File CSV</Label>
+                                    <Input type="file" accept=".csv" @change="handleFileChange" required />
+                                    <div v-if="importForm.errors.file" class="text-xs text-red-500">{{ importForm.errors.file }}</div>
+                                </div>
+                                <div class="space-y-2">
+                                    <Label>Status Penerimaan</Label>
+                                    <Select v-model="importForm.status">
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem value="draft">Draft</SelectItem>
+                                                <SelectItem value="submitted">Submitted</SelectItem>
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
+                                    <div v-if="importForm.errors.status" class="text-xs text-red-500">{{ importForm.errors.status }}</div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="button" variant="outline" @click="isImportModalOpen = false" :disabled="importForm.processing">Batal</Button>
+                                    <Button type="submit" :disabled="importForm.processing || !importForm.file">
+                                        {{ importForm.processing ? 'Mengimpor...' : 'Import' }}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                    <Link href="/receipts/create">
+                        <Button>Buat Penerimaan</Button>
+                    </Link>
+                </div>
             </div>
         </template>
 
@@ -93,8 +167,12 @@ const formatCurrency = (value) => {
                     class="w-full pl-9 shadow-sm bg-white dark:bg-slate-900"
                 />
             </div>
-            <div class="w-full sm:w-48">
-                <Select v-model="status">
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <div class="w-full sm:w-40">
+                    <Input type="date" v-model="date" class="w-full shadow-sm bg-white dark:bg-slate-900" />
+                </div>
+                <div class="w-full sm:w-48">
+                    <Select v-model="status">
                     <SelectTrigger class="w-full shadow-sm bg-white dark:bg-slate-900">
                         <SelectValue placeholder="Semua Status" />
                     </SelectTrigger>
@@ -106,6 +184,7 @@ const formatCurrency = (value) => {
                         </SelectGroup>
                     </SelectContent>
                 </Select>
+            </div>
             </div>
         </div>
 
@@ -127,7 +206,10 @@ const formatCurrency = (value) => {
                             <div class="text-xs text-muted-foreground mt-0.5">{{ new Date(item.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) }}</div>
                         </TableCell>
                         <TableCell class="py-3">
-                            <div class="font-medium text-xs px-2 py-0.5 rounded bg-primary/10 text-primary w-fit mb-1">{{ item.type?.name }}</div>
+                            <div class="font-medium text-xs px-2 py-0.5 rounded bg-primary/10 text-primary w-fit mb-1">
+                                {{ item.type?.name }}
+                                <template v-if="item.sub_type"> &rsaquo; {{ item.sub_type.name }}</template>
+                            </div>
                             <div class="text-sm text-foreground line-clamp-2 max-w-sm">{{ item.description }}</div>
                         </TableCell>
                         <TableCell class="py-3 text-sm text-foreground">
@@ -155,6 +237,26 @@ const formatCurrency = (value) => {
                     </TableRow>
                 </TableBody>
             </Table>
+            
+            <!-- Pagination -->
+            <div class="p-4 border-t border-border/80 bg-muted/20 flex flex-col sm:flex-row gap-4 items-center justify-between" v-if="receipts.data.length > 0">
+                <span class="text-xs text-muted-foreground">
+                    Menampilkan {{ receipts.from }} - {{ receipts.to }} dari {{ receipts.total }} data
+                </span>
+                <div class="flex flex-wrap gap-1">
+                    <Link 
+                        v-for="(link, index) in receipts.links" 
+                        :key="index"
+                        :href="link.url || '#'"
+                        class="px-3 py-1 text-xs border rounded-md"
+                        :class="[
+                            link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted text-foreground',
+                            !link.url ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''
+                        ]"
+                        v-html="link.label"
+                    ></Link>
+                </div>
+            </div>
         </div>
     </AuthenticatedLayout>
 </template>
