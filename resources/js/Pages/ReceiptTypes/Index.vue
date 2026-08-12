@@ -209,23 +209,6 @@ const deleteItem = () => {
             </Table>
         </div>
 
-
-
-        <Dialog :open="isDeleteDialogOpen" @update:open="isDeleteDialogOpen = $event">
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Konfirmasi Penghapusan</DialogTitle>
-                    <DialogDescription>
-                        Apakah Anda yakin ingin menghapus jenis penerimaan <strong>{{ typeToDelete?.name }}</strong>?
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                    <Button variant="outline" @click="isDeleteDialogOpen = false">Batal</Button>
-                    <Button variant="destructive" @click="deleteItem" :disabled="deleteForm.processing">Ya, Hapus</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-
         <Dialog :open="isSubListDialogOpen" @update:open="isSubListDialogOpen = $event">
             <DialogContent class="sm:max-w-[600px]">
                 <DialogHeader>
@@ -240,7 +223,7 @@ const deleteItem = () => {
                         <Button size="sm" @click="openCreateSubDialog">Tambah Sub-Jenis</Button>
                     </div>
                     
-                    <div class="border rounded-md">
+                    <div class="border rounded-md max-h-[60vh] overflow-y-auto">
                         <Table>
                             <TableHeader class="bg-muted/40">
                                 <TableRow>
@@ -310,5 +293,20 @@ const deleteItem = () => {
             </DialogContent>
         </Dialog>
     </AuthenticatedLayout>
+
+    <Dialog :open="isDeleteDialogOpen" @update:open="isDeleteDialogOpen = $event">
+        <DialogContent class="z-[100] sm:max-w-[425px]">
+            <DialogHeader>
+                <DialogTitle>Konfirmasi Penghapusan</DialogTitle>
+                <DialogDescription>
+                    Apakah Anda yakin ingin menghapus jenis penerimaan <strong>{{ typeToDelete?.name }}</strong>?
+                </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+                <Button variant="outline" @click="isDeleteDialogOpen = false">Batal</Button>
+                <Button variant="destructive" @click="deleteItem" :disabled="deleteForm.processing">Ya, Hapus</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
 
 </template>
