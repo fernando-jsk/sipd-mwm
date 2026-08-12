@@ -33,10 +33,12 @@ class ReceiptTypeController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string',
+            'name' => 'required|string|unique:receipt_types,name',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
             'parent_id' => 'nullable|exists:receipt_types,id'
+        ], [
+            'name.unique' => 'Nama jenis penerimaan ini sudah terdaftar di database.'
         ]);
 
         ReceiptType::create($validated);
@@ -47,10 +49,12 @@ class ReceiptTypeController extends Controller
     public function update(Request $request, ReceiptType $receiptType)
     {
         $validated = $request->validate([
-            'name' => 'required|string',
+            'name' => 'required|string|unique:receipt_types,name,' . $receiptType->id,
             'description' => 'nullable|string',
             'is_active' => 'boolean',
             'parent_id' => 'nullable|exists:receipt_types,id'
+        ], [
+            'name.unique' => 'Nama jenis penerimaan ini sudah terdaftar di database.'
         ]);
 
         $receiptType->update($validated);

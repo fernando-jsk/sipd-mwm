@@ -108,6 +108,8 @@ class ReceiptImportService
                             
                             if ($subType) {
                                 $subTypeId = $subType->id;
+                            } else {
+                                throw new Exception("Sub-kategori penerimaan '{$subName}' untuk kategori '{$parentName}' tidak ditemukan di database. Pastikan master data sudah sesuai.");
                             }
                         }
 
