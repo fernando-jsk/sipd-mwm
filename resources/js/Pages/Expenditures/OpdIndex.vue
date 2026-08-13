@@ -6,6 +6,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbS
 import { Input } from '@/Components/ui/input';
 import { Search, Eye, ShieldCheck } from '@lucide/vue';
 import { Badge } from '@/Components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import {
   Table,
   TableBody,
@@ -24,15 +25,16 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
+const searchBy = ref(props.filters?.search_by || 'all');
 const statusFilter = ref(props.filters?.status || '');
 const sortFilter = ref(props.filters?.sort || 'newest');
 
 let searchTimeout = null;
 
-watch([search, statusFilter, sortFilter], ([newSearch, newStatus, newSort]) => {
+watch([search, searchBy, statusFilter, sortFilter], ([newSearch, newSearchBy, newStatus, newSort]) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        router.get('/expenditures/opd', { search: newSearch, status: newStatus, sort: newSort }, { preserveState: true, replace: true });
+        router.get('/expenditures/opd', { search: newSearch, search_by: newSearchBy, status: newStatus, sort: newSort }, { preserveState: true, replace: true });
     }, 300);
 });
 
@@ -93,32 +95,57 @@ const getStatusLabel = (status) => {
             <div class="p-4 border-b border-border/80 bg-muted/20 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <h3 class="font-semibold text-sm">Dokumen Antrean Otorisasi OPD</h3>
                 
-                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                    <select v-model="statusFilter" class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                        <option value="">Semua Status</option>
-                        <option value="submitted">Menunggu Otorisasi</option>
-                        <option value="authorized">Diotorisasi</option>
-                        <option value="disbursed">Dicairkan</option>
-                        <option value="rejected">Ditolak</option>
-                    </select>
+                <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                    <Select v-model="statusFilter">
+                        <SelectTrigger class="w-full sm:w-[150px] bg-background">
+                            <SelectValue placeholder="Semua Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="">Semua Status</SelectItem>
+                            <SelectItem value="submitted">Menunggu Otorisasi</SelectItem>
+                            <SelectItem value="authorized">Diotorisasi</SelectItem>
+                            <SelectItem value="disbursed">Dicairkan</SelectItem>
+                            <SelectItem value="rejected">Ditolak</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-                    <select v-model="sortFilter" class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                        <option value="newest">Terbaru</option>
-                        <option value="oldest">Terlama</option>
-                        <option value="doc_asc">No. SPPD (A-Z)</option>
-                        <option value="doc_desc">No. SPPD (Z-A)</option>
-                    </select>
+                    <Select v-model="sortFilter">
+                        <SelectTrigger class="w-full sm:w-[160px] bg-background">
+                            <SelectValue placeholder="Urutkan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="newest">Terbaru</SelectItem>
+                            <SelectItem value="oldest">Terlama</SelectItem>
+                            <SelectItem value="doc_asc">No. SPPD (A-Z)</SelectItem>
+                            <SelectItem value="doc_desc">No. SPPD (Z-A)</SelectItem>
+                        </SelectContent>
+                    </Select>
 
-                    <div class="relative w-full sm:w-64">
-                        <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
-                            <Search class="w-4 h-4" />
+                    <div class="flex items-center space-x-0 w-full sm:w-auto">
+                        <Select v-model="searchBy">
+                            <SelectTrigger class="w-[140px] rounded-r-none border-r-0 bg-muted/50 focus:ring-0 focus:ring-offset-0">
+                                <SelectValue placeholder="Pencarian" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Kolom</SelectItem>
+                                <SelectItem value="document_number">No. SPPD</SelectItem>
+                                <SelectItem value="description">Uraian</SelectItem>
+                                <SelectItem value="vendor_name">Rekanan</SelectItem>
+                                <SelectItem value="opd_number">No. OPD</SelectItem>
+                                <SelectItem value="spd_number">No. SPD</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <div class="relative w-full sm:w-64">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+                                <Search class="w-4 h-4" />
+                            </div>
+                            <Input 
+                                v-model="search" 
+                                type="text" 
+                                placeholder="Ketik kata kunci..." 
+                                class="pl-9 w-full rounded-l-none bg-background focus-visible:z-10"
+                            />
                         </div>
-                        <Input 
-                            v-model="search" 
-                            type="text" 
-                            placeholder="Cari No. SPPD / No. OPD / Uraian..." 
-                            class="pl-9 h-9 w-full bg-background"
-                        />
                     </div>
                 </div>
             </div>
