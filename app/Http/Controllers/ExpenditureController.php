@@ -31,7 +31,7 @@ class ExpenditureController extends Controller
 
         return Inertia::render('Expenditures/SppdIndex', [
             'expenditures' => $expenditures,
-            'filters' => (object) $request->only('search', 'status', 'sort'),
+            'filters' => (object) $request->only('search', 'search_by', 'status', 'sort'),
             'users' => User::all(['id', 'name']),
         ]);
     }
@@ -48,7 +48,7 @@ class ExpenditureController extends Controller
 
         return Inertia::render('Expenditures/OpdIndex', [
             'expenditures' => $expenditures,
-            'filters' => (object) $request->only('search', 'status', 'sort')
+            'filters' => (object) $request->only('search', 'search_by', 'status', 'sort')
         ]);
     }
 
@@ -64,7 +64,7 @@ class ExpenditureController extends Controller
 
         return Inertia::render('Expenditures/SpdIndex', [
             'expenditures' => $expenditures,
-            'filters' => (object) $request->only('search', 'status', 'sort')
+            'filters' => (object) $request->only('search', 'search_by', 'status', 'sort')
         ]);
     }
 
@@ -357,11 +357,28 @@ class ExpenditureController extends Controller
     private function applyFiltersAndSort($query, Request $request, $sortColumn = 'updated_at')
     {
         if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
-                $q->where('document_number', 'like', '%' . $request->search . '%')
-                  ->orWhere('opd_number', 'like', '%' . $request->search . '%')
-                  ->orWhere('spd_number', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%');
+            $searchBy = $request->input('search_by', 'all');
+            $search = '%' . $request->search . '%';
+
+            $query->where(function($q) use ($searchBy, $search) {
+                if ($searchBy === 'document_number') {
+                    $q->where('document_number', 'like', $search);
+                } elseif ($searchBy === 'description') {
+                    $q->where('description', 'like', $search);
+                } elseif ($searchBy === 'opd_number') {
+                    $q->where('opd_number', 'like', $search);
+                } elseif ($searchBy === 'spd_number') {
+                    $q->where('spd_number', 'like', $search);
+                } elseif ($searchBy === 'vendor_name') {
+                    $q->whereHas('vendor', function($vq) use ($search) {
+                        $vq->where('name', 'like', $search);
+                    });
+                } else {
+                    $q->where('document_number', 'like', $search)
+                      ->orWhere('opd_number', 'like', $search)
+                      ->orWhere('spd_number', 'like', $search)
+                      ->orWhere('description', 'like', $search);
+                }
             });
         }
         

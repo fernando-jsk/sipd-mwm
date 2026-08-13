@@ -55,6 +55,7 @@ Setiap input harus selalu dibungkus dengan layout grid yang rapi:
 ```
 * **Error State**: Tambahkan `aria-invalid="true"` dan gunakan `border-destructive focus-visible:ring-destructive/20` pada input, serta tambahkan pesan error berukuran `text-[11px] text-destructive` di bawahnya.
 * **Disabled State**: Tambahkan atribut `disabled`. Komponen bawaan sudah akan otomatis mengaplikasikan opacity 50% dan `cursor-not-allowed`.
+* **Dropdown / Select**: DILARANG menggunakan elemen HTML bawaan `<select>`. Selalu gunakan komponen `Select` dari shadcn-vue (`@/Components/ui/select`) agar desain antarmuka konsisten.
 
 ### D. Tabel & Data Display
 * **Table Container**: Bungkus tabel dengan `<div class="bg-card border border-border/80 rounded-xl overflow-hidden shadow-sm">`.
