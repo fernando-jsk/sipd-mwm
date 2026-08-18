@@ -118,8 +118,42 @@ class DashboardController extends Controller
             'dailyBurnRate' => $currentMonthOut / max(1, $monthsCount * 30),
         ];
 
+        // --- 6. Variance Budget (Selisih Anggaran) ---
+        $activeVersionSetting = Setting::where('key', 'rba_active_version_' . $activeYear)->first();
+        $activeVersion = $activeVersionSetting ? (int)$activeVersionSetting->value : 0;
+
+        $totalRevenueBudget = (float) DB::table('rba_documents')
+            ->join('account_codes', 'rba_documents.account_code_id', '=', 'account_codes.id')
+            ->where('rba_documents.budget_year', $activeYear)
+            ->where('rba_documents.version', $activeVersion)
+            ->where('account_codes.code', 'like', '4%')
+            ->sum('rba_documents.total_budget');
+
+        $totalExpenseBudget = (float) DB::table('rba_documents')
+            ->join('account_codes', 'rba_documents.account_code_id', '=', 'account_codes.id')
+            ->where('rba_documents.budget_year', $activeYear)
+            ->where('rba_documents.version', $activeVersion)
+            ->where('account_codes.code', 'like', '5%')
+            ->sum('rba_documents.total_budget');
+            
+        $monthlyRevenueBudget = $totalRevenueBudget / 12;
+        $monthlyExpenseBudget = $totalExpenseBudget / 12;
+
+        $revenueBudgetData = array_fill(0, 12, $monthlyRevenueBudget);
+        $expenseBudgetData = array_fill(0, 12, $monthlyExpenseBudget);
+
+        $varianceData = [
+            'revenueBudget' => $revenueBudgetData,
+            'revenueActual' => $cashInData,
+            'expenseBudget' => $expenseBudgetData,
+            'expenseActual' => $cashOutData,
+            'totalRevenueBudget' => $totalRevenueBudget,
+            'totalExpenseBudget' => $totalExpenseBudget,
+        ];
+
         return Inertia::render('Dashboard', [
-            'cashFlowData' => $cashFlowData
+            'cashFlowData' => $cashFlowData,
+            'varianceData' => $varianceData
         ]);
     }
 }

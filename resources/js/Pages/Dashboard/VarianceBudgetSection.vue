@@ -35,69 +35,56 @@ ChartJS.register(
 );
 
 // ============================================================
-// DATA DUMMY — akan diganti dengan data dari API/props nantinya
+// DATA DARI PROPS
 // ============================================================
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul'];
+const props = defineProps({
+    data: {
+        type: Object,
+        default: () => ({})
+    },
+    varianceData: {
+        type: Object,
+        default: () => ({})
+    }
+});
 
-// ── Revenue: Budget vs Actual ────────────────────────────────
-const revenueBudget = [2_000_000_000, 2_100_000_000, 2_050_000_000, 2_200_000_000, 2_150_000_000, 2_300_000_000, 2_250_000_000];
-const revenueActual = [1_850_000_000, 2_100_000_000, 1_950_000_000, 2_300_000_000, 2_150_000_000, 2_450_000_000, 2_200_000_000];
+const months = computed(() => props.data.months || []);
 
-// ── Expense: Budget vs Actual ────────────────────────────────
-const expenseBudget = [1_700_000_000, 1_800_000_000, 1_850_000_000, 1_920_000_000, 1_980_000_000, 2_050_000_000, 2_000_000_000];
-const expenseActual = [1_600_000_000, 1_800_000_000, 2_050_000_000, 1_900_000_000, 2_000_000_000, 2_100_000_000, 2_380_000_000];
+const revenueBudget = computed(() => props.varianceData.revenueBudget || []);
+const revenueActual = computed(() => props.varianceData.revenueActual || []);
+const expenseBudget = computed(() => props.varianceData.expenseBudget || []);
+const expenseActual = computed(() => props.varianceData.expenseActual || []);
 
-// KPI summary bulan ini (Juli)
-const curRevBudget  = revenueBudget.at(-1);
-const curRevActual  = revenueActual.at(-1);
-const curExpBudget  = expenseBudget.at(-1);
-const curExpActual  = expenseActual.at(-1);
+// Hitung rentang
+const startIdx = computed(() => parseInt(props.data.startMonth || 1) - 1);
+const endIdx = computed(() => parseInt(props.data.endMonth || 1) - 1);
 
-const revVariance   = curRevActual - curRevBudget;   // positif = bagus
-const expVariance   = curExpActual - curExpBudget;   // positif = bahaya
+const curRevBudget = computed(() => revenueBudget.value.slice(startIdx.value, endIdx.value + 1).reduce((a, b) => a + b, 0));
+const curRevActual = computed(() => revenueActual.value.slice(startIdx.value, endIdx.value + 1).reduce((a, b) => a + b, 0));
+const curExpBudget = computed(() => expenseBudget.value.slice(startIdx.value, endIdx.value + 1).reduce((a, b) => a + b, 0));
+const curExpActual = computed(() => expenseActual.value.slice(startIdx.value, endIdx.value + 1).reduce((a, b) => a + b, 0));
 
-const revVariancePct = +((revVariance / curRevBudget) * 100).toFixed(1);
-const expVariancePct = +((expVariance / curExpBudget) * 100).toFixed(1);
+const revVariance   = computed(() => curRevActual.value - curRevBudget.value);   // positif = bagus
+const expVariance   = computed(() => curExpActual.value - curExpBudget.value);   // positif = bahaya
 
-const netBudget = curRevBudget - curExpBudget;
-const netActual = curRevActual - curExpActual;
-const netVariance = netActual - netBudget;
+const revVariancePct = computed(() => curRevBudget.value ? +((revVariance.value / curRevBudget.value) * 100).toFixed(1) : 0);
+const expVariancePct = computed(() => curExpBudget.value ? +((expVariance.value / curExpBudget.value) * 100).toFixed(1) : 0);
 
-// ── Departments Red Flag ─────────────────────────────────────
-const departments = ref([
-    { id: 1, name: 'Instalasi Farmasi',     category: 'Pengadaan',   budget: 450_000_000, actual: 612_000_000, icon: '💊' },
-    { id: 2, name: 'Bagian SDM & Diklat',   category: 'Pegawai',     budget: 320_000_000, actual: 401_000_000, icon: '👥' },
-    { id: 3, name: 'Instalasi Gizi',        category: 'Operasional', budget: 180_000_000, actual: 231_000_000, icon: '🍱' },
-    { id: 4, name: 'Pemeliharaan Sarana',   category: 'Aset',        budget: 275_000_000, actual: 330_000_000, icon: '🔧' },
-    { id: 5, name: 'Instalasi Radiologi',   category: 'Pengadaan',   budget: 220_000_000, actual: 251_000_000, icon: '🩻' },
-    { id: 6, name: 'Bagian Keuangan',       category: 'Operasional', budget: 95_000_000,  actual: 88_000_000,  icon: '💰' },
-    { id: 7, name: 'Instalasi Laboratorium',category: 'Pengadaan',   budget: 310_000_000, actual: 298_000_000, icon: '🔬' },
-    { id: 8, name: 'Bagian Humas & Pemasaran', category: 'Operasional', budget: 120_000_000, actual: 104_000_000, icon: '📣' },
-]);
-
-// Hitung variance per dept
-const deptWithVariance = computed(() =>
-    departments.value.map(d => ({
-        ...d,
-        variance: d.actual - d.budget,
-        variancePct: +(((d.actual - d.budget) / d.budget) * 100).toFixed(1),
-    })).sort((a, b) => b.variancePct - a.variancePct)
-);
-
-const redFlagDepts = computed(() => deptWithVariance.value.filter(d => d.variancePct > 0));
-const onTargetDepts = computed(() => deptWithVariance.value.filter(d => d.variancePct <= 0));
+const netBudget = computed(() => curRevBudget.value - curExpBudget.value);
+const netActual = computed(() => curRevActual.value - curExpActual.value);
+const netVariance = computed(() => netActual.value - netBudget.value);
 
 // Tab state
 const activeTab = ref('revenue'); // 'revenue' | 'expense'
 
 // ── Chart: Revenue Budget vs Actual ─────────────────────────
 const revenueChartData = computed(() => ({
-    labels: months,
+    labels: months.value,
     datasets: [
         {
             label: 'Anggaran',
-            data: revenueBudget,
+            data: revenueBudget.value,
             borderColor: '#94a3b8',
             backgroundColor: 'rgba(148,163,184,0.08)',
             borderWidth: 2,
@@ -110,7 +97,7 @@ const revenueChartData = computed(() => ({
         },
         {
             label: 'Realisasi',
-            data: revenueActual,
+            data: revenueActual.value,
             borderColor: '#4ADE80',
             backgroundColor: 'rgba(74,222,128,0.10)',
             borderWidth: 2.5,
@@ -127,11 +114,11 @@ const revenueChartData = computed(() => ({
 
 // ── Chart: Expense Budget vs Actual ─────────────────────────
 const expenseChartData = computed(() => ({
-    labels: months,
+    labels: months.value,
     datasets: [
         {
             label: 'Anggaran',
-            data: expenseBudget,
+            data: expenseBudget.value,
             borderColor: '#94a3b8',
             backgroundColor: 'rgba(148,163,184,0.08)',
             borderWidth: 2,
@@ -144,7 +131,7 @@ const expenseChartData = computed(() => ({
         },
         {
             label: 'Realisasi',
-            data: expenseActual,
+            data: expenseActual.value,
             borderColor: '#FF8781',
             backgroundColor: 'rgba(255,135,129,0.10)',
             borderWidth: 2.5,
@@ -205,63 +192,6 @@ const lineChartOptions = {
     },
 };
 
-// ── Chart: Variance Bar (dept) ───────────────────────────────
-const deptBarData = computed(() => ({
-    labels: deptWithVariance.value.map(d => d.name.split(' ').slice(-2).join(' ')), // shorten label
-    datasets: [{
-        label: 'Selisih (%)',
-        data: deptWithVariance.value.map(d => d.variancePct),
-        backgroundColor: deptWithVariance.value.map(d =>
-            d.variancePct > 15  ? 'rgba(251,113,133,0.85)'
-            : d.variancePct > 0  ? 'rgba(251,191,36,0.85)'
-            : 'rgba(74,222,128,0.82)'
-        ),
-        borderColor: deptWithVariance.value.map(d =>
-            d.variancePct > 15  ? '#f43f5e'
-            : d.variancePct > 0  ? '#F59E0B'
-            : '#22c55e'
-        ),
-        borderWidth: 1.5,
-        borderRadius: 6,
-        borderSkipped: false,
-    }],
-}));
-
-const deptBarOptions = {
-    indexAxis: 'y',
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: { display: false },
-        tooltip: {
-            callbacks: {
-                label: (ctx) => {
-                    const d = deptWithVariance.value[ctx.dataIndex];
-                    return [
-                        ` Persentase: ${ctx.raw >= 0 ? '+' : ''}${ctx.raw}%`,
-                        ` Selisih: ${formatRupiah(d.variance)}`,
-                    ];
-                },
-            },
-        },
-    },
-    scales: {
-        x: {
-            grid: { color: 'rgba(100,116,139,0.08)' },
-            border: { dash: [4, 4] },
-            ticks: {
-                color: '#64748b',
-                font: { size: 10 },
-                callback: (v) => `${v}%`,
-            },
-        },
-        y: {
-            grid: { display: false },
-            ticks: { color: '#64748b', font: { size: 10 } },
-        },
-    },
-};
-
 // ── Helpers ──────────────────────────────────────────────────
 function formatRupiah(val) {
     if (val === 0) return 'Rp 0';
@@ -305,12 +235,6 @@ const severityClass = {
     danger: { text: 'text-rose-600',    bg: 'bg-rose-100',    border: 'border-rose-200',    badge: 'bg-rose-100 text-rose-700 border-rose-200',            bar: 'bg-rose-500' },
 };
 
-function deptSeverity(pct) {
-    if (pct > 15) return 'danger';
-    if (pct > 0)  return 'warn';
-    if (pct >= -5) return 'ok';
-    return 'great';
-}
 </script>
 
 <template>
@@ -324,7 +248,7 @@ function deptSeverity(pct) {
             <div class="w-1 h-8 rounded-full bg-blue-500"></div>
             <div>
                 <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Selisih Anggaran</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Anggaran vs Realisasi · Periode: Juli 2025</p>
+                <p class="text-xs text-muted-foreground mt-0.5">Anggaran vs Realisasi</p>
             </div>
         </div>
 
@@ -402,10 +326,10 @@ function deptSeverity(pct) {
                 <div class="mt-3">
                     <div class="h-1.5 bg-muted rounded-full overflow-hidden">
                         <div class="h-full bg-emerald-500 rounded-full transition-all duration-700"
-                            :style="{ width: Math.min(100, (curRevActual / curRevBudget) * 100) + '%' }">
+                            :style="{ width: curRevBudget ? Math.min(100, (curRevActual / curRevBudget) * 100) + '%' : '0%' }">
                         </div>
                     </div>
-                    <p class="text-[10px] text-muted-foreground mt-1">{{ ((curRevActual / curRevBudget) * 100).toFixed(1) }}% dari target</p>
+                    <p class="text-[10px] text-muted-foreground mt-1">{{ curRevBudget ? ((curRevActual / curRevBudget) * 100).toFixed(1) : 0 }}% dari target</p>
                 </div>
             </div>
 
@@ -499,7 +423,7 @@ function deptSeverity(pct) {
                                 'text-[9px] font-bold',
                                 revenueActual[i] >= revenueBudget[i] ? 'text-emerald-600' : 'text-rose-500'
                             ]">
-                                {{ revenueActual[i] >= revenueBudget[i] ? '+' : '' }}{{ (((revenueActual[i] - revenueBudget[i]) / revenueBudget[i]) * 100).toFixed(1) }}%
+                                {{ revenueActual[i] >= revenueBudget[i] ? '+' : '' }}{{ revenueBudget[i] ? (((revenueActual[i] - revenueBudget[i]) / revenueBudget[i]) * 100).toFixed(1) : 0 }}%
                             </span>
                         </template>
                         <template v-else>
@@ -507,7 +431,7 @@ function deptSeverity(pct) {
                                 'text-[9px] font-bold',
                                 expenseActual[i] <= expenseBudget[i] ? 'text-emerald-600' : 'text-rose-500'
                             ]">
-                                {{ expenseActual[i] >= expenseBudget[i] ? '+' : '' }}{{ (((expenseActual[i] - expenseBudget[i]) / expenseBudget[i]) * 100).toFixed(1) }}%
+                                {{ expenseActual[i] >= expenseBudget[i] ? '+' : '' }}{{ expenseBudget[i] ? (((expenseActual[i] - expenseBudget[i]) / expenseBudget[i]) * 100).toFixed(1) : 0 }}%
                             </span>
                         </template>
                         <span class="text-[9px] text-muted-foreground">{{ m }}</span>
@@ -516,108 +440,7 @@ function deptSeverity(pct) {
             </div>
         </div>
 
-        <!-- ── ROW 3: Red Flags + Variance Chart ───────────────── -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-            <!-- Red Flag Departments List (3/5) -->
-            <div class="lg:col-span-3 bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
-                <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
-                    <div>
-                        <h3 class="text-sm font-semibold text-secondary flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse inline-block"></span>
-                            Departemen Perlu Perhatian
-                        </h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">
-                            {{ redFlagDepts.length }} departemen melebihi anggaran bulan ini
-                        </p>
-                    </div>
-                    <span class="text-[10px] bg-rose-100 text-rose-700 border border-rose-200 rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">
-                        {{ redFlagDepts.length }} Melebihi Anggaran
-                    </span>
-                </div>
-
-                <div class="divide-y divide-border/50">
-                    <!-- Over Budget rows -->
-                    <div
-                        v-for="(dept, i) in redFlagDepts"
-                        :key="dept.id"
-                        class="px-5 py-3.5 hover:bg-muted/30 transition-colors duration-150 flex items-center gap-3"
-                    >
-                        <!-- Rank & Icon -->
-                        <div class="flex items-center gap-2 flex-shrink-0">
-                            <span class="text-[10px] font-bold text-muted-foreground/60 w-4 text-right">{{ i + 1 }}</span>
-                            <span class="text-base">{{ dept.icon }}</span>
-                        </div>
-
-                        <!-- Name & Category -->
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2 mb-1.5">
-                                <p class="text-[13px] font-semibold text-secondary truncate">{{ dept.name }}</p>
-                                <span class="text-[9px] bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-medium flex-shrink-0">{{ dept.category }}</span>
-                            </div>
-                            <!-- Progress bar: actual vs budget -->
-                            <div class="relative h-1.5 bg-muted rounded-full overflow-hidden">
-                                <!-- Budget line at 100% -->
-                                <div class="absolute top-0 right-0 bottom-0 w-px bg-secondary/30 z-10" style="left: calc(100% * (1/1))"></div>
-                                <div
-                                    :class="[
-                                        'h-full rounded-full transition-all duration-700',
-                                        severityClass[deptSeverity(dept.variancePct)].bar
-                                    ]"
-                                    :style="{ width: Math.min(130, (dept.actual / dept.budget) * 100) + '%' }"
-                                ></div>
-                            </div>
-                            <div class="flex justify-between mt-1">
-                                <span class="text-[10px] text-muted-foreground">
-                                    Aktual: <strong class="text-foreground">{{ formatRupiahShort(dept.actual) }}</strong>
-                                </span>
-                                <span class="text-[10px] text-muted-foreground">
-                                    Anggaran: {{ formatRupiahShort(dept.budget) }}
-                                </span>
-                            </div>
-                        </div>
-
-                        <!-- Variance Badge -->
-                        <div class="flex-shrink-0 text-right">
-                            <span :class="[
-                                'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold border',
-                                severityClass[deptSeverity(dept.variancePct)].badge
-                            ]">
-                                +{{ dept.variancePct }}%
-                            </span>
-                            <p class="text-[10px] text-rose-500 font-semibold mt-0.5">+{{ formatRupiahShort(dept.variance) }}</p>
-                        </div>
-                    </div>
-
-                    <!-- On-target rows (collapsed style) -->
-                    <div v-if="onTargetDepts.length > 0" class="px-5 py-2.5 bg-muted/20">
-                        <p class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">✅ Sesuai / Efisien</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            <span
-                                v-for="dept in onTargetDepts"
-                                :key="dept.id"
-                                class="inline-flex items-center gap-1 text-[10px] font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-md px-2 py-0.5"
-                            >
-                                {{ dept.icon }} {{ dept.name.split(' ').slice(-1)[0] }}
-                                <span class="text-[9px] opacity-70">{{ dept.variancePct }}%</span>
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Variance Horizontal Bar Chart (2/5) -->
-            <div class="lg:col-span-2 bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
-                <div class="px-5 py-4 border-b border-border/60">
-                    <h3 class="text-sm font-semibold text-secondary">Persentase Selisih per Departemen</h3>
-                    <p class="text-xs text-muted-foreground mt-0.5">Merah = melebihi anggaran · Hijau = efisien</p>
-                </div>
-                <div class="p-4" style="height: 360px;">
-                    <Bar :data="deptBarData" :options="deptBarOptions" />
-                </div>
-            </div>
-
-        </div>
 
         <!-- ── ROW 4: Variance Table Summary ───────────────────── -->
         <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
@@ -709,7 +532,7 @@ function deptSeverity(pct) {
                                 {{ netVariance >= 0 ? '+' : '' }}{{ formatRupiah(netVariance) }}
                             </td>
                             <td :class="['px-4 py-3 text-right text-sm font-black', netVariance >= 0 ? 'text-blue-600' : 'text-rose-600']">
-                                {{ netVariance >= 0 ? '+' : '' }}{{ (((netVariance) / Math.abs(netBudget)) * 100).toFixed(1) }}%
+                                {{ netVariance >= 0 ? '+' : '' }}{{ netBudget ? (((netVariance) / Math.abs(netBudget)) * 100).toFixed(1) : 0 }}%
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <span :class="[

@@ -188,9 +188,17 @@ function formatRupiah(val) {
 }
 
 function formatRupiahShort(val) {
-    if (val >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(1)} M`;
-    if (val >= 1_000_000)     return `${(val / 1_000_000).toFixed(0)} Jt`;
-    return String(val);
+    const isNegative = val < 0;
+    const absVal = Math.abs(val);
+    let formatted = String(absVal);
+    
+    if (absVal >= 1_000_000_000) {
+        formatted = `${(absVal / 1_000_000_000).toFixed(1)} M`;
+    } else if (absVal >= 1_000_000) {
+        formatted = `${(absVal / 1_000_000).toFixed(0)} Jt`;
+    }
+    
+    return isNegative ? `-${formatted}` : formatted;
 }
 
 const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value / (minimumSafeBalance.value * 3)) * 100)) || 0);
@@ -207,7 +215,7 @@ const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value 
             <div class="flex items-center gap-3">
                 <div class="w-1 h-8 rounded-full bg-primary"></div>
                 <div>
-                    <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Arus Kas</h2>
+                    <h2 class="text-xl font-bold tracking-tight text-secondary">Arus Kas</h2>
                     <p class="text-xs text-muted-foreground mt-0.5">Arus kas riil · Periode: {{ selectedMonthLabel }}</p>
                 </div>
             </div>
@@ -298,9 +306,11 @@ const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value 
                     </div>
                 </div>
                 <p :class="['text-2xl font-bold tracking-tight leading-none', netCashFlow >= 0 ? 'text-emerald-700' : 'text-rose-600']">
-                    {{ netCashFlow >= 0 ? '+' : '' }}{{ formatRupiahShort(netCashFlow) }}
+                    {{ netCashFlow > 0 ? '+' : '' }}{{ formatRupiahShort(netCashFlow) }}
                 </p>
-                <p class="text-[11px] text-muted-foreground mt-1.5">Selisih periode berjalan</p>
+                <p class="text-[11px] text-muted-foreground mt-1.5">
+                    {{ formatRupiah(netCashFlow) }}
+                </p>
                 <div :class="['mt-3 flex items-center gap-1 text-[11px] font-semibold', netCashFlow >= 0 ? 'text-emerald-600' : 'text-rose-500']">
                     <Minus class="w-3.5 h-3.5 flex-shrink-0" />
                     <span>In − Out</span>
