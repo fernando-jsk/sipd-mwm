@@ -7,6 +7,7 @@ import VarianceBudgetSection from '@/Pages/Dashboard/VarianceBudgetSection.vue';
 
 const props = defineProps({
     cashFlowData: Object,
+    varianceData: Object,
 });
 </script>
 
@@ -32,6 +33,6 @@ const props = defineProps({
         <!-- <AgingPiutangSection /> -->
 
         <!-- Section 3: Variance Budget -->
-        <VarianceBudgetSection />
+        <VarianceBudgetSection :data="cashFlowData" :varianceData="varianceData" />
     </AuthenticatedLayout>
 </template>
