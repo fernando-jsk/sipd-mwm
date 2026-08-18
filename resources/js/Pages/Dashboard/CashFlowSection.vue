@@ -1,16 +1,19 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { Bar, Doughnut } from 'vue-chartjs';
+import { Bar, Doughnut, Line } from 'vue-chartjs';
 import {
     Chart as ChartJS,
     CategoryScale,
     LinearScale,
     BarElement,
+    LineElement,
+    PointElement,
     Title,
     Tooltip,
     Legend,
     ArcElement,
+    Filler,
 } from 'chart.js';
 import {
     TrendingUp,
@@ -20,7 +23,7 @@ import {
     ArrowDownRight,
 } from 'lucide-vue-next';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, ArcElement, Filler);
 
 const props = defineProps({
     data: {
@@ -171,6 +174,95 @@ const doughnutOptions = {
         tooltip: {
             callbacks: {
                 label: (ctx) => ` ${ctx.label}: ${formatRupiah(ctx.raw)} (${((ctx.raw / (currentMonthOut.value || 1)) * 100).toFixed(1)}%)`,
+            },
+        },
+    },
+};
+
+// ============================================================
+// CHART 3 — Line: Akumulasi Cash In vs Cash Out
+// ============================================================
+const cumulativeCashIn = computed(() => {
+    let sum = 0;
+    const endIdx = parseInt(endMonth.value) - 1;
+    return (props.data.cashInData || []).map((val, i) => {
+        if (i > endIdx) return null;
+        sum += val;
+        return sum;
+    });
+});
+
+const cumulativeCashOut = computed(() => {
+    let sum = 0;
+    const endIdx = parseInt(endMonth.value) - 1;
+    return (props.data.cashOutData || []).map((val, i) => {
+        if (i > endIdx) return null;
+        sum += val;
+        return sum;
+    });
+});
+
+const lineChartData = computed(() => ({
+    labels: props.data.months || [],
+    datasets: [
+        {
+            label: 'Akumulasi Pemasukan',
+            data: cumulativeCashIn.value,
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16,185,129,0.1)',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: '#10B981',
+            tension: 0.35,
+            fill: true,
+        },
+        {
+            label: 'Akumulasi Pengeluaran',
+            data: cumulativeCashOut.value,
+            borderColor: '#F43F5E',
+            backgroundColor: 'rgba(244,63,94,0.1)',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointBackgroundColor: '#F43F5E',
+            tension: 0.35,
+            fill: true,
+        },
+    ]
+}));
+
+const lineChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+        legend: {
+            position: 'top',
+            labels: {
+                usePointStyle: true,
+                pointStyle: 'circle',
+                padding: 20,
+                font: { size: 11, family: 'inherit' },
+                color: '#64748b',
+            },
+        },
+        tooltip: {
+            callbacks: {
+                label: (ctx) => ` ${ctx.dataset.label}: ${formatRupiah(ctx.raw)}`,
+            },
+        },
+    },
+    scales: {
+        x: {
+            grid: { display: false },
+            ticks: { color: '#64748b', font: { size: 11 } },
+        },
+        y: {
+            grid: { color: 'rgba(100,116,139,0.08)' },
+            border: { dash: [4, 4] },
+            ticks: {
+                color: '#64748b',
+                font: { size: 11 },
+                callback: (val) => formatRupiahShort(val),
             },
         },
     },
@@ -352,7 +444,21 @@ const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value 
 
         </div>
 
-        <!-- ── ROW 3: Ending Cash Balance Alert Bar ─────────────── -->
+        <!-- ── ROW 3: Line Chart: Akumulasi Cash Flow ────────────── -->
+        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-semibold text-secondary">Akumulasi Pemasukan & Pengeluaran</h3>
+                    <p class="text-xs text-muted-foreground mt-0.5">Tren kumulatif (YTD) dari awal tahun berjalan</p>
+                </div>
+                <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">Kumulatif</span>
+            </div>
+            <div class="p-5" style="height: 300px;">
+                <Line :data="lineChartData" :options="lineChartOptions" />
+            </div>
+        </div>
+
+        <!-- ── ROW 4: Ending Cash Balance Alert Bar ─────────────── -->
         <div :class="[
             'rounded-xl border px-5 py-4 flex flex-wrap sm:flex-nowrap items-center gap-4 transition-all duration-300',
             isBalanceDanger   ? 'bg-rose-50 border-rose-300'
