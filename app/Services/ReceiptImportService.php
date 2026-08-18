@@ -36,6 +36,76 @@ class ReceiptImportService
 
         DB::beginTransaction();
         try {
+            // 1. Pemetaan Header Dinamis dan Auto-Creation Kategori
+            $columnMap = [];
+            $currentMainHeader = '';
+            
+            $maxCols = max(count($mainHeaders), count($subHeaders));
+            
+            for ($col = 2; $col < $maxCols; $col++) {
+                $mainVal = isset($mainHeaders[$col]) ? trim($mainHeaders[$col]) : '';
+                if (!empty($mainVal)) {
+                    $currentMainHeader = $mainVal;
+                }
+                
+                $subVal = isset($subHeaders[$col]) ? trim($subHeaders[$col]) : '';
+                
+                if (empty($currentMainHeader)) {
+                    continue; 
+                }
+                
+                // Abaikan jika ada kata "total" (case-insensitive)
+                if (stripos($currentMainHeader, 'total') !== false || stripos($subVal, 'total') !== false) {
+                    continue;
+                }
+                
+                // Cari atau buat Parent Kategori
+                $parentType = $receiptTypes->where('name', $currentMainHeader)->whereNull('parent_id')->first();
+                if (!$parentType) {
+                    // Coba case-insensitive search
+                    $parentType = $receiptTypes->where('parent_id', null)
+                        ->filter(fn($t) => strtolower($t->name) === strtolower($currentMainHeader))
+                        ->first();
+                        
+                    if (!$parentType) {
+                        $parentType = ReceiptType::create([
+                            'name' => $currentMainHeader,
+                            'is_active' => true,
+                            'created_by' => Auth::id() ?? 1,
+                        ]);
+                        $receiptTypes->push($parentType); // Tambah ke cache lokal
+                    }
+                }
+                
+                // Cari atau buat Sub Kategori
+                $subType = null;
+                if (!empty($subVal)) {
+                    $subType = $receiptTypes->where('parent_id', $parentType->id)->where('name', $subVal)->first();
+                    if (!$subType) {
+                        $subType = $receiptTypes->where('parent_id', $parentType->id)
+                            ->filter(fn($t) => strtolower($t->name) === strtolower($subVal))
+                            ->first();
+                            
+                        if (!$subType) {
+                            $subType = ReceiptType::create([
+                                'name' => $subVal,
+                                'parent_id' => $parentType->id,
+                                'is_active' => true,
+                                'created_by' => Auth::id() ?? 1,
+                            ]);
+                            $receiptTypes->push($subType); // Tambah ke cache lokal
+                        }
+                    }
+                }
+                
+                $columnMap[$col] = [
+                    'parent_id' => $parentType->id,
+                    'sub_id' => $subType ? $subType->id : null,
+                    'payer_name' => !empty($subVal) ? $subVal : $currentMainHeader,
+                ];
+            }
+
+            // 2. Membaca Data Transaksi
             for ($i = 7; $i < count($data); $i++) {
                 $row = $data[$i];
                 if (!isset($row[1]) || empty(trim($row[1])) || stripos($row[1], 'total') !== false || stripos($row[1], 'jasa') !== false) {
@@ -52,30 +122,14 @@ class ReceiptImportService
                 $groupedReceipts = [];
 
                 for ($col = 2; $col < count($row); $col++) {
-                    $parentName = '';
-                    $subName = '';
-                    $payerName = '';
-
-                    if ($col >= 2 && $col <= 20) {
-                        $parentName = 'Pendapatan Pasien Umum';
-                        $subName = trim($mainHeaders[$col]);
-                        $payerName = 'Pasien Umum';
-                    } elseif ($col >= 22 && $col <= 33) {
-                        $parentName = 'Rekanan';
-                        $subName = isset($subHeaders[$col]) ? trim($subHeaders[$col]) : '';
-                        $payerName = $subName;
-                    } elseif ($col == 34) {
-                        $parentName = 'BPJS Kesehatan';
-                        $payerName = 'BPJS Kesehatan';
-                    } elseif ($col >= 35 && $col <= 36) {
-                        $parentName = 'Pendapatan Lain-lain';
-                        $subName = isset($subHeaders[$col]) ? trim($subHeaders[$col]) : '';
-                        $payerName = $subName;
-                    }
-
-                    if (empty($parentName)) {
+                    if (!isset($columnMap[$col])) {
                         continue;
                     }
+
+                    $map = $columnMap[$col];
+                    $parentTypeId = $map['parent_id'];
+                    $subTypeId = $map['sub_id'];
+                    $payerName = $map['payer_name'];
 
                     $amountString = trim($row[$col]);
                     if (empty($amountString) || $amountString === '-' || $amountString === 'Rp-') {
@@ -86,33 +140,6 @@ class ReceiptImportService
                     $amount = (float)$amountString;
 
                     if ($amount > 0) {
-                        $parentType = $receiptTypes->where('name', $parentName)->whereNull('parent_id')->first();
-                        if (!$parentType && $parentName === 'Pendapatan Pasien Umum') {
-                            $parentType = $receiptTypes->where('name', 'Pendapatan Pasien Umum')->first();
-                        }
-                        
-                        if (!$parentType) {
-                            throw new Exception("Kategori penerimaan '{$parentName}' tidak ditemukan di database. Pastikan master data sudah sesuai.");
-                        }
-                        
-                        $parentTypeId = $parentType->id; 
-
-                        $subTypeId = null;
-                        if (!empty($subName)) {
-                            $subType = $receiptTypes->filter(function ($t) use ($subName, $parentTypeId) {
-                                $dbName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $t->name));
-                                $searchName = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $subName));
-                                return $t->parent_id == $parentTypeId &&
-                                    (str_contains($dbName, $searchName) || str_contains($searchName, $dbName));
-                            })->first();
-                            
-                            if ($subType) {
-                                $subTypeId = $subType->id;
-                            } else {
-                                throw new Exception("Sub-kategori penerimaan '{$subName}' untuk kategori '{$parentName}' tidak ditemukan di database. Pastikan master data sudah sesuai.");
-                            }
-                        }
-
                         $groupKey = $parentTypeId . '_' . $subTypeId . '_' . md5($payerName);
                         if (!isset($groupedReceipts[$groupKey])) {
                             $groupedReceipts[$groupKey] = [
