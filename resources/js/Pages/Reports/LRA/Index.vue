@@ -172,6 +172,12 @@ const formatNumber = (value) => {
                                 <SelectContent>
                                     <SelectGroup>
                                         <SelectItem value="all">Satu Tahun Penuh</SelectItem>
+                                        <SelectItem value="s1">Semester 1 (Jan - Jun)</SelectItem>
+                                        <SelectItem value="s2">Semester 2 (Jul - Des)</SelectItem>
+                                        <SelectItem value="q1">Kuartal 1 (Jan - Mar)</SelectItem>
+                                        <SelectItem value="q2">Kuartal 2 (Apr - Jun)</SelectItem>
+                                        <SelectItem value="q3">Kuartal 3 (Jul - Sep)</SelectItem>
+                                        <SelectItem value="q4">Kuartal 4 (Okt - Des)</SelectItem>
                                         <SelectItem value="1">Januari</SelectItem>
                                         <SelectItem value="2">Februari</SelectItem>
                                         <SelectItem value="3">Maret</SelectItem>

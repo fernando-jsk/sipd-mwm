@@ -42,14 +42,25 @@ class LraService
             ->pluck('total', 'account_code_id')
             ->toArray();
 
+        $applyPeriodFilter = function ($query, $dateColumn, $period) {
+            if (!$period || $period === 'all') return;
+            switch ($period) {
+                case 'q1': $query->whereMonth($dateColumn, '>=', 1)->whereMonth($dateColumn, '<=', 3); break;
+                case 'q2': $query->whereMonth($dateColumn, '>=', 4)->whereMonth($dateColumn, '<=', 6); break;
+                case 'q3': $query->whereMonth($dateColumn, '>=', 7)->whereMonth($dateColumn, '<=', 9); break;
+                case 'q4': $query->whereMonth($dateColumn, '>=', 10)->whereMonth($dateColumn, '<=', 12); break;
+                case 's1': $query->whereMonth($dateColumn, '>=', 1)->whereMonth($dateColumn, '<=', 6); break;
+                case 's2': $query->whereMonth($dateColumn, '>=', 7)->whereMonth($dateColumn, '<=', 12); break;
+                default: $query->whereMonth($dateColumn, $period); break;
+            }
+        };
+
         // 3. Fetch Revenue Realization
         $receiptQuery = ReceiptDetail::join('receipts', 'receipt_details.receipt_id', '=', 'receipts.id')
             ->whereYear('receipts.date', $year)
             ->where('receipts.status', '!=', 'rejected');
             
-        if ($month) {
-            $receiptQuery->whereMonth('receipts.date', $month);
-        }
+        $applyPeriodFilter($receiptQuery, 'receipts.date', $month);
 
         $revenues = $receiptQuery->select('receipt_details.account_code_id', DB::raw('SUM(receipt_details.amount) as total'))
             ->groupBy('receipt_details.account_code_id')
@@ -61,9 +72,7 @@ class LraService
             ->whereYear('expenditures.date', $year)
             ->where('expenditures.status', '!=', 'rejected');
 
-        if ($month) {
-            $expenditureQuery->whereMonth('expenditures.date', $month);
-        }
+        $applyPeriodFilter($expenditureQuery, 'expenditures.date', $month);
 
         $expenditures = $expenditureQuery->select('expenditure_details.account_code_id', DB::raw('SUM(expenditure_details.amount) as total'))
             ->groupBy('expenditure_details.account_code_id')
