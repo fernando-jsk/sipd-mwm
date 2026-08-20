@@ -123,13 +123,13 @@ onMounted(() => {
                 3. Verifikasi Pencairan Dana
             </Link>
 
-            <!-- Akuntansi (modul belum aktif) -->
+            <!-- Laporan -->
             <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                Akuntansi
+                Laporan
             </div>
-            <a href="#" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
-                Jurnal &amp; Laporan
-            </a>
+            <Link href="/reports/lra" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lra') }">
+                Laporan Realisasi Anggaran
+            </Link>
 
             <!-- Pengaturan (hanya super-admin) -->
             <template v-if="showUserManagement">
