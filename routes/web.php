@@ -125,6 +125,14 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('expenditures', \App\Http\Controllers\ExpenditureController::class);
     Route::patch('/expenditures/{expenditure}/status', [\App\Http\Controllers\ExpenditureController::class, 'updateStatus'])->name('expenditures.status');
+
+    // =========================================================
+    // Modul Laporan
+    // =========================================================
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/lra', [\App\Http\Controllers\Report\LraController::class, 'index'])->name('lra.index');
+        Route::get('/lra/data', [\App\Http\Controllers\Report\LraController::class, 'data'])->name('lra.data');
+    });
 });
 
 // HANYA UNTUK DEPLOYMENT AWAL / MAINTENANCE (Hapus atau beri proteksi setelah dipakai)

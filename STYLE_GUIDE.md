@@ -88,3 +88,27 @@ Agar antarmuka terasa hidup dan premium:
 Agar jarak dan proporsi konten tetap konsisten antar halaman:
 * **Main Container**: Selalu bungkus konten utama halaman dengan class pembungkus standar: `max-w-7xl mx-auto p-6 md:p-8 space-y-6` (atau `space-y-8` jika butuh jarak lebih renggang antar section).
 * **Gunakan CSS Grid**: Hindari memosisikan layout dasar secara manual dengan pixel atau margin aneh. Manfaatkan grid (contoh: `grid md:grid-cols-2 lg:grid-cols-3 gap-6`) untuk komponen yang berjejer.
+
+### A. Header Halaman (Page Header)
+* **Wajib Konsisten**: Setiap halaman yang menggunakan `<template #header>` dari `AuthenticatedLayout` harus menggunakan format layout yang seragam agar ukuran judul dan penempatan tombol aksi (*action buttons*) tetap konsisten.
+* **Layout Standar**: Gunakan struktur `flex justify-between items-center` (sepanjang `w-full`). Judul diletakkan di sisi kiri, dan tombol aksi di sisi kanan.
+* **Tipografi Judul**: Gunakan `font-semibold text-xl text-secondary dark:text-foreground leading-tight`. **Dilarang** memperbesar ukuran teks (misal menggunakan `text-2xl` atau `font-bold`) secara sepihak di halaman tertentu agar tidak belang dengan halaman lain.
+* **Contoh Struktur HTML**:
+  ```vue
+  <template #header>
+      <div class="w-full flex justify-between items-center">
+          <div>
+              <!-- Opsional: Breadcrumb atau Label kecil di atas judul -->
+              <h2 class="font-semibold text-xl text-secondary dark:text-foreground leading-tight">
+                  Judul Halaman
+              </h2>
+              <p class="text-sm text-muted-foreground mt-1">Deskripsi singkat halaman (Opsional).</p>
+          </div>
+          <!-- Area Tombol Aksi di Kanan -->
+          <div class="flex items-center gap-2">
+              <Button variant="outline">Secondary</Button>
+              <Button>Primary</Button>
+          </div>
+      </div>
+  </template>
+  ```
