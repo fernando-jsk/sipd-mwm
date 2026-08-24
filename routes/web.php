@@ -132,6 +132,9 @@ Route::middleware('auth')->group(function () {
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/lra', [\App\Http\Controllers\Report\LraController::class, 'index'])->name('lra.index');
         Route::get('/lra/data', [\App\Http\Controllers\Report\LraController::class, 'data'])->name('lra.data');
+
+        Route::get('/lak', [\App\Http\Controllers\Report\LakController::class, 'index'])->name('lak.index');
+        Route::get('/lak/data', [\App\Http\Controllers\Report\LakController::class, 'data'])->name('lak.data');
     });
 });
 
