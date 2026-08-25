@@ -16,7 +16,7 @@ class ReceiptType extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'description', 'is_active'])
+            ->logOnly(['name', 'description', 'is_active', 'account_code_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('receipt_type')
@@ -31,5 +31,10 @@ class ReceiptType extends Model
     public function children()
     {
         return $this->hasMany(ReceiptType::class, 'parent_id');
+    }
+
+    public function accountCode()
+    {
+        return $this->belongsTo(AccountCode::class, 'account_code_id');
     }
 }

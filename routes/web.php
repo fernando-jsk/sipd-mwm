@@ -127,6 +127,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('/expenditures/{expenditure}/status', [\App\Http\Controllers\ExpenditureController::class, 'updateStatus'])->name('expenditures.status');
 
     // =========================================================
+    // Modul Akuntansi (Jurnal Umum)
+    // =========================================================
+    Route::post('/journals/{journal}/post', [\App\Http\Controllers\JournalController::class, 'post'])->name('journals.post');
+    Route::resource('journals', \App\Http\Controllers\JournalController::class);
+
+    // =========================================================
     // Modul Laporan
     // =========================================================
     Route::prefix('reports')->name('reports.')->group(function () {
