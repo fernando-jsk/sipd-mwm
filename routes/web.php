@@ -141,6 +141,12 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/lak', [\App\Http\Controllers\Report\LakController::class, 'index'])->name('lak.index');
         Route::get('/lak/data', [\App\Http\Controllers\Report\LakController::class, 'data'])->name('lak.data');
+
+        Route::get('/ledger', [\App\Http\Controllers\Report\LedgerController::class, 'index'])->name('ledger.index');
+        Route::get('/ledger/data', [\App\Http\Controllers\Report\LedgerController::class, 'data'])->name('ledger.data');
+
+        Route::get('/trial-balance', [\App\Http\Controllers\Report\TrialBalanceController::class, 'index'])->name('trial-balance.index');
+        Route::get('/trial-balance/data', [\App\Http\Controllers\Report\TrialBalanceController::class, 'data'])->name('trial-balance.data');
     });
 });
 

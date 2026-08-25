@@ -58,8 +58,22 @@ Setiap input harus selalu dibungkus dengan layout grid yang rapi:
 * **Dropdown / Select**: DILARANG menggunakan elemen HTML bawaan `<select>`. Selalu gunakan komponen `Select` dari shadcn-vue (`@/Components/ui/select`) agar desain antarmuka konsisten.
 
 ### D. Tabel & Data Display
-* **Table Container**: Bungkus tabel dengan `<div class="bg-card border border-border/80 rounded-xl overflow-hidden shadow-sm">`.
-* **Table Header**: Gunakan background abu-abu terang (misal: `bg-muted/40`) dengan teks `font-semibold text-xs uppercase tracking-wider text-muted-foreground`.
+* **Table Container**: Untuk konsistensi desain komponen dan menghilangkan *white space* (spasi ekstra) yang tidak diinginkan di sekitar tabel, **jangan** membungkus tabel di dalam `<CardContent>` atau membuat `<div class="bg-card...">` manual secara terpisah.
+  * Solusi (Best Practice): Gunakan komponen `<Card class="p-0 overflow-hidden">` langsung sebagai pembungkus luar utama. 
+  * Tambahkan pembungkus dalam `<div class="overflow-x-auto">` jika tabel memiliki banyak kolom, agar *horizontal scroll* dapat berfungsi tanpa merusak border melengkung dari kartu.
+  * Contoh Struktur yang Benar:
+    ```vue
+    <Card class="p-0 overflow-hidden">
+        <div class="overflow-x-auto">
+            <Table>
+                <TableHeader class="bg-muted/50">
+                    ...
+                </TableHeader>
+            </Table>
+        </div>
+    </Card>
+    ```
+* **Table Header**: Gunakan background abu-abu terang (misal: `bg-muted/50`) dengan teks `font-semibold text-xs uppercase tracking-wider text-muted-foreground`.
 * **Status Badge**: Untuk status aktif, gunakan kombinasi warna Accent (Soft Green): `bg-[#4ADE80]/10 text-emerald-700`. Untuk status nonaktif, gunakan `bg-muted text-muted-foreground`.
 
 ---

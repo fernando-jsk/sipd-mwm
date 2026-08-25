@@ -57,4 +57,27 @@ class AccountCode extends Model
                 return "{$action} kode rekening: {$this->code}";
             });
     }
+
+    /**
+     * Get the normal balance (Debit/Kredit) based on the account code prefix.
+     * 1=Aset(D), 2=Kewajiban(K), 3=Ekuitas(K), 4=Pendapatan LRA(K), 5=Belanja(D), 
+     * 6.1=Penerimaan Pembiayaan(K), 6.2=Pengeluaran Pembiayaan(D)
+     * 7=Pendapatan LO(K), 8=Beban LO(D), 9=Surplus/Defisit(K)
+     */
+    public function getNormalBalance(): string
+    {
+        $firstDigit = substr($this->code, 0, 1);
+        $prefixTwo = substr($this->code, 0, 3); // e.g., "6.1"
+
+        return match ($firstDigit) {
+            '1' => 'D',
+            '2', '3', '4' => 'K',
+            '5' => 'D',
+            '6' => ($prefixTwo === '6.1') ? 'K' : 'D',
+            '7' => 'K',
+            '8' => 'D',
+            '9' => 'K',
+            default => 'D',
+        };
+    }
 }
