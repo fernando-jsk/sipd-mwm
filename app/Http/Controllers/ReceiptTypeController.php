@@ -10,7 +10,7 @@ class ReceiptTypeController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ReceiptType::with('children')->whereNull('parent_id');
+        $query = ReceiptType::with(['children.accountCode', 'accountCode'])->whereNull('parent_id');
         
         if ($request->has('search')) {
             $query->where(function($q) use ($request) {
@@ -23,9 +23,15 @@ class ReceiptTypeController extends Controller
         }
 
         $receiptTypes = $query->orderBy('name')->paginate(20)->withQueryString();
+        
+        $accountCodes = \App\Models\AccountCode::where('code', 'like', '4%')
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get();
 
         return Inertia::render('ReceiptTypes/Index', [
             'receiptTypes' => $receiptTypes,
+            'accountCodes' => $accountCodes,
             'filters' => $request->only('search')
         ]);
     }
@@ -36,7 +42,8 @@ class ReceiptTypeController extends Controller
             'name' => 'required|string|unique:receipt_types,name',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
-            'parent_id' => 'nullable|exists:receipt_types,id'
+            'parent_id' => 'nullable|exists:receipt_types,id',
+            'account_code_id' => 'nullable|exists:account_codes,id'
         ], [
             'name.unique' => 'Nama jenis penerimaan ini sudah terdaftar di database.'
         ]);
@@ -52,7 +59,8 @@ class ReceiptTypeController extends Controller
             'name' => 'required|string|unique:receipt_types,name,' . $receiptType->id,
             'description' => 'nullable|string',
             'is_active' => 'boolean',
-            'parent_id' => 'nullable|exists:receipt_types,id'
+            'parent_id' => 'nullable|exists:receipt_types,id',
+            'account_code_id' => 'nullable|exists:account_codes,id'
         ], [
             'name.unique' => 'Nama jenis penerimaan ini sudah terdaftar di database.'
         ]);

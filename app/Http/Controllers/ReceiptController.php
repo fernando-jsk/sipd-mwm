@@ -83,6 +83,14 @@ class ReceiptController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request) {
+            $defaultAccountCodeId = null;
+            if (!empty($validated['receipt_sub_type_id'])) {
+                $defaultAccountCodeId = ReceiptType::find($validated['receipt_sub_type_id'])?->account_code_id;
+            }
+            if (!$defaultAccountCodeId && !empty($validated['receipt_type_id'])) {
+                $defaultAccountCodeId = ReceiptType::find($validated['receipt_type_id'])?->account_code_id;
+            }
+
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
                 $attachmentPath = $request->file('attachment')->store('receipts', 'public');
@@ -106,7 +114,7 @@ class ReceiptController extends Controller
 
             foreach ($validated['details'] as $detail) {
                 $receipt->details()->create([
-                    'account_code_id' => $detail['account_code_id'] ?? null,
+                    'account_code_id' => $detail['account_code_id'] ?? $defaultAccountCodeId,
                     'funding_source_id' => $detail['funding_source_id'] ?? null,
                     'amount' => $detail['amount'],
                 ]);
@@ -174,6 +182,14 @@ class ReceiptController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $request, $receipt) {
+            $defaultAccountCodeId = null;
+            if (!empty($validated['receipt_sub_type_id'])) {
+                $defaultAccountCodeId = ReceiptType::find($validated['receipt_sub_type_id'])?->account_code_id;
+            }
+            if (!$defaultAccountCodeId && !empty($validated['receipt_type_id'])) {
+                $defaultAccountCodeId = ReceiptType::find($validated['receipt_type_id'])?->account_code_id;
+            }
+
             $attachmentPath = $receipt->attachment_path;
             if ($request->hasFile('attachment')) {
                 if ($attachmentPath) {
@@ -202,7 +218,7 @@ class ReceiptController extends Controller
                 if (isset($detail['id']) && in_array($detail['id'], $existingDetailIds)) {
                     // Update existing
                     $receipt->details()->where('id', $detail['id'])->update([
-                        'account_code_id' => $detail['account_code_id'] ?? null,
+                        'account_code_id' => $detail['account_code_id'] ?? $defaultAccountCodeId,
                         'funding_source_id' => $detail['funding_source_id'] ?? null,
                         'amount' => $detail['amount'],
                     ]);
@@ -210,7 +226,7 @@ class ReceiptController extends Controller
                 } else {
                     // Create new
                     $newDetail = $receipt->details()->create([
-                        'account_code_id' => $detail['account_code_id'] ?? null,
+                        'account_code_id' => $detail['account_code_id'] ?? $defaultAccountCodeId,
                         'funding_source_id' => $detail['funding_source_id'] ?? null,
                         'amount' => $detail['amount'],
                     ]);

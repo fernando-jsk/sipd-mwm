@@ -7,7 +7,15 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Switch } from '@/Components/ui/switch';
-import { Search, ListTree } from '@lucide/vue';
+import { Search, ListTree } from 'lucide-vue-next';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/Components/ui/select';
 import {
   Table,
   TableBody,
@@ -28,6 +36,7 @@ import {
 
 const props = defineProps({
     receiptTypes: Object,
+    accountCodes: Array,
     filters: Object,
 });
 
@@ -58,7 +67,8 @@ const form = useForm({
     name: '',
     description: '',
     is_active: true,
-    parent_id: null
+    parent_id: null,
+    account_code_id: null
 });
 
 const deleteForm = useForm({});
@@ -67,6 +77,7 @@ const openCreateDialog = () => {
     editingId.value = null;
     form.reset();
     form.parent_id = null;
+    form.account_code_id = null;
     form.clearErrors();
     isFormDialogOpen.value = true;
 };
@@ -75,6 +86,7 @@ const openCreateSubDialog = () => {
     editingId.value = null;
     form.reset();
     form.parent_id = activeParentId.value;
+    form.account_code_id = null;
     form.clearErrors();
     isFormDialogOpen.value = true;
 };
@@ -85,6 +97,7 @@ const openEditDialog = (item) => {
     form.description = item.description || '';
     form.is_active = item.is_active == 1;
     form.parent_id = item.parent_id;
+    form.account_code_id = item.account_code_id;
     form.clearErrors();
     isFormDialogOpen.value = true;
 };
@@ -228,6 +241,7 @@ const deleteItem = () => {
                             <TableHeader class="bg-muted/40">
                                 <TableRow>
                                     <TableHead class="py-2 text-xs">Nama Sub-Jenis</TableHead>
+                                    <TableHead class="py-2 text-xs">Pemetaan Akun</TableHead>
                                     <TableHead class="py-2 text-xs">Status</TableHead>
                                     <TableHead class="py-2 text-xs text-right">Aksi</TableHead>
                                 </TableRow>
@@ -235,6 +249,9 @@ const deleteItem = () => {
                             <TableBody>
                                 <TableRow v-for="child in activeParent?.children" :key="child.id">
                                     <TableCell class="py-2 font-medium">{{ child.name }}</TableCell>
+                                    <TableCell class="py-2 text-xs text-muted-foreground">
+                                        {{ child.account_code ? child.account_code.code + ' - ' + child.account_code.name : '-' }}
+                                    </TableCell>
                                     <TableCell class="py-2">
                                         <span :class="child.is_active ? 'text-emerald-600' : 'text-red-600'" class="text-xs font-medium">
                                             {{ child.is_active ? 'Aktif' : 'Tidak Aktif' }}
@@ -278,6 +295,24 @@ const deleteItem = () => {
                         <Label for="description">Keterangan (Opsional)</Label>
                         <Textarea id="description" v-model="form.description" placeholder="Penjelasan singkat mengenai jenis penerimaan ini" />
                         <span class="text-xs text-red-500" v-if="form.errors.description">{{ form.errors.description }}</span>
+                    </div>
+
+                    <div class="space-y-2" v-if="form.parent_id !== null">
+                        <Label for="account_code_id">Pemetaan Akun (Opsional)</Label>
+                        <Select v-model="form.account_code_id">
+                            <SelectTrigger class="w-full">
+                                <SelectValue placeholder="Pilih Akun Pendapatan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectGroup>
+                                    <SelectItem v-for="account in accountCodes" :key="account.id" :value="account.id">
+                                        {{ account.code }} - {{ account.name }}
+                                    </SelectItem>
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
+                        <span class="text-xs text-muted-foreground">Sistem akan otomatis menggunakan akun ini saat melakukan transaksi penerimaan atau impor Excel.</span>
+                        <span class="text-xs text-red-500" v-if="form.errors.account_code_id">{{ form.errors.account_code_id }}</span>
                     </div>
 
                     <div class="flex items-center space-x-2">

@@ -157,6 +157,14 @@ class ReceiptImportService
                 }
 
                 foreach ($groupedReceipts as $key => $group) {
+                    $defaultAccountId = null;
+                    if ($group['sub_id']) {
+                        $defaultAccountId = $receiptTypes->firstWhere('id', $group['sub_id'])?->account_code_id;
+                    }
+                    if (!$defaultAccountId && $group['parent_id']) {
+                        $defaultAccountId = $receiptTypes->firstWhere('id', $group['parent_id'])?->account_code_id;
+                    }
+
                     $receipt = Receipt::create([
                         'document_number' => null,
                         'date' => $formattedDate,
@@ -172,7 +180,7 @@ class ReceiptImportService
 
                     foreach ($group['details'] as $detail) {
                         $receipt->details()->create([
-                            'account_code_id' => null,
+                            'account_code_id' => $defaultAccountId,
                             'amount' => $detail['amount']
                         ]);
                     }
