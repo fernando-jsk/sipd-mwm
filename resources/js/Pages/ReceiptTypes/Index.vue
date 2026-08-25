@@ -188,6 +188,7 @@ const deleteItem = () => {
                 <TableHeader class="bg-muted/40">
                     <TableRow>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Nama Jenis</TableHead>
+                        <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Pemetaan Akun</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Keterangan</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Status</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 text-right">Aksi</TableHead>
@@ -197,6 +198,9 @@ const deleteItem = () => {
                     <TableRow v-for="item in receiptTypes.data" :key="item.id">
                         <TableCell class="py-3 font-medium text-foreground">
                             {{ item.name }}
+                        </TableCell>
+                        <TableCell class="py-3 text-sm text-muted-foreground">
+                            {{ item.account_code ? item.account_code.code + ' - ' + item.account_code.name : '-' }}
                         </TableCell>
                         <TableCell class="py-3 text-sm text-muted-foreground">{{ item.description || '-' }}</TableCell>
                         <TableCell class="py-3">
@@ -214,7 +218,7 @@ const deleteItem = () => {
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="receiptTypes.data.length === 0">
-                        <TableCell colspan="4" class="h-24 text-center text-muted-foreground text-sm">
+                        <TableCell colspan="5" class="h-24 text-center text-muted-foreground text-sm">
                             Belum ada data jenis penerimaan.
                         </TableCell>
                     </TableRow>
@@ -297,7 +301,7 @@ const deleteItem = () => {
                         <span class="text-xs text-red-500" v-if="form.errors.description">{{ form.errors.description }}</span>
                     </div>
 
-                    <div class="space-y-2" v-if="form.parent_id !== null">
+                    <div class="space-y-2">
                         <Label for="account_code_id">Pemetaan Akun (Opsional)</Label>
                         <Select v-model="form.account_code_id">
                             <SelectTrigger class="w-full">

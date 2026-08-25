@@ -47,4 +47,9 @@ class Receipt extends Model
     {
         return $this->hasMany(ReceiptDetail::class);
     }
+
+    public function journal()
+    {
+        return $this->morphOne(Journal::class, 'journalable');
+    }
 }

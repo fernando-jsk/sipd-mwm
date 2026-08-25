@@ -98,7 +98,7 @@ const deleteJournal = (id) => {
                 </CardTitle>
             </CardHeader>
             <CardContent>
-                <div class="flex flex-col md:flex-row gap-4 pt-4">
+                <div class="flex flex-col md:flex-row gap-4">
                     <div class="w-full md:w-1/3">
                         <Input v-model="search" placeholder="Cari No. Referensi atau Keterangan..." class="w-full" />
                     </div>

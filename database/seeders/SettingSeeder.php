@@ -2,10 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use App\Models\Setting;
+use App\Models\AccountCode;
 
 class SettingSeeder extends Seeder
 {
@@ -14,25 +13,22 @@ class SettingSeeder extends Seeder
      */
     public function run(): void
     {
+        $receiptAccount = AccountCode::where('code', '1.1.01.01')->first();
+        $expenditureAccount = AccountCode::where('code', '1.1.01.02')->first();
+
         $settings = [
             [
-                'key' => 'active_budget_year',
-                'value' => date('Y'),
+                'key' => 'default_receipt_account',
+                'value' => $receiptAccount ? $receiptAccount->id : null,
                 'type' => 'string',
-                'description' => 'Tahun anggaran aktif yang digunakan dalam sistem.'
+                'description' => 'ID Kode Akun Kas Default untuk Penerimaan (Jurnal Otomatis)'
             ],
             [
-                'key' => 'budget_validation_type',
-                'value' => 'warning',
+                'key' => 'default_expenditure_account',
+                'value' => $expenditureAccount ? $expenditureAccount->id : null,
                 'type' => 'string',
-                'description' => 'Tipe validasi pagu (warning / block) saat pengeluaran melebihi anggaran.'
+                'description' => 'ID Kode Akun Kas Default untuk Pengeluaran (Jurnal Otomatis)'
             ],
-            [
-                'key' => 'minimum_safe_balance',
-                'value' => '500000000',
-                'type' => 'integer',
-                'description' => 'Batas aman minimal saldo kas.'
-            ]
         ];
 
         foreach ($settings as $setting) {
