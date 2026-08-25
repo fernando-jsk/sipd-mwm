@@ -23,5 +23,8 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Facades\Gate::before(function ($user, $ability) {
             return $user->hasRole('super-admin') ? true : null;
         });
+
+        \App\Models\Receipt::observe(\App\Observers\ReceiptObserver::class);
+        \App\Models\Expenditure::observe(\App\Observers\ExpenditureObserver::class);
     }
 }

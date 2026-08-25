@@ -123,7 +123,7 @@ const formatCurrency = (value) => {
                 </CardTitle>
             </CardHeader>
             <CardContent class="">
-                <div class="flex flex-col md:flex-row gap-4 items-end pt-4">
+                <div class="flex flex-col md:flex-row gap-4 items-end">
                         <div class="space-y-1.5">
                             <Select v-model="filters.year">
                                 <SelectTrigger>

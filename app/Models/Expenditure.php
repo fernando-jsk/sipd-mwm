@@ -80,4 +80,9 @@ class Expenditure extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function journal()
+    {
+        return $this->morphOne(Journal::class, 'journalable');
+    }
 }

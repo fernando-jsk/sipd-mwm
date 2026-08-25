@@ -50,7 +50,20 @@ Berikut adalah urutan prioritas pengerjaan berdasarkan *flow* data keuangan:
 - *Fitur Kunci*: Validasi sisa anggaran (mencegah pengeluaran melebihi plafon berdasarkan pengaturan Validasi Pagu di Fase 1).
 
 ### **Fase 4: Modul Akuntansi**
-- Modul ini akan dibangun secara iteratif. Kebutuhan akan di-*explore* lebih lanjut seiring dengan berjalannya proses bisnis (misal: Jurnal Umum, Buku Besar, Laporan LRA).
+- **Jurnal Umum (Double-Entry)**: Pondasi akuntansi dengan validasi *balance* (Debit = Kredit) untuk memastikan integritas persamaan dasar akuntansi. [✓ Selesai]
+- **Jurnal Integrasi (Otomatis)**: Meringankan beban kerja dan *human error* dengan secara otomatis men-*generate* jurnal saat terjadi transaksi realisasi pengeluaran dan penerimaan.
+- **Buku Besar (*General Ledger*)**: Mengelompokkan dan merangkum mutasi transaksi berdasarkan masing-masing Kode Akun.
+- **Neraca Saldo (*Trial Balance*)**: Laporan kontrol yang menyajikan rekapitulasi total Debit dan Kredit seluruh akun.
+- **Jurnal Penyesuaian (*Adjusting Entries*)**: Memungkinkan pencatatan akrual (seperti penyusutan, pemakaian persediaan) untuk melengkapi Laporan Operasional.
+- **Tutup Buku & Jurnal Penutup**: Fitur krusial akhir tahun untuk menolkan akun nominal (Pendapatan & Belanja/Beban) dan memindahkan saldonya ke Surplus/Defisit, Ekuitas, serta SiLPA/SAL.
+- **Saldo Awal (*Beginning Balances*)**: Fitur untuk memasukkan posisi keuangan (Neraca) dari periode tahun anggaran sebelumnya ke awal tahun berjalan.
+- **Mesin Pelaporan Otomatis**: Generator laporan keuangan otomatis yang bersumber tunggal (*Single Source of Truth*) dari data Jurnal, mencakup 6 laporan wajib:
+  1. **LRA (Laporan Realisasi Anggaran)**
+  2. **LPSAL (Laporan Perubahan Saldo Anggaran Lebih)**
+  3. **LO (Laporan Operasional)**
+  4. **LPE (Laporan Perubahan Ekuitas)**
+  5. **Neraca**
+  6. **LAK (Laporan Arus Kas)**
 
 ### **Fase 5: Executive Dashboard (Direksi)**
 - Pembuatan visualisasi data (Grafik/Chart) yang memanjakan mata.
