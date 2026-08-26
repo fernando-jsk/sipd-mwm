@@ -32,6 +32,7 @@ class AccountCodeSeeder extends Seeder
             ['code' => '3.1', 'name' => 'Ekuitas', 'level' => 2, 'is_active' => true],
             ['code' => '3.1.01', 'name' => 'Ekuitas Akhir', 'level' => 3, 'is_active' => true],
             ['code' => '3.1.02', 'name' => 'Surplus/Defisit-LO', 'level' => 3, 'is_active' => true],
+            ['code' => '3.1.03', 'name' => 'Ekuitas SAL', 'level' => 3, 'is_active' => true],
 
             // KODE 6: PEMBIAYAAN (Opsional tapi baik untuk LPSAL)
             ['code' => '6', 'name' => 'PEMBIAYAAN DAERAH', 'level' => 1, 'is_active' => true],
