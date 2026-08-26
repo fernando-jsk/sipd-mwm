@@ -173,7 +173,7 @@ class ReceiptImportService
                         'description' => $group['payer_name'],
                         'payer_name' => $group['payer_name'],
                         'payment_method' => 'tunai',
-                        'status' => $status,
+                        'status' => 'draft', // Bypass observer during creation
                         'treasurer_id' => Auth::id(),
                         'created_by' => Auth::id(),
                     ]);
@@ -183,6 +183,12 @@ class ReceiptImportService
                             'account_code_id' => $defaultAccountId,
                             'amount' => $detail['amount']
                         ]);
+                    }
+
+                    // Trigger Observer after relations are saved
+                    if ($status !== 'draft') {
+                        $receipt->status = $status;
+                        $receipt->save();
                     }
 
                     $createdReceiptsCount++;

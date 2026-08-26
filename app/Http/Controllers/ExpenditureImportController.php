@@ -181,7 +181,7 @@ class ExpenditureImportController extends Controller
                     'bank_name' => trim($worksheet->getCell('K' . $row)->getValue() ?? null),
                     'bank_account_number' => trim($worksheet->getCell('L' . $row)->getValue() ?? null),
                     'contract_number' => trim($worksheet->getCell('I' . $row)->getValue() ?? null),
-                    'status' => $status,
+                    'status' => 'draft', // Bypass observer during creation
                     'opd_number' => $opdNumber,
                     'opd_date' => $opdDate,
                     'opd_authorized_by' => $opdAuthorizedBy,
@@ -216,6 +216,12 @@ class ExpenditureImportController extends Controller
                             'amount' => $taxAmount
                         ]);
                     }
+                }
+
+                // 8. Update status to trigger Observer after relations are saved
+                if ($status !== 'draft') {
+                    $expenditure->status = $status;
+                    $expenditure->save();
                 }
                 
                 $stats['success']++;
