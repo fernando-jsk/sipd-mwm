@@ -147,6 +147,14 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/trial-balance', [\App\Http\Controllers\Report\TrialBalanceController::class, 'index'])->name('trial-balance.index');
         Route::get('/trial-balance/data', [\App\Http\Controllers\Report\TrialBalanceController::class, 'data'])->name('trial-balance.data');
+
+        Route::get('/opening-balance', [\App\Http\Controllers\Report\OpeningBalanceController::class, 'index'])->name('opening-balance.index');
+        Route::get('/opening-balance/data', [\App\Http\Controllers\Report\OpeningBalanceController::class, 'data'])->name('opening-balance.data');
+        Route::post('/opening-balance', [\App\Http\Controllers\Report\OpeningBalanceController::class, 'store'])->name('opening-balance.store');
+
+        Route::get('/closing-entry', [\App\Http\Controllers\Report\ClosingEntryController::class, 'index'])->name('closing-entry.index');
+        Route::get('/closing-entry/data', [\App\Http\Controllers\Report\ClosingEntryController::class, 'data'])->name('closing-entry.data');
+        Route::post('/closing-entry', [\App\Http\Controllers\Report\ClosingEntryController::class, 'store'])->name('closing-entry.store');
     });
 });
 
