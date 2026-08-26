@@ -278,6 +278,8 @@ const deleteDocument = () => {
                                     <TableHead class="w-[250px]">Kode</TableHead>
                                     <TableHead>Nama Rekening</TableHead>
                                     <TableHead class="text-right w-[200px]">Total Anggaran</TableHead>
+                                    <TableHead class="text-right w-[200px]">Realisasi</TableHead>
+                                    <TableHead class="text-right w-[200px]">Sisa Pagu</TableHead>
                                     <TableHead class="text-right w-[150px]">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -292,7 +294,7 @@ const deleteDocument = () => {
                                     />
                                 </template>
                                 <TableRow v-else>
-                                    <TableCell colspan="4" class="h-32 text-center text-muted-foreground">
+                                    <TableCell colspan="6" class="h-32 text-center text-muted-foreground">
                                         <div class="flex flex-col items-center justify-center">
                                             <FolderOpen class="w-10 h-10 mb-2 text-muted-foreground/50" />
                                             <p>Belum ada dokumen RBA yang disusun di tahun ini.</p>
