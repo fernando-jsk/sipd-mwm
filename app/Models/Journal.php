@@ -20,7 +20,15 @@ class Journal extends Model
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('journal')
-            ->setDescriptionForEvent(fn(string $eventName) => "Aksi {$eventName} pada Jurnal Umum {$this->reference_no}");
+            ->setDescriptionForEvent(function (string $eventName) {
+                $typeName = match ($this->type) {
+                    'opening_balance' => 'Saldo Awal',
+                    'adjustment' => 'Jurnal Penyesuaian',
+                    'closing' => 'Jurnal Penutup',
+                    default => 'Jurnal Umum',
+                };
+                return "Aksi {$eventName} pada {$typeName} {$this->reference_no}";
+            });
     }
 
     public function details()

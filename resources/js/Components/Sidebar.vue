@@ -130,6 +130,9 @@ onMounted(() => {
             <Link href="/journals" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/journals') }">
                 Jurnal Umum
             </Link>
+            <Link href="/adjustments" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/adjustments') }">
+                Jurnal Penyesuaian
+            </Link>
             <Link href="/reports/ledger" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/ledger') }">
                 Buku Besar (Ledger)
             </Link>
