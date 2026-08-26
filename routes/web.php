@@ -129,8 +129,12 @@ Route::middleware('auth')->group(function () {
     // =========================================================
     // Modul Akuntansi (Jurnal Umum)
     // =========================================================
-    Route::post('/journals/{journal}/post', [\App\Http\Controllers\JournalController::class, 'post'])->name('journals.post');
+    Route::post('journals/{journal}/post', [\App\Http\Controllers\JournalController::class, 'post'])->name('journals.post');
     Route::resource('journals', \App\Http\Controllers\JournalController::class);
+
+    // Modul Akuntansi (Jurnal Penyesuaian)
+    Route::post('adjustments/{adjustment}/post', [\App\Http\Controllers\AdjustmentController::class, 'post'])->name('adjustments.post');
+    Route::resource('adjustments', \App\Http\Controllers\AdjustmentController::class);
 
     // =========================================================
     // Modul Laporan
