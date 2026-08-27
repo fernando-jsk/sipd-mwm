@@ -67,6 +67,14 @@ const paddingLeft = computed(() => {
             {{ formatCurrency(row.tree_jumlah) }}
         </TableCell>
         
+        <TableCell class="text-right text-emerald-600 dark:text-emerald-400">
+            {{ formatCurrency(row.tree_realisasi) }}
+        </TableCell>
+
+        <TableCell class="text-right font-medium" :class="row.tree_sisa_pagu < 0 ? 'text-destructive' : 'text-blue-600 dark:text-blue-400'">
+            {{ formatCurrency(row.tree_sisa_pagu) }}
+        </TableCell>
+        
         <TableCell class="text-right">
             <div class="flex items-center justify-end gap-2" v-if="!hasChildren">
                 <Button as-child variant="default" size="sm">

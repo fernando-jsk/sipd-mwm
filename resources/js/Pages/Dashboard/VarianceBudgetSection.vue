@@ -75,6 +75,11 @@ const netBudget = computed(() => curRevBudget.value - curExpBudget.value);
 const netActual = computed(() => curRevActual.value - curExpActual.value);
 const netVariance = computed(() => netActual.value - netBudget.value);
 
+const totalExpenseBudget = computed(() => props.varianceData.totalExpenseBudget || 0);
+const totalExpenseActual = computed(() => expenseActual.value.reduce((a, b) => a + b, 0));
+const sisaPaguBelanja = computed(() => totalExpenseBudget.value - totalExpenseActual.value);
+const sisaPaguPct = computed(() => totalExpenseBudget.value ? (sisaPaguBelanja.value / totalExpenseBudget.value) * 100 : 0);
+
 // Tab state
 const activeTab = ref('revenue'); // 'revenue' | 'expense'
 
@@ -280,7 +285,7 @@ const severityClass = {
                 </div>
             </div>
 
-            <!-- Expense Variance -->
+            <!-- Expense Variance & Sisa Pagu Belanja -->
             <div :class="[
                 'border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group',
                 expVariance <= 0 ? 'bg-emerald-50/80 border-emerald-200' : expVariancePct <= 15 ? 'bg-amber-50/80 border-amber-300' : 'bg-rose-50/80 border-rose-300'
@@ -301,15 +306,20 @@ const severityClass = {
                     {{ expVariance >= 0 ? '+' : '' }}{{ expVariancePct }}%
                 </p>
                 <p class="text-[11px] text-muted-foreground mt-1.5">
-                    {{ expVariance >= 0 ? '+' : '' }}{{ formatRupiahShort(expVariance) }} dari anggaran
+                    {{ expVariance >= 0 ? '+' : '' }}{{ formatRupiahShort(expVariance) }} dari anggaran bln ini
                 </p>
-                <div :class="[
-                    'mt-3 flex items-center gap-1 text-[11px] font-semibold',
-                    expVariance <= 0 ? 'text-emerald-600' : expVariancePct <= 15 ? 'text-amber-600' : 'text-rose-600'
-                ]">
-                    <CheckCircle v-if="expVariance <= 0" class="w-3.5 h-3.5 flex-shrink-0" />
-                    <AlertTriangle v-else class="w-3.5 h-3.5 flex-shrink-0" />
-                    <span>{{ expVariance <= 0 ? 'Efisien — Di bawah anggaran' : expVariancePct <= 15 ? 'Melebihi anggaran (ringan)' : 'MELEBIHI ANGGARAN — Perhatian!' }}</span>
+                
+                <!-- Sisa Pagu Tahunan -->
+                <div class="mt-3 pt-3 border-t border-border/50">
+                    <div class="flex justify-between items-center text-[10px] mb-1">
+                        <span class="font-semibold text-muted-foreground">Sisa Pagu Tahunan</span>
+                        <span class="font-bold text-secondary">{{ formatRupiahShort(sisaPaguBelanja) }}</span>
+                    </div>
+                    <div class="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div :class="['h-full rounded-full transition-all duration-700', sisaPaguPct > 30 ? 'bg-emerald-500' : sisaPaguPct > 10 ? 'bg-amber-500' : 'bg-rose-500']"
+                            :style="{ width: Math.min(100, Math.max(0, sisaPaguPct)) + '%' }">
+                        </div>
+                    </div>
                 </div>
             </div>
 

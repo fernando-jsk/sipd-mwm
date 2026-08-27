@@ -29,6 +29,26 @@ class RbaDocumentController extends Controller
             ->orderBy('code')
             ->get();
 
+        // Ambil data realisasi berdasarkan tipe (Pendapatan/Belanja)
+        $realizations = [];
+        if ($isPendapatan) {
+            $realizations = \Illuminate\Support\Facades\DB::table('receipt_details')
+                ->join('receipts', 'receipt_details.receipt_id', '=', 'receipts.id')
+                ->where('receipts.status', 'submitted')
+                ->whereYear('receipts.date', $budgetYear)
+                ->select('receipt_details.account_code_id', \Illuminate\Support\Facades\DB::raw('SUM(receipt_details.amount) as total'))
+                ->groupBy('receipt_details.account_code_id')
+                ->pluck('total', 'account_code_id')->toArray();
+        } else {
+            $realizations = \Illuminate\Support\Facades\DB::table('expenditure_details')
+                ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
+                ->where('expenditures.status', 'disbursed')
+                ->whereYear('expenditures.date', $budgetYear)
+                ->select('expenditure_details.account_code_id', \Illuminate\Support\Facades\DB::raw('SUM(expenditure_details.amount) as total'))
+                ->groupBy('expenditure_details.account_code_id')
+                ->pluck('total', 'account_code_id')->toArray();
+        }
+
         // 2. Build Tree and Aggregate Totals
         $map = [];
         $roots = [];
@@ -42,6 +62,10 @@ class RbaDocumentController extends Controller
             $map[$acc->id]['rba_document_id'] = $doc ? $doc->id : null;
             $map[$acc->id]['tree_jumlah'] = $doc ? (float) $doc->total_budget : 0;
             $map[$acc->id]['tree_has_rba'] = $doc ? true : false;
+            
+            // Map realisasi
+            $map[$acc->id]['tree_realisasi'] = isset($realizations[$acc->id]) ? (float) $realizations[$acc->id] : 0;
+            $map[$acc->id]['tree_sisa_pagu'] = 0; // calculated later
         }
 
         foreach ($map as $id => &$node) {
@@ -55,26 +79,32 @@ class RbaDocumentController extends Controller
         // Recursive function to aggregate totals bottom-up and determine tree_has_rba
         $aggregateFn = function (&$nodes) use (&$aggregateFn) {
             $totalSum = 0;
+            $totalRealisasi = 0;
             $anyHasRba = false;
 
             foreach ($nodes as &$node) {
                 $childTotals = 0;
+                $childRealisasi = 0;
                 $childHasRba = false;
 
                 if (!empty($node['children'])) {
                     $result = $aggregateFn($node['children']);
                     $childTotals = $result['sum'];
+                    $childRealisasi = $result['realisasi'];
                     $childHasRba = $result['hasRba'];
                 }
 
                 $node['tree_jumlah'] += $childTotals;
+                $node['tree_realisasi'] += $childRealisasi;
+                $node['tree_sisa_pagu'] = $node['tree_jumlah'] - $node['tree_realisasi'];
                 $node['tree_has_rba'] = $node['tree_has_rba'] || $childHasRba;
 
                 $totalSum += $node['tree_jumlah'];
+                $totalRealisasi += $node['tree_realisasi'];
                 $anyHasRba = $anyHasRba || $node['tree_has_rba'];
             }
 
-            return ['sum' => $totalSum, 'hasRba' => $anyHasRba];
+            return ['sum' => $totalSum, 'realisasi' => $totalRealisasi, 'hasRba' => $anyHasRba];
         };
 
         $aggregateFn($roots);
