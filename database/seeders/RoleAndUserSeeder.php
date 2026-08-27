@@ -20,14 +20,14 @@ class RoleAndUserSeeder extends Seeder
         // CLEANUP: Hapus semua data lama agar fresh & ID kembali ke 1
         // =====================================================
         \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
-        
+
         DB::table('role_has_permissions')->truncate();
         DB::table('model_has_roles')->truncate();
         DB::table('model_has_permissions')->truncate();
         DB::table('permissions')->truncate();
         DB::table('roles')->truncate();
         DB::table('users')->truncate();
-        
+
         \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
 
         // =====================================================
@@ -123,24 +123,24 @@ class RoleAndUserSeeder extends Seeder
 
         // User 3: Bendahara
         $bendaharaUser = User::create([
-            'name'     => 'Bendahara Pengeluaran',
-            'username' => 'bendahara',
+            'name'     => 'Saskia Paraso, SKM',
+            'username' => 'saskia',
             'password' => Hash::make('password'),
         ]);
         $bendaharaUser->assignRole('bendahara');
 
         // User 4: Direktur
         $direksi = User::create([
-            'name'     => 'Direktur Utama',
-            'username' => 'direksi',
+            'name'     => 'dr. Alain Vincent Beyah',
+            'username' => 'dr.alain',
             'password' => Hash::make('password'),
         ]);
         $direksi->assignRole('direktur');
 
         // User 5: Kabag Keuangan
         $kabagUser = User::create([
-            'name'     => 'Kabag Keuangan',
-            'username' => 'kabag',
+            'name'     => 'Monalisa F. Sumampouw,SST, M.Kes',
+            'username' => 'monalisa',
             'password' => Hash::make('password'),
         ]);
         $kabagUser->assignRole('kabag-keuangan');
