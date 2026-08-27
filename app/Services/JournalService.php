@@ -188,7 +188,7 @@ class JournalService
 
             $journal = $receipt->journal()->create([
                 'date' => $receipt->date,
-                'reference_no' => 'JRN-REC-' . time() . '-' . rand(100,999),
+                'reference_no' => 'JRN-REC-' . $receipt->id . '-' . time(),
                 'description' => 'Penerimaan otomatis dari dokumen: ' . ($receipt->document_number ?? $receipt->id),
                 'type' => 'general',
                 'status' => 'posted', // Langsung posted agar terkunci
@@ -245,7 +245,7 @@ class JournalService
 
             $journal = $expenditure->journal()->create([
                 'date' => $expenditure->date,
-                'reference_no' => 'JRN-EXP-' . time() . '-' . rand(100,999),
+                'reference_no' => 'JRN-EXP-' . $expenditure->id . '-' . time(),
                 'description' => 'Pengeluaran otomatis dari dokumen: ' . ($expenditure->document_number ?? $expenditure->id),
                 'type' => 'general',
                 'status' => 'posted', // Langsung posted
