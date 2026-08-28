@@ -334,6 +334,22 @@ const updateStatus = () => {
                             </Button>
                         </a>
 
+                        <!-- 1.5. Cetak SPM (Selalu Aktif) -->
+                        <a :href="`/expenditures/${expenditure.id}/print-spm`" target="_blank" class="block">
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <Printer class="w-4 h-4 mr-2 text-purple-600" />
+                                Cetak SPM (Perintah Membayar)
+                            </Button>
+                        </a>
+
+                        <!-- 1.6. Cetak Ringkasan (Selalu Aktif) -->
+                        <a :href="`/expenditures/${expenditure.id}/print-ringkasan`" target="_blank" class="block">
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-indigo-600" />
+                                Cetak Ringkasan Kegiatan
+                            </Button>
+                        </a>
+
                         <!-- 2. Cetak OPD (Aktif jika sudah diotorisasi OPD) -->
                         <a v-if="expenditure.status === 'authorized' || expenditure.status === 'disbursed'" :href="`/expenditures/${expenditure.id}/print-opd`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-semibold text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20">
