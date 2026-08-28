@@ -120,6 +120,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/expenditures/spd', [\App\Http\Controllers\ExpenditureController::class, 'spdIndex'])->name('expenditures.spd');
 
     Route::get('/expenditures/{expenditure}/print-sppd', [\App\Http\Controllers\ExpenditureController::class, 'printSppd'])->name('expenditures.print-sppd');
+    Route::get('/expenditures/{expenditure}/print-spm', [\App\Http\Controllers\ExpenditureController::class, 'printSpm'])->name('expenditures.print-spm');
+    Route::get('/expenditures/{expenditure}/print-ringkasan', [\App\Http\Controllers\ExpenditureController::class, 'printRingkasan'])->name('expenditures.print-ringkasan');
     Route::get('/expenditures/{expenditure}/print-opd', [\App\Http\Controllers\ExpenditureController::class, 'printOpd'])->name('expenditures.print-opd');
     Route::get('/expenditures/{expenditure}/print-spd', [\App\Http\Controllers\ExpenditureController::class, 'printSpd'])->name('expenditures.print-spd');
 

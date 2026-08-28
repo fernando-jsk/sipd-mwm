@@ -330,6 +330,39 @@ class ExpenditureController extends Controller
         ]);
     }
 
+    public function printSpm(Expenditure $expenditure)
+    {
+        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        return Inertia::render('Expenditures/PrintSpm', [
+            'expenditure' => $expenditure
+        ]);
+    }
+
+    public function printRingkasan(Expenditure $expenditure)
+    {
+        $expenditure->load(['vendor']);
+        
+        $year = date('Y', strtotime($expenditure->date));
+        $sppList = Expenditure::whereYear('date', $year)
+            ->where('date', '<=', $expenditure->date)
+            ->orderBy('date', 'asc')
+            ->orderBy('id', 'asc')
+            ->with('details')
+            ->get();
+
+        $sppList->each(function($spp) {
+            $spp->total_amount = $spp->details->sum('amount');
+        });
+
+        $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)->sum('total_budget');
+
+        return Inertia::render('Expenditures/PrintRingkasan', [
+            'expenditure' => $expenditure,
+            'sppList' => $sppList,
+            'totalDpa' => $totalDpa,
+        ]);
+    }
+
     public function printOpd(Expenditure $expenditure)
     {
         if ($expenditure->status === 'draft' || $expenditure->status === 'submitted') {
