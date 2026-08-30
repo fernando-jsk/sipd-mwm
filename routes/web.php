@@ -169,6 +169,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/balance-sheet', [\App\Http\Controllers\Report\BalanceSheetController::class, 'index'])->name('balance-sheet.index');
         Route::get('/balance-sheet/data', [\App\Http\Controllers\Report\BalanceSheetController::class, 'data'])->name('balance-sheet.data');
+
+        Route::get('/lpe', [\App\Http\Controllers\Report\LpeController::class, 'index'])->name('lpe.index');
+        Route::get('/lpe/data', [\App\Http\Controllers\Report\LpeController::class, 'data'])->name('lpe.data');
     });
 });
 

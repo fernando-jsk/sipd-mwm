@@ -160,6 +160,9 @@ onMounted(() => {
             <Link href="/reports/balance-sheet" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/balance-sheet') }">
                 Laporan Neraca
             </Link>
+            <Link href="/reports/lpe" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lpe') }">
+                Laporan Perubahan Ekuitas
+            </Link>
 
             <!-- Pengaturan (hanya super-admin) -->
             <template v-if="showUserManagement">
