@@ -172,6 +172,9 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/lpe', [\App\Http\Controllers\Report\LpeController::class, 'index'])->name('lpe.index');
         Route::get('/lpe/data', [\App\Http\Controllers\Report\LpeController::class, 'data'])->name('lpe.data');
+
+        Route::get('/lpsal', [\App\Http\Controllers\Report\LpsalController::class, 'index'])->name('lpsal.index');
+        Route::get('/lpsal/data', [\App\Http\Controllers\Report\LpsalController::class, 'data'])->name('lpsal.data');
     });
 });
 
