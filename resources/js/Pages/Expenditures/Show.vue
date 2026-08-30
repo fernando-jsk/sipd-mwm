@@ -382,6 +382,14 @@ const updateStatus = () => {
                             </Button>
                         </a>
 
+                        <!-- 1.11. Cetak Kwitansi (Selalu Aktif) -->
+                        <a :href="`/expenditures/${expenditure.id}/print-kwitansi`" target="_blank" class="block">
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-orange-600" />
+                                Cetak Lembar Kwitansi
+                            </Button>
+                        </a>
+
                         <!-- 2. Cetak OPD (Aktif jika sudah diotorisasi OPD) -->
                         <a v-if="expenditure.status === 'authorized' || expenditure.status === 'disbursed'" :href="`/expenditures/${expenditure.id}/print-opd`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-semibold text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20">

@@ -410,6 +410,14 @@ class ExpenditureController extends Controller
         ]);
     }
 
+    public function printKwitansi(Expenditure $expenditure)
+    {
+        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        return Inertia::render('Expenditures/PrintKwitansi', [
+            'expenditure' => $expenditure
+        ]);
+    }
+
     public function printOpd(Expenditure $expenditure)
     {
         if ($expenditure->status === 'draft' || $expenditure->status === 'submitted') {
