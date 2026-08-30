@@ -154,6 +154,9 @@ onMounted(() => {
             <Link href="/reports/lra" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lra') }">
                 Laporan Realisasi Anggaran
             </Link>
+            <Link href="/reports/lo" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lo') }">
+                Laporan Operasional
+            </Link>
             <Link href="/reports/lak" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lak') }">
                 Laporan Arus Kas
             </Link>
