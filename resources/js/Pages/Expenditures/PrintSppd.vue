@@ -13,6 +13,14 @@ const printPage = () => {
     window.print();
 };
 
+const goBack = () => {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.location.href = `/expenditures/${props.expenditure.id}`;
+    }
+};
+
 const formatCurrency = (val) => {
     return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val || 0);
 };
@@ -54,7 +62,7 @@ const terbilang = (angka) => {
     <div class="min-h-screen bg-slate-100 dark:bg-slate-900 p-4 sm:p-8 print:bg-white print:p-0">
         <!-- Floating Toolbar (Hide on Print) -->
         <div class="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
-            <Button variant="outline" size="sm" @click="$window.history.back()">
+            <Button variant="outline" size="sm" @click="goBack">
                 <ArrowLeft class="w-4 h-4 mr-2" /> Kembali
             </Button>
             <Button size="sm" @click="printPage" class="bg-primary text-primary-foreground">

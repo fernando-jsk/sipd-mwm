@@ -345,21 +345,68 @@ class ExpenditureController extends Controller
         $year = date('Y', strtotime($expenditure->date));
         $sppList = Expenditure::whereYear('date', $year)
             ->where('date', '<=', $expenditure->date)
+            ->withSum('details as total_amount', 'amount')
             ->orderBy('date', 'asc')
             ->orderBy('id', 'asc')
-            ->with('details')
             ->get();
 
-        $sppList->each(function($spp) {
-            $spp->total_amount = $spp->details->sum('amount');
-        });
-
-        $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)->sum('total_budget');
+        $activeVersion = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
+        $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)
+            ->where('version', $activeVersion)
+            ->whereHas('accountCode', function($q) {
+                $q->where('code', 'like', '5%');
+            })
+            ->sum('total_budget');
 
         return Inertia::render('Expenditures/PrintRingkasan', [
             'expenditure' => $expenditure,
             'sppList' => $sppList,
             'totalDpa' => $totalDpa,
+        ]);
+    }
+
+    public function printLembarPeneliti(Expenditure $expenditure)
+    {
+        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        return Inertia::render('Expenditures/PrintLembarPeneliti', [
+            'expenditure' => $expenditure
+        ]);
+    }
+
+    public function printSuratPengantar(Expenditure $expenditure)
+    {
+        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        
+        $year = date('Y', strtotime($expenditure->date));
+        $activeVersion = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
+        $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)
+            ->where('version', $activeVersion)
+            ->whereHas('accountCode', function($q) {
+                $q->where('code', 'like', '5%');
+            })
+            ->sum('total_budget');
+
+        return Inertia::render('Expenditures/PrintSuratPengantar', [
+            'expenditure' => $expenditure,
+            'totalDpa' => $totalDpa,
+        ]);
+    }
+
+    public function printSuratPernyataan(Expenditure $expenditure)
+    {
+        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        return Inertia::render('Expenditures/PrintSuratPernyataan', [
+            'expenditure' => $expenditure
+        ]);
+    }
+
+    public function printSuratVerifikasi(Expenditure $expenditure)
+    {
+        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $ppk = User::role('kabag-keuangan')->first();
+        return Inertia::render('Expenditures/PrintSuratVerifikasi', [
+            'expenditure' => $expenditure,
+            'ppk' => $ppk,
         ]);
     }
 
