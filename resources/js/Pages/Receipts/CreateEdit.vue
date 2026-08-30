@@ -94,7 +94,7 @@ const submit = () => {
 </script>
 
 <template>
-    <Head :title="isEditing ? 'Edit Tanda Bukti Penerimaan' : 'Buat Tanda Bukti Penerimaan'" />
+    <Head :title="isEditing ? 'Edit Rekap Penerimaan Harian' : 'Entri Rekap Penerimaan Harian'" />
 
     <AuthenticatedLayout>
         <template #header>
@@ -107,12 +107,12 @@ const submit = () => {
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
-                                <BreadcrumbPage class="text-xs">{{ isEditing ? 'Edit' : 'Buat' }} Tanda Bukti</BreadcrumbPage>
+                                <BreadcrumbPage class="text-xs">{{ isEditing ? 'Edit' : 'Entri' }} Rekap Penerimaan</BreadcrumbPage>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
                     <h2 class="text-xl font-bold tracking-tight text-secondary dark:text-foreground">
-                        {{ isEditing ? 'Edit' : 'Buat' }} Tanda Bukti Penerimaan
+                        {{ isEditing ? 'Edit' : 'Entri' }} Rekap Penerimaan Harian
                     </h2>
                 </div>
                 <div class="flex gap-2">
@@ -138,8 +138,8 @@ const submit = () => {
                         </div>
                         <div class="p-5 space-y-4 text-sm">
                             <div class="space-y-2">
-                                <Label for="document_number">Nomor TBP / STS <span class="text-muted-foreground font-normal">(Opsional)</span></Label>
-                                <Input id="document_number" v-model="form.document_number" placeholder="Contoh: TBP-001/2026" />
+                                <Label for="document_number">Nomor Dokumen / Rekap <span class="text-muted-foreground font-normal">(Opsional)</span></Label>
+                                <Input id="document_number" v-model="form.document_number" placeholder="Contoh: REKAP-001/2026 atau TBP-001/2026" />
                                 <span class="text-xs text-red-500" v-if="form.errors.document_number">{{ form.errors.document_number }}</span>
                             </div>
 

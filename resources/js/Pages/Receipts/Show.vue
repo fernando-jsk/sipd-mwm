@@ -64,7 +64,7 @@ const submitStatus = () => {
 </script>
 
 <template>
-    <Head :title="`Tanda Bukti Penerimaan - ${receipt.document_number}`" />
+    <Head :title="`Rekap Penerimaan - ${receipt.document_number || 'Detail'}`" />
 
     <AuthenticatedLayout>
         <template #header>
@@ -77,7 +77,7 @@ const submitStatus = () => {
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
-                                <BreadcrumbPage class="text-xs">Detail TBP</BreadcrumbPage>
+                                <BreadcrumbPage class="text-xs">Detail Rekap Penerimaan</BreadcrumbPage>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>

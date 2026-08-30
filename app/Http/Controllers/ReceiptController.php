@@ -121,7 +121,7 @@ class ReceiptController extends Controller
             }
         });
 
-        return redirect()->route('receipts.index')->with('message', 'Tanda bukti penerimaan berhasil dibuat.');
+        return redirect()->route('receipts.index')->with('message', 'Rekap penerimaan harian berhasil dibuat.');
     }
 
     public function show(Receipt $receipt)
@@ -241,7 +241,7 @@ class ReceiptController extends Controller
             }
         });
 
-        return redirect()->route('receipts.index')->with('message', 'Tanda bukti penerimaan berhasil diperbarui.');
+        return redirect()->route('receipts.index')->with('message', 'Rekap penerimaan harian berhasil diperbarui.');
     }
 
     public function destroy(Receipt $receipt)
@@ -257,7 +257,7 @@ class ReceiptController extends Controller
             $receipt->delete();
         });
 
-        return redirect()->route('receipts.index')->with('message', 'Tanda bukti penerimaan berhasil dihapus.');
+        return redirect()->route('receipts.index')->with('message', 'Rekap penerimaan harian berhasil dihapus.');
     }
 
     public function updateStatus(Request $request, Receipt $receipt)

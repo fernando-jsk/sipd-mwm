@@ -106,7 +106,7 @@ onMounted(() => {
                 Penerimaan
             </div>
             <Link href="/receipts" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/receipts') }">
-                1. Tanda Bukti Penerimaan
+                1. Rekap Penerimaan Harian
             </Link>
 
             <!-- Bendahara -->
