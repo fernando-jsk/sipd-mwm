@@ -166,6 +166,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/closing-entry', [\App\Http\Controllers\Report\ClosingEntryController::class, 'index'])->name('closing-entry.index');
         Route::get('/closing-entry/data', [\App\Http\Controllers\Report\ClosingEntryController::class, 'data'])->name('closing-entry.data');
         Route::post('/closing-entry', [\App\Http\Controllers\Report\ClosingEntryController::class, 'store'])->name('closing-entry.store');
+
+        Route::get('/balance-sheet', [\App\Http\Controllers\Report\BalanceSheetController::class, 'index'])->name('balance-sheet.index');
+        Route::get('/balance-sheet/data', [\App\Http\Controllers\Report\BalanceSheetController::class, 'data'])->name('balance-sheet.data');
     });
 });
 

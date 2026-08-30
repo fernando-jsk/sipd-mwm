@@ -40,8 +40,18 @@ class AccountCodeSeeder extends Seeder
             ['code' => '6.1.01', 'name' => 'Sisa Lebih Perhitungan Anggaran (SiLPA) Tahun Sebelumnya', 'level' => 3, 'is_active' => true],
         ];
 
-        foreach ($accounts as $account) {
-            AccountCode::firstOrCreate(['code' => $account['code']], $account);
+        foreach ($accounts as $accountData) {
+            $parentId = null;
+            if (strpos($accountData['code'], '.') !== false) {
+                $parentCode = substr($accountData['code'], 0, strrpos($accountData['code'], '.'));
+                $parentId = AccountCode::where('code', $parentCode)->value('id');
+            }
+
+            $accountData['parent_id'] = $parentId;
+            AccountCode::updateOrCreate(
+                ['code' => $accountData['code']],
+                $accountData
+            );
         }
     }
 }
