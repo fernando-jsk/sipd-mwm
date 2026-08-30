@@ -350,6 +350,38 @@ const updateStatus = () => {
                             </Button>
                         </a>
 
+                        <!-- 1.7. Cetak Lembar Penelitian (Selalu Aktif) -->
+                        <a :href="`/expenditures/${expenditure.id}/print-lembar-peneliti`" target="_blank" class="block">
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-emerald-600" />
+                                Cetak Lembar Peneliti Dokumen
+                            </Button>
+                        </a>
+
+                        <!-- 1.8. Cetak Surat Pengantar (Selalu Aktif) -->
+                        <a :href="`/expenditures/${expenditure.id}/print-surat-pengantar`" target="_blank" class="block">
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-sky-600" />
+                                Cetak Surat Pengantar
+                            </Button>
+                        </a>
+
+                        <!-- 1.9. Cetak Surat Pernyataan (Selalu Aktif) -->
+                        <a :href="`/expenditures/${expenditure.id}/print-surat-pernyataan`" target="_blank" class="block">
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-rose-600" />
+                                Cetak Surat Pernyataan
+                            </Button>
+                        </a>
+
+                        <!-- 1.10. Cetak Surat Verifikasi (Selalu Aktif) -->
+                        <a :href="`/expenditures/${expenditure.id}/print-surat-verifikasi`" target="_blank" class="block">
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-teal-600" />
+                                Cetak Surat Verifikasi
+                            </Button>
+                        </a>
+
                         <!-- 2. Cetak OPD (Aktif jika sudah diotorisasi OPD) -->
                         <a v-if="expenditure.status === 'authorized' || expenditure.status === 'disbursed'" :href="`/expenditures/${expenditure.id}/print-opd`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-semibold text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20">

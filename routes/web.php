@@ -122,6 +122,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/expenditures/{expenditure}/print-sppd', [\App\Http\Controllers\ExpenditureController::class, 'printSppd'])->name('expenditures.print-sppd');
     Route::get('/expenditures/{expenditure}/print-spm', [\App\Http\Controllers\ExpenditureController::class, 'printSpm'])->name('expenditures.print-spm');
     Route::get('/expenditures/{expenditure}/print-ringkasan', [\App\Http\Controllers\ExpenditureController::class, 'printRingkasan'])->name('expenditures.print-ringkasan');
+    Route::get('/expenditures/{expenditure}/print-lembar-peneliti', [\App\Http\Controllers\ExpenditureController::class, 'printLembarPeneliti'])->name('expenditures.print-lembar-peneliti');
+    Route::get('/expenditures/{expenditure}/print-surat-pengantar', [\App\Http\Controllers\ExpenditureController::class, 'printSuratPengantar'])->name('expenditures.print-surat-pengantar');
+    Route::get('/expenditures/{expenditure}/print-surat-pernyataan', [\App\Http\Controllers\ExpenditureController::class, 'printSuratPernyataan'])->name('expenditures.print-surat-pernyataan');
+    Route::get('/expenditures/{expenditure}/print-surat-verifikasi', [\App\Http\Controllers\ExpenditureController::class, 'printSuratVerifikasi'])->name('expenditures.print-surat-verifikasi');
     Route::get('/expenditures/{expenditure}/print-opd', [\App\Http\Controllers\ExpenditureController::class, 'printOpd'])->name('expenditures.print-opd');
     Route::get('/expenditures/{expenditure}/print-spd', [\App\Http\Controllers\ExpenditureController::class, 'printSpd'])->name('expenditures.print-spd');
 
