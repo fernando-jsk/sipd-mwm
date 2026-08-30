@@ -80,7 +80,7 @@ const handleFileChange = (e) => {
 </script>
 
 <template>
-    <Head title="Tanda Bukti Penerimaan" />
+    <Head title="Rekap Penerimaan Harian" />
 
     <AuthenticatedLayout>
         <template #header>
@@ -93,12 +93,12 @@ const handleFileChange = (e) => {
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
                             <BreadcrumbItem>
-                                <BreadcrumbPage class="text-xs">Tanda Bukti Penerimaan</BreadcrumbPage>
+                                <BreadcrumbPage class="text-xs">Rekap Penerimaan Harian</BreadcrumbPage>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
                     <h2 class="text-xl font-bold tracking-tight text-secondary dark:text-foreground">
-                        Tanda Bukti Penerimaan
+                        Rekap Penerimaan Harian
                     </h2>
                 </div>
                 <div class="flex items-center gap-2">
@@ -108,9 +108,9 @@ const handleFileChange = (e) => {
                         </DialogTrigger>
                         <DialogContent class="sm:max-w-[425px]">
                             <DialogHeader>
-                                <DialogTitle>Import Data Penerimaan</DialogTitle>
+                                <DialogTitle>Import Data Rekap Penerimaan</DialogTitle>
                                 <DialogDescription>
-                                    Pilih file CSV hasil export. Pastikan format kolom sesuai dengan template.
+                                    Pilih file CSV hasil export dari SIMRS / Kasir. Pastikan format kolom sesuai dengan template.
                                 </DialogDescription>
                             </DialogHeader>
                             <form @submit.prevent="submitImport" class="space-y-4 py-4">
@@ -144,7 +144,7 @@ const handleFileChange = (e) => {
                         </DialogContent>
                     </Dialog>
                     <Link href="/receipts/create">
-                        <Button>Buat Penerimaan</Button>
+                        <Button>Entri Rekap Baru</Button>
                     </Link>
                 </div>
             </div>
@@ -232,7 +232,7 @@ const handleFileChange = (e) => {
                     </TableRow>
                     <TableRow v-if="receipts.data.length === 0">
                         <TableCell colspan="5" class="h-24 text-center text-muted-foreground text-sm">
-                            Belum ada data penerimaan.
+                            Belum ada data rekap penerimaan.
                         </TableCell>
                     </TableRow>
                 </TableBody>
