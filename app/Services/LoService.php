@@ -98,6 +98,7 @@ class LoService
                 $map[$node['parent_id']]['balance'] += $node['balance'];
             }
         }
+        unset($node);
 
         // 5. Re-sort to original order (by code)
         $codes = array_column($map, 'code');
@@ -112,24 +113,33 @@ class LoService
             $finalMap[$node['id']] = $node;
         }
 
-        // 6. Build trees
+        // 6. Build trees cleanly without reference leakage
+        $treeMap = [];
+        foreach ($finalMap as $id => $node) {
+            $node['children'] = [];
+            $treeMap[$id] = $node;
+        }
+
+        foreach ($treeMap as $id => &$node) {
+            if (!empty($node['parent_id']) && isset($treeMap[$node['parent_id']])) {
+                $treeMap[$node['parent_id']]['children'][] = &$node;
+            }
+        }
+        unset($node);
+
         $pendapatanTree = [];
         $bebanTree = [];
         $nonOperasionalTree = [];
 
-        foreach ($finalMap as $id => &$node) {
-            if ($node['parent_id'] === null) {
+        foreach ($treeMap as $id => $node) {
+            if (empty($node['parent_id'])) {
                 $firstDigit = substr($node['code'], 0, 1);
                 if ($firstDigit === '4') {
-                    $pendapatanTree[] = &$node;
+                    $pendapatanTree[] = $node;
                 } elseif ($firstDigit === '5') {
-                    $bebanTree[] = &$node;
+                    $bebanTree[] = $node;
                 } elseif ($firstDigit === '6') {
-                    $nonOperasionalTree[] = &$node;
-                }
-            } else {
-                if (isset($finalMap[$node['parent_id']])) {
-                    $finalMap[$node['parent_id']]['children'][] = &$node;
+                    $nonOperasionalTree[] = $node;
                 }
             }
         }
