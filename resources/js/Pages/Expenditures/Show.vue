@@ -326,90 +326,90 @@ const updateStatus = () => {
                     </h3>
                     
                     <div class="space-y-2.5">
-                        <!-- 1. Cetak SPPD (Selalu Aktif) -->
+                        <!-- 1. SPPD (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-sppd`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
                                 <FileText class="w-4 h-4 mr-2 text-blue-600" />
-                                Cetak SPPD (Permintaan Pencairan)
+                                SPPD (Permintaan Pencairan)
                             </Button>
                         </a>
 
-                        <!-- 1.5. Cetak SPM (Selalu Aktif) -->
+                        <!-- 2. SPM (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-spm`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
-                                <Printer class="w-4 h-4 mr-2 text-purple-600" />
-                                Cetak SPM (Perintah Membayar)
+                                <FileText class="w-4 h-4 mr-2 text-purple-600" />
+                                SPM (Perintah Membayar)
                             </Button>
                         </a>
 
-                        <!-- 1.6. Cetak Ringkasan (Selalu Aktif) -->
+                        <!-- 3. Ringkasan (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-ringkasan`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
                                 <FileText class="w-4 h-4 mr-2 text-indigo-600" />
-                                Cetak Ringkasan Kegiatan
+                                Ringkasan Kegiatan
                             </Button>
                         </a>
 
-                        <!-- 1.7. Cetak Lembar Penelitian (Selalu Aktif) -->
+                        <!-- 4. Lembar Penelitian (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-lembar-peneliti`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
                                 <FileText class="w-4 h-4 mr-2 text-emerald-600" />
-                                Cetak Lembar Peneliti Dokumen
+                                Lembar Peneliti Dokumen
                             </Button>
                         </a>
 
-                        <!-- 1.8. Cetak Surat Pengantar (Selalu Aktif) -->
+                        <!-- 5. Surat Pengantar (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-surat-pengantar`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
                                 <FileText class="w-4 h-4 mr-2 text-sky-600" />
-                                Cetak Surat Pengantar
+                                Surat Pengantar
                             </Button>
                         </a>
 
-                        <!-- 1.9. Cetak Surat Pernyataan (Selalu Aktif) -->
+                        <!-- 6. Surat Pernyataan (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-surat-pernyataan`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
                                 <FileText class="w-4 h-4 mr-2 text-rose-600" />
-                                Cetak Surat Pernyataan
+                                Surat Pernyataan
                             </Button>
                         </a>
 
-                        <!-- 1.10. Cetak Surat Verifikasi (Selalu Aktif) -->
+                        <!-- 7. Surat Verifikasi (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-surat-verifikasi`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
                                 <FileText class="w-4 h-4 mr-2 text-teal-600" />
-                                Cetak Surat Verifikasi
+                                Surat Verifikasi
                             </Button>
                         </a>
 
-                        <!-- 1.11. Cetak Kwitansi (Selalu Aktif) -->
+                        <!-- 8. Kwitansi (Selalu Aktif) -->
                         <a :href="`/expenditures/${expenditure.id}/print-kwitansi`" target="_blank" class="block">
                             <Button variant="outline" class="w-full justify-start text-xs font-normal">
                                 <FileText class="w-4 h-4 mr-2 text-orange-600" />
-                                Cetak Lembar Kwitansi
+                                Lembar Kwitansi
                             </Button>
                         </a>
 
-                        <!-- 2. Cetak OPD (Aktif jika sudah diotorisasi OPD) -->
+                        <!-- 9. Surat OPD (Aktif jika sudah diotorisasi OPD) -->
                         <a v-if="expenditure.status === 'authorized' || expenditure.status === 'disbursed'" :href="`/expenditures/${expenditure.id}/print-opd`" target="_blank" class="block">
-                            <Button variant="outline" class="w-full justify-start text-xs font-semibold text-amber-700 border-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20">
-                                <Printer class="w-4 h-4 mr-2 text-amber-600" />
-                                Cetak Surat OPD (Otorisasi Direktur)
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-amber-600" />
+                                Surat OPD (Otorisasi Direktur)
                             </Button>
                         </a>
                         <div v-else class="text-[11px] text-muted-foreground italic px-2 py-1 bg-muted/40 rounded">
-                            🔒 Cetak OPD terbuka setelah diotorisasi Direktur.
+                            🔒 Surat OPD terbuka setelah diotorisasi Direktur.
                         </div>
 
-                        <!-- 3. Cetak SPD (Aktif jika sudah dicairkan SPD) -->
+                        <!-- 10. Surat SPD (Aktif jika sudah dicairkan SPD) -->
                         <a v-if="expenditure.status === 'disbursed'" :href="`/expenditures/${expenditure.id}/print-spd`" target="_blank" class="block">
-                            <Button variant="outline" class="w-full justify-start text-xs font-semibold text-emerald-700 border-emerald-300 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20">
-                                <CheckCircle class="w-4 h-4 mr-2 text-emerald-600" />
-                                Cetak Surat SPD (Pencairan Dana)
+                            <Button variant="outline" class="w-full justify-start text-xs font-normal">
+                                <FileText class="w-4 h-4 mr-2 text-emerald-600" />
+                                Surat SPD (Pencairan Dana)
                             </Button>
                         </a>
                         <div v-else class="text-[11px] text-muted-foreground italic px-2 py-1 bg-muted/40 rounded">
-                            🔒 Cetak SPD terbuka setelah dicairkan Kabag Keuangan.
+                            🔒 Surat SPD terbuka setelah dicairkan Kabag Keuangan.
                         </div>
                     </div>
                 </div>
