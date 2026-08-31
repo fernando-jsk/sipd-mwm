@@ -27,7 +27,7 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const searchBy = ref(props.filters?.search_by || 'all');
 const statusFilter = ref(props.filters?.status || '');
-const sortFilter = ref(props.filters?.sort || 'newest');
+const sortFilter = ref(props.filters?.sort || 'doc_desc');
 
 let searchTimeout = null;
 

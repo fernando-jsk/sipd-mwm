@@ -25,13 +25,15 @@ class ExpenditureController extends Controller
     public function sppdIndex(Request $request)
     {
         $query = Expenditure::with(['vendor', 'treasurer', 'kpa', 'ptk', 'createdBy']);
-        $query = $this->applyFiltersAndSort($query, $request, 'created_at');
+        $query = $this->applyFiltersAndSort($query, $request, 'document_number');
 
         $expenditures = $query->paginate(20)->withQueryString();
 
+        $filters = (object) array_merge(['sort' => 'doc_desc'], $request->only('search', 'search_by', 'status', 'sort'));
+
         return Inertia::render('Expenditures/SppdIndex', [
             'expenditures' => $expenditures,
-            'filters' => (object) $request->only('search', 'search_by', 'status', 'sort'),
+            'filters' => $filters,
             'users' => User::all(['id', 'name']),
         ]);
     }
@@ -42,13 +44,15 @@ class ExpenditureController extends Controller
         $query = Expenditure::with(['vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy'])
             ->whereIn('status', ['submitted', 'sppd_submitted', 'authorized', 'opd_authorized', 'disbursed', 'spd_disbursed', 'rejected']);
         
-        $query = $this->applyFiltersAndSort($query, $request, 'updated_at');
+        $query = $this->applyFiltersAndSort($query, $request, 'document_number');
 
         $expenditures = $query->paginate(20)->withQueryString();
 
+        $filters = (object) array_merge(['sort' => 'doc_desc'], $request->only('search', 'search_by', 'status', 'sort'));
+
         return Inertia::render('Expenditures/OpdIndex', [
             'expenditures' => $expenditures,
-            'filters' => (object) $request->only('search', 'search_by', 'status', 'sort')
+            'filters' => $filters
         ]);
     }
 
@@ -58,13 +62,15 @@ class ExpenditureController extends Controller
         $query = Expenditure::with(['vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy'])
             ->whereIn('status', ['authorized', 'opd_authorized', 'disbursed', 'spd_disbursed']);
         
-        $query = $this->applyFiltersAndSort($query, $request, 'updated_at');
+        $query = $this->applyFiltersAndSort($query, $request, 'document_number');
 
         $expenditures = $query->paginate(20)->withQueryString();
 
+        $filters = (object) array_merge(['sort' => 'doc_desc'], $request->only('search', 'search_by', 'status', 'sort'));
+
         return Inertia::render('Expenditures/SpdIndex', [
             'expenditures' => $expenditures,
-            'filters' => (object) $request->only('search', 'search_by', 'status', 'sort')
+            'filters' => $filters
         ]);
     }
 
@@ -442,7 +448,7 @@ class ExpenditureController extends Controller
         ]);
     }
 
-    private function applyFiltersAndSort($query, Request $request, $sortColumn = 'updated_at')
+    private function applyFiltersAndSort($query, Request $request, $sortColumn = 'document_number')
     {
         if ($request->filled('search')) {
             $searchBy = $request->input('search_by', 'all');
@@ -474,15 +480,17 @@ class ExpenditureController extends Controller
             $query->where('status', $request->status);
         }
 
-        $sort = $request->input('sort', 'newest');
+        $sort = $request->input('sort', 'doc_desc');
         if ($sort === 'oldest') {
-            $query->orderBy($sortColumn, 'asc');
+            $query->orderBy('created_at', 'asc');
+        } elseif ($sort === 'newest') {
+            $query->orderBy('created_at', 'desc');
         } elseif ($sort === 'doc_asc') {
             $query->orderBy('document_number', 'asc');
         } elseif ($sort === 'doc_desc') {
             $query->orderBy('document_number', 'desc');
         } else {
-            $query->orderBy($sortColumn, 'desc');
+            $query->orderBy('document_number', 'desc');
         }
 
         return $query;
