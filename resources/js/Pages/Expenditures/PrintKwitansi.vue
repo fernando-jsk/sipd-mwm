@@ -109,12 +109,12 @@ const terbilang = (angka) => {
         <div class="max-w-4xl mx-auto bg-white text-black p-8 sm:p-12 shadow-md rounded-xl font-sans print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-0 print:m-0">
             <!-- HEADER -->
             <div class="flex items-center relative mb-4 border-b-2 border-black pb-3">
-                <img src="/images/logo-mwm.png" alt="Logo" class="h-16 w-auto absolute left-0 top-0" />
+                <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-16 w-auto absolute left-0 top-0" />
                 <div class="w-full text-center">
                     <h1 class="text-sm font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
                     <h2 class="text-base font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
-                    <h3 class="text-xs">Jl. Arnold Mononutu Kelurahan Sarongsong II - Kec. Airmadidi 95371</h3>
-                    <p class="text-xs">Website: rsudmwmaramis.com, Email: mwmaramis@gmail.com</p>
+                    <h3 class="text-xs">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
+                    <p class="text-xs">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
                 </div>
             </div>
 

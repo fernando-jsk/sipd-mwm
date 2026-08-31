@@ -41,13 +41,13 @@ const goBack = () => {
         <div class="max-w-4xl mx-auto bg-white text-black p-8 sm:p-12 shadow-md rounded-xl print:shadow-none print:rounded-none print:w-full print:max-w-none font-sans min-h-[1000px] flex flex-col justify-between">
             <div>
                 <!-- HEADER -->
-                <div class="flex items-center relative mb-4 border-b-2 border-black pb-4">
-                    <img src="/images/logo-mwm.png" alt="Logo" class="h-20 w-auto absolute left-0 top-0" />
+                <div class="flex items-center relative mb-4 border-b-2 border-black pb-3">
+                    <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-20 w-auto absolute left-0 top-0" />
                     <div class="w-full text-center">
-                        <h1 class="text-base font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
-                        <h2 class="text-lg font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
-                        <h3 class="text-sm">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
-                        <p class="text-sm">Website: rsudmwmaramis.com, Email: mwmaramis@gmail.com</p>
+                        <h1 class="text-sm font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
+                        <h2 class="text-base font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
+                        <h3 class="text-xs">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
+                        <p class="text-xs">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
                     </div>
                 </div>
 
