@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Bar, Doughnut, Line } from 'vue-chartjs';
 import {
@@ -35,6 +35,13 @@ const props = defineProps({
 const startMonth = ref(props.data.startMonth?.toString() || '1');
 const endMonth = ref(props.data.endMonth?.toString() || (new Date().getMonth() + 1).toString());
 
+watch(() => props.data.startMonth, (newVal) => {
+    if (newVal) startMonth.value = newVal.toString();
+});
+watch(() => props.data.endMonth, (newVal) => {
+    if (newVal) endMonth.value = newVal.toString();
+});
+
 const selectedMonthLabel = computed(() => {
     const startIdx = parseInt(startMonth.value) - 1;
     const endIdx = parseInt(endMonth.value) - 1;
@@ -60,13 +67,6 @@ const applyFilter = () => {
 const currentMonthIn    = computed(() => props.data.currentMonthIn || 0);
 const currentMonthOut   = computed(() => props.data.currentMonthOut || 0);
 const netCashFlow       = computed(() => props.data.netCashFlow || 0);
-const endingBalance     = computed(() => props.data.endingBalance || 0);
-const minimumSafeBalance = computed(() => props.data.minimumSafeBalance || 500000000);
-const dailyBurnRate     = computed(() => props.data.dailyBurnRate || 0);
-
-// Threshold alarm
-const isBalanceDanger   = computed(() => endingBalance.value < minimumSafeBalance.value);
-const isBalanceCritical = computed(() => !isBalanceDanger.value && endingBalance.value < minimumSafeBalance.value * 1.5);
 
 // ============================================================
 // CHART 1 — Bar: Cash In vs Cash Out bulanan
@@ -121,6 +121,7 @@ const barChartOptions = {
             ticks: { color: '#64748b', font: { size: 11 } },
         },
         y: {
+            beginAtZero: true,
             grid: { color: 'rgba(100,116,139,0.08)' },
             border: { dash: [4, 4] },
             ticks: {
@@ -257,6 +258,7 @@ const lineChartOptions = {
             ticks: { color: '#64748b', font: { size: 11 } },
         },
         y: {
+            beginAtZero: true,
             grid: { color: 'rgba(100,116,139,0.08)' },
             border: { dash: [4, 4] },
             ticks: {
@@ -292,8 +294,6 @@ function formatRupiahShort(val) {
     
     return isNegative ? `-${formatted}` : formatted;
 }
-
-const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value / (minimumSafeBalance.value * 3)) * 100)) || 0);
 </script>
 
 <template>
@@ -420,7 +420,7 @@ const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value 
                 <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-semibold text-secondary">Tren Pemasukan vs Pengeluaran</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">7 bulan terakhir (Jan – Jul 2025)</p>
+                        <p class="text-xs text-muted-foreground mt-0.5">Tren bulanan (Jan – Des)</p>
                     </div>
                     <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">Bulanan</span>
                 </div>
@@ -455,60 +455,6 @@ const balancePct = computed(() => Math.min(100, Math.round((endingBalance.value 
             </div>
             <div class="p-5" style="height: 300px;">
                 <Line :data="lineChartData" :options="lineChartOptions" />
-            </div>
-        </div>
-
-        <!-- ── ROW 4: Ending Cash Balance Alert Bar ─────────────── -->
-        <div :class="[
-            'rounded-xl border px-5 py-4 flex flex-wrap sm:flex-nowrap items-center gap-4 transition-all duration-300',
-            isBalanceDanger   ? 'bg-rose-50 border-rose-300'
-            : isBalanceCritical ? 'bg-amber-50 border-amber-300'
-            : 'bg-emerald-50/70 border-emerald-200'
-        ]">
-            <!-- Icon -->
-            <div :class="[
-                'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
-                isBalanceDanger ? 'bg-rose-500/15' : isBalanceCritical ? 'bg-amber-500/15' : 'bg-emerald-500/15'
-            ]">
-                <AlertTriangle :class="['w-5 h-5', isBalanceDanger ? 'text-rose-600' : isBalanceCritical ? 'text-amber-600' : 'text-emerald-600']" />
-            </div>
-
-            <!-- Text -->
-            <div class="flex-1 min-w-0">
-                <p :class="['text-sm font-bold', isBalanceDanger ? 'text-rose-700' : isBalanceCritical ? 'text-amber-800' : 'text-emerald-800']">
-                    {{
-                        isBalanceDanger
-                            ? '⚠️ ALARM: Saldo Kas Di Bawah Batas Aman Minimum!'
-                            : isBalanceCritical
-                                ? 'Perhatian: Saldo Kas Mendekati Batas Aman'
-                                : '✅ Saldo Akhir Kas Dalam Kondisi Aman'
-                    }}
-                </p>
-                <p class="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
-                    Saldo saat ini <strong class="text-foreground">{{ formatRupiah(endingBalance) }}</strong>
-                    &nbsp;·&nbsp; Batas aman min. <strong class="text-foreground">{{ formatRupiah(minimumSafeBalance) }}</strong>
-                    &nbsp;·&nbsp; Burn rate harian ≈ <strong class="text-foreground">{{ formatRupiah(Math.round(dailyBurnRate)) }}</strong>
-                </p>
-            </div>
-
-            <!-- Progress Bar Saldo -->
-            <div class="hidden sm:block w-44 flex-shrink-0">
-                <div class="flex justify-between text-[10px] text-muted-foreground mb-1.5">
-                    <span>Batas aman</span>
-                    <span class="font-semibold">{{ balancePct }}%</span>
-                </div>
-                <div class="h-2 bg-black/10 rounded-full overflow-hidden">
-                    <div
-                        :class="[
-                            'h-full rounded-full transition-all duration-700 ease-out',
-                            isBalanceDanger ? 'bg-rose-500' : isBalanceCritical ? 'bg-amber-500' : 'bg-emerald-500'
-                        ]"
-                        :style="{ width: balancePct + '%' }"
-                    ></div>
-                </div>
-                <p :class="['text-[10px] mt-1 font-semibold', isBalanceDanger ? 'text-rose-600' : isBalanceCritical ? 'text-amber-600' : 'text-emerald-600']">
-                    {{ formatRupiahShort(endingBalance) }} / {{ formatRupiahShort(minimumSafeBalance * 3) }}
-                </p>
             </div>
         </div>
 

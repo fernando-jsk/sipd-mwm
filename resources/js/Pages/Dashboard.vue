@@ -32,7 +32,7 @@ const props = defineProps({
         <!-- Section 2: Aging Piutang (hidden) -->
         <!-- <AgingPiutangSection /> -->
 
-        <!-- Section 3: Variance Budget -->
+        <!-- Section 3: Realisasi (Anggaran vs Realisasi) -->
         <VarianceBudgetSection :data="cashFlowData" :varianceData="varianceData" />
     </AuthenticatedLayout>
 </template>
