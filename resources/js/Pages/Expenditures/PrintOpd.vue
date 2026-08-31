@@ -46,14 +46,13 @@ const totalTaxes = props.expenditure.taxes?.reduce((sum, item) => sum + Number(i
         <!-- Printable Document Canvas -->
         <div class="max-w-4xl mx-auto bg-white text-black p-8 sm:p-12 shadow-md rounded-xl print:shadow-none print:rounded-none print:w-full print:max-w-none">
             <!-- Kop Surat -->
-            <div class="border-b-2 border-black pb-4 mb-6 flex items-center justify-between">
-                <div class="flex items-center gap-4">
-                    <img src="/images/logo-mwm.png" alt="Logo MWM" class="h-16 w-auto" />
-                    <div>
-                        <h1 class="text-xl font-bold uppercase tracking-wide">PERUMDA AIR MINUM TIRTA MUBA</h1>
-                        <p class="text-xs text-slate-600">Jl. Kolonel Wahid Udin, Sekayu, Musi Banyuasin, Sumatera Selatan</p>
-                        <p class="text-xs text-slate-600">Telepon: (0714) 321xxx | Email: info@tirtamuba.co.id</p>
-                    </div>
+            <div class="border-b-2 border-black pb-3 mb-6 flex items-center relative">
+                <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-16 w-auto absolute left-0 top-0" />
+                <div class="w-full text-center">
+                    <h1 class="text-sm font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
+                    <h2 class="text-base font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
+                    <h3 class="text-xs">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
+                    <p class="text-xs">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
                 </div>
             </div>
 
