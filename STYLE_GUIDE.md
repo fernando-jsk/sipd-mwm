@@ -126,3 +126,68 @@ Agar jarak dan proporsi konten tetap konsisten antar halaman:
       </div>
   </template>
   ```
+
+---
+
+## 6. Pedoman Dokumen & Format Cetak Resmi (Print Layout Standards - A4 & F4)
+
+Untuk menjaga konsistensi, presisi visual, dan memastikan seluruh dokumen kedinasan/pencairan dana (SPPD, SPM, Ringkasan Kegiatan, Lembar Penelitian, Surat Pengantar, Surat Pernyataan, Surat Verifikasi, Kwitansi, OPD, SPD) **muat dalam 1 halaman tunggal (atau 2 halaman terpisah yang rapi)** tanpa melompat atau terpotong pada kertas **A4** maupun **F4 (Folio/Legal)**:
+
+### A. Aturan `@page` & Media Print CSS
+Gunakan aturan CSS `@page` yang fleksibel (`size: auto`) dengan margin terkontrol agar kompatibel dengan pengaturan printer browser:
+```css
+<style>
+@media print {
+    @page {
+        size: auto; /* Memungkinkan pemilihan ukuran kertas A4 atau F4 di browser */
+        margin: 6mm 10mm; /* Margin ringkas efisiensi vertikal */
+    }
+    html, body {
+        background-color: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+</style>
+```
+
+### B. Struktur Kontainer Cetak (Print Canvas)
+1. **Outer Wrapper**: `min-h-screen bg-slate-100 dark:bg-slate-900 p-4 sm:p-8 print:bg-white print:p-0 print:m-0`
+2. **Floating Action Bar (Sembunyi saat Cetak)**:
+   ```vue
+   <div class="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
+       <Button variant="outline" size="sm" @click="goBack">
+           <ArrowLeft class="w-4 h-4 mr-2" /> Kembali
+       </Button>
+       <div class="flex items-center gap-2">
+           <span class="text-xs text-muted-foreground hidden sm:inline">Ukuran Kertas: A4 / F4 (1 Halaman)</span>
+           <Button size="sm" @click="printPage" class="bg-primary text-primary-foreground">
+               <Printer class="w-4 h-4 mr-2" /> Cetak Dokumen
+           </Button>
+       </div>
+   </div>
+   ```
+3. **Paper Canvas**: `max-w-4xl mx-auto bg-white text-black p-6 sm:p-10 shadow-md rounded-xl font-sans print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-0 print:m-0`
+
+### C. Kop Surat Resmi Standar (Standardized Header)
+Setiap dokumen dinas RSUD Maria Walanda Maramis wajib menggunakan header standar berikut:
+```vue
+<div class="flex items-center relative mb-3 border-b-2 border-black pb-2">
+    <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-14 w-auto absolute left-0 top-0" />
+    <div class="w-full text-center">
+        <h1 class="text-xs font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
+        <h2 class="text-sm font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
+        <h3 class="text-[11px]">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
+        <p class="text-[10px]">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
+    </div>
+</div>
+```
+
+### D. Kerapatan Vertikal (Vertical Rhythm & Typography)
+* **Ukuran Font Tabel & Teks**: `text-[10px]` (atau `text-[9.5px]` untuk dokumen ekstra padat).
+* **Padding Sel Tabel**: `px-1.5 py-0.5` untuk menghemat ruang vertikal agar tidak overflow ke halaman ke-2.
+* **Area Tanda Tangan**:
+  * Selalu bungkus dengan `print:break-inside-avoid`.
+  * Berikan jarak tanda tangan proporsional (`mb-10` hingga `mb-14`, atau `h-16`). Hindari margin berlebih seperti `mt-24` atau `h-32`.
+* **Dokumen Multi-Halaman**: Gunakan `print:break-after-page` pada kontainer halaman 1 dan `print:break-before-page` pada halaman 2.
+
