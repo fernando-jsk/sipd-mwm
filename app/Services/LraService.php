@@ -20,8 +20,13 @@ class LraService
      */
     public function getLraData($year, $month = null, $version = null)
     {
-        // 1. Fetch all active account codes
+        // 1. Fetch all active budget account codes (4: Pendapatan, 5: Belanja, 6: Pembiayaan)
         $accounts = AccountCode::where('is_active', true)
+            ->where(function($query) {
+                $query->where('code', 'like', '4%')
+                      ->orWhere('code', 'like', '5%')
+                      ->orWhere('code', 'like', '6%');
+            })
             ->orderBy('code')
             ->get()
             ->keyBy('id')
