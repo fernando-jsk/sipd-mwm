@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { Bar, Line } from 'vue-chartjs';
 import {
     Chart as ChartJS,
@@ -51,14 +52,46 @@ const props = defineProps({
 
 const months = computed(() => props.data.months || []);
 
+const startMonth = ref(props.data.startMonth?.toString() || '1');
+const endMonth = ref(props.data.endMonth?.toString() || (new Date().getMonth() + 1).toString());
+
+watch(() => props.data.startMonth, (newVal) => {
+    if (newVal) startMonth.value = newVal.toString();
+});
+watch(() => props.data.endMonth, (newVal) => {
+    if (newVal) endMonth.value = newVal.toString();
+});
+
+const selectedMonthLabel = computed(() => {
+    const sIdx = parseInt(startMonth.value) - 1;
+    const eIdx = parseInt(endMonth.value) - 1;
+    if (sIdx === 0 && eIdx === 11) return 'Seluruh Tahun';
+    if (sIdx === eIdx) return months.value?.[sIdx] || '';
+    return `${months.value?.[sIdx] || ''} - ${months.value?.[eIdx] || ''}`;
+});
+
+const applyFilter = () => {
+    if (parseInt(startMonth.value) > parseInt(endMonth.value)) {
+        startMonth.value = endMonth.value;
+    }
+
+    router.get('/dashboard', { 
+        startMonth: startMonth.value, 
+        endMonth: endMonth.value 
+    }, {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
 const revenueBudget = computed(() => props.varianceData.revenueBudget || []);
 const revenueActual = computed(() => props.varianceData.revenueActual || []);
 const expenseBudget = computed(() => props.varianceData.expenseBudget || []);
 const expenseActual = computed(() => props.varianceData.expenseActual || []);
 
 // Hitung rentang
-const startIdx = computed(() => parseInt(props.data.startMonth || 1) - 1);
-const endIdx = computed(() => parseInt(props.data.endMonth || 1) - 1);
+const startIdx = computed(() => parseInt(startMonth.value || 1) - 1);
+const endIdx = computed(() => parseInt(endMonth.value || 1) - 1);
 
 const curRevBudget = computed(() => revenueBudget.value.slice(startIdx.value, endIdx.value + 1).reduce((a, b) => a + b, 0));
 const curRevActual = computed(() => revenueActual.value.slice(startIdx.value, endIdx.value + 1).reduce((a, b) => a + b, 0));
@@ -84,12 +117,28 @@ const sisaPaguPct = computed(() => totalExpenseBudget.value ? (sisaPaguBelanja.v
 const activeTab = ref('revenue'); // 'revenue' | 'expense'
 
 // ── Chart: Revenue Budget vs Actual ─────────────────────────
+const filteredRevenueBudget = computed(() => {
+    return revenueBudget.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+
+const filteredRevenueActual = computed(() => {
+    return revenueActual.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+
+const filteredExpenseBudget = computed(() => {
+    return expenseBudget.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+
+const filteredExpenseActual = computed(() => {
+    return expenseActual.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+
 const revenueChartData = computed(() => ({
     labels: months.value,
     datasets: [
         {
             label: 'Anggaran',
-            data: revenueBudget.value,
+            data: filteredRevenueBudget.value,
             borderColor: '#94a3b8',
             backgroundColor: 'rgba(148,163,184,0.08)',
             borderWidth: 2,
@@ -99,10 +148,11 @@ const revenueChartData = computed(() => ({
             tension: 0.35,
             fill: false,
             order: 2,
+            spanGaps: false,
         },
         {
             label: 'Realisasi',
-            data: revenueActual.value,
+            data: filteredRevenueActual.value,
             borderColor: '#4ADE80',
             backgroundColor: 'rgba(74,222,128,0.10)',
             borderWidth: 2.5,
@@ -113,6 +163,7 @@ const revenueChartData = computed(() => ({
             tension: 0.35,
             fill: true,
             order: 1,
+            spanGaps: false,
         },
     ],
 }));
@@ -123,7 +174,7 @@ const expenseChartData = computed(() => ({
     datasets: [
         {
             label: 'Anggaran',
-            data: expenseBudget.value,
+            data: filteredExpenseBudget.value,
             borderColor: '#94a3b8',
             backgroundColor: 'rgba(148,163,184,0.08)',
             borderWidth: 2,
@@ -133,10 +184,11 @@ const expenseChartData = computed(() => ({
             tension: 0.35,
             fill: false,
             order: 2,
+            spanGaps: false,
         },
         {
             label: 'Realisasi',
-            data: expenseActual.value,
+            data: filteredExpenseActual.value,
             borderColor: '#FF8781',
             backgroundColor: 'rgba(255,135,129,0.10)',
             borderWidth: 2.5,
@@ -147,6 +199,7 @@ const expenseChartData = computed(() => ({
             tension: 0.35,
             fill: true,
             order: 1,
+            spanGaps: false,
         },
     ],
 }));
@@ -168,13 +221,17 @@ const lineChartOptions = {
         },
         tooltip: {
             callbacks: {
-                label: (ctx) => ` ${ctx.dataset.label}: ${formatRupiah(ctx.raw)}`,
+                label: (ctx) => {
+                    if (ctx.raw === null || ctx.raw === undefined) return null;
+                    return ` ${ctx.dataset.label}: ${formatRupiah(ctx.raw)}`;
+                },
                 afterBody: (items) => {
-                    if (items.length < 2) return [];
-                    const budget = items.find(i => i.dataset.label === 'Anggaran')?.raw ?? 0;
-                    const actual = items.find(i => i.dataset.label === 'Realisasi')?.raw ?? 0;
+                    const validItems = items.filter(i => i.raw !== null && i.raw !== undefined);
+                    if (validItems.length < 2) return [];
+                    const budget = validItems.find(i => i.dataset.label === 'Anggaran')?.raw ?? 0;
+                    const actual = validItems.find(i => i.dataset.label === 'Realisasi')?.raw ?? 0;
                     const diff   = actual - budget;
-                    const pct    = ((diff / budget) * 100).toFixed(1);
+                    const pct    = budget ? ((diff / budget) * 100).toFixed(1) : 0;
                     return ['', `Selisih: ${diff >= 0 ? '+' : ''}${formatRupiahShort(diff)} (${diff >= 0 ? '+' : ''}${pct}%)`];
                 },
             },
@@ -186,6 +243,8 @@ const lineChartOptions = {
             ticks: { color: '#64748b', font: { size: 11 } },
         },
         y: {
+            beginAtZero: true,
+            min: 0,
             grid: { color: 'rgba(100,116,139,0.08)' },
             border: { dash: [4, 4] },
             ticks: {
@@ -244,16 +303,42 @@ const severityClass = {
 
 <template>
     <!-- ============================================================
-         SECTION 3: DASHBOARD VARIANCE BUDGET (ANGGARAN VS REALISASI)
+         SECTION 3: DASHBOARD REALISASI (ANGGARAN VS REALISASI)
     ============================================================ -->
     <section class="space-y-5">
 
         <!-- ── Section Header ──────────────────────────────────── -->
-        <div class="flex items-center gap-3">
-            <div class="w-1 h-8 rounded-full bg-blue-500"></div>
-            <div>
-                <h2 class="text-xl font-bold tracking-tight text-secondary">Dashboard Selisih Anggaran</h2>
-                <p class="text-xs text-muted-foreground mt-0.5">Anggaran vs Realisasi</p>
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-1 h-8 rounded-full bg-blue-500"></div>
+                <div>
+                    <h2 class="text-xl font-bold tracking-tight text-secondary">Realisasi</h2>
+                    <p class="text-xs text-muted-foreground mt-0.5">Anggaran vs Realisasi · Periode: {{ selectedMonthLabel }}</p>
+                </div>
+            </div>
+
+            <!-- Month Filter -->
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground font-medium">Dari</span>
+                <select 
+                    v-model="startMonth" 
+                    @change="applyFilter"
+                    class="text-sm border-border/80 rounded-lg bg-card text-secondary shadow-sm focus:ring-primary focus:border-primary px-3 py-1.5 cursor-pointer"
+                >
+                    <option v-for="(m, i) in months" :key="i" :value="(i + 1).toString()">
+                        {{ m }}
+                    </option>
+                </select>
+                <span class="text-xs text-muted-foreground font-medium">sampai</span>
+                <select 
+                    v-model="endMonth" 
+                    @change="applyFilter"
+                    class="text-sm border-border/80 rounded-lg bg-card text-secondary shadow-sm focus:ring-primary focus:border-primary px-3 py-1.5 cursor-pointer"
+                >
+                    <option v-for="(m, i) in months" :key="i" :value="(i + 1).toString()">
+                        {{ m }}
+                    </option>
+                </select>
             </div>
         </div>
 
@@ -306,7 +391,7 @@ const severityClass = {
                     {{ expVariance >= 0 ? '+' : '' }}{{ expVariancePct }}%
                 </p>
                 <p class="text-[11px] text-muted-foreground mt-1.5">
-                    {{ expVariance >= 0 ? '+' : '' }}{{ formatRupiahShort(expVariance) }} dari anggaran bln ini
+                    {{ expVariance >= 0 ? '+' : '' }}{{ formatRupiahShort(expVariance) }} dari anggaran periode ini
                 </p>
                 
                 <!-- Sisa Pagu Tahunan -->
@@ -422,11 +507,14 @@ const severityClass = {
             <!-- Variance Summary Bar per Month -->
             <div class="px-5 pb-5">
                 <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Selisih per Bulan</p>
-                <div class="grid grid-cols-7 gap-1.5">
+                <div class="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
                     <div
                         v-for="(m, i) in months"
                         :key="m"
-                        class="flex flex-col items-center gap-1"
+                        :class="[
+                            'flex flex-col items-center gap-1 transition-all duration-200 rounded-md py-1',
+                            (i >= startIdx && i <= endIdx) ? 'opacity-100 bg-muted/40 font-medium' : 'opacity-25'
+                        ]"
                     >
                         <template v-if="activeTab === 'revenue'">
                             <span :class="[
@@ -456,8 +544,8 @@ const severityClass = {
         <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                 <div>
-                    <h3 class="text-sm font-semibold text-secondary">Tabel Ringkasan Selisih</h3>
-                    <p class="text-xs text-muted-foreground mt-0.5">Pendapatan: selisih (+) = bagus · Pengeluaran: selisih (+) = bahaya</p>
+                    <h3 class="text-sm font-semibold text-secondary">Tabel Ringkasan Realisasi</h3>
+                    <p class="text-xs text-muted-foreground mt-0.5">Pendapatan: selisih (+) = melebihi target · Pengeluaran: selisih (+) = melebihi anggaran</p>
                 </div>
             </div>
 
