@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             RoleAndUserSeeder::class,
             AccountCodeSeeder::class,
             SettingSeeder::class,
+            ReceiptTypeSeeder::class,
         ]);
     }
 }
