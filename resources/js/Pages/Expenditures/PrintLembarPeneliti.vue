@@ -67,96 +67,110 @@ const checklistItems = [
 <template>
     <Head :title="`Cetak Lembar Penelitian Dokumen: ${expenditure.document_number}`" />
 
-    <div class="min-h-screen bg-slate-100 dark:bg-slate-900 p-4 sm:p-8 print:bg-white print:p-0">
+    <div class="min-h-screen bg-slate-100 dark:bg-slate-900 p-4 sm:p-8 print:bg-white print:p-0 print:m-0">
         <!-- Floating Toolbar (Hide on Print) -->
         <div class="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
             <Button variant="outline" size="sm" @click="goBack">
                 <ArrowLeft class="w-4 h-4 mr-2" /> Kembali
             </Button>
-            <Button size="sm" @click="printPage" class="bg-primary text-primary-foreground">
-                <Printer class="w-4 h-4 mr-2" /> Cetak Lembar Penelitian
-            </Button>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground hidden sm:inline">Ukuran Kertas: A4 / F4 (1 Halaman)</span>
+                <Button size="sm" @click="printPage" class="bg-primary text-primary-foreground">
+                    <Printer class="w-4 h-4 mr-2" /> Cetak Lembar Penelitian
+                </Button>
+            </div>
         </div>
 
         <!-- Printable Document Canvas -->
-        <div class="max-w-4xl mx-auto bg-white text-black p-8 sm:p-12 shadow-md rounded-xl print:shadow-none print:rounded-none print:w-full print:max-w-none font-sans">
+        <div class="max-w-4xl mx-auto bg-white text-black p-6 sm:p-10 shadow-md rounded-xl print:shadow-none print:rounded-none print:w-full print:max-w-none font-sans print:p-0 print:m-0">
             
+            <!-- HEADER -->
+            <div class="flex items-center relative mb-2 border-b-2 border-black pb-2">
+                <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-14 w-auto absolute left-0 top-0" />
+                <div class="w-full text-center">
+                    <h1 class="text-xs font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
+                    <h2 class="text-sm font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
+                    <h3 class="text-[11px]">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
+                    <p class="text-[10px]">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
+                </div>
+            </div>
+
             <!-- TITLE -->
-            <div class="text-center mb-6">
-                <h1 class="text-base font-bold uppercase tracking-wide">LEMBAR PENELITIAN DOKUMEN</h1>
+            <div class="text-center mb-2">
+                <h1 class="text-xs font-bold uppercase tracking-wide underline">LEMBAR PENELITIAN DOKUMEN</h1>
             </div>
 
             <!-- METADATA TABLE -->
-            <table class="w-full text-[11px] border-collapse border border-black mb-4">
+            <table class="w-full text-[9.5px] border-collapse border border-black mb-2">
                 <tbody>
                     <tr>
-                        <td class="w-40 px-2 py-1 align-top font-bold">NAMA SATKER</td>
-                        <td class="w-4 py-1 align-top text-center">:</td>
-                        <td class="px-2 py-1 align-top font-bold">BLUD RSUD MARIA WALANDA MARAMIS</td>
+                        <td class="w-36 px-1.5 py-0.5 align-top font-bold">NAMA SATKER</td>
+                        <td class="w-4 py-0.5 align-top text-center">:</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold">BLUD RSUD MARIA WALANDA MARAMIS</td>
                     </tr>
                     <tr>
-                        <td class="px-2 py-1 align-top font-bold">BENDAHARA/</td>
-                        <td class="w-4 py-1 align-top text-center">:</td>
-                        <td class="px-2 py-1 align-top">{{ expenditure.treasurer?.name || 'Saskia Paraso, SKM' }} / BENDAHARA PENGELUARAN</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold">BENDAHARA</td>
+                        <td class="w-4 py-0.5 align-top text-center">:</td>
+                        <td class="px-1.5 py-0.5 align-top">{{ expenditure.treasurer?.name || 'Saskia Paraso, SKM' }} / BENDAHARA PENGELUARAN</td>
                     </tr>
                     <tr>
-                        <td class="px-2 py-1 align-top font-bold">PIHAK KETIGA</td>
-                        <td class="w-4 py-1 align-top text-center">:</td>
-                        <td class="px-2 py-1 align-top font-bold">{{ expenditure.vendor?.name || '-' }}</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold">PIHAK KETIGA</td>
+                        <td class="w-4 py-0.5 align-top text-center">:</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold">{{ expenditure.vendor?.name || '-' }}</td>
                     </tr>
                     <tr>
-                        <td class="px-2 py-1 align-top font-bold">NOMOR TGL SPM</td>
-                        <td class="w-4 py-1 align-top text-center">:</td>
-                        <td class="px-2 py-1 align-top">{{ expenditure.document_number ? expenditure.document_number.replace('SPP', 'SPM') : '-' }}</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold">NOMOR TGL SPM</td>
+                        <td class="w-4 py-0.5 align-top text-center">:</td>
+                        <td class="px-1.5 py-0.5 align-top">{{ expenditure.document_number ? expenditure.document_number.replace('SPP', 'SPM') : '-' }}</td>
                     </tr>
                     <tr>
-                        <td class="px-2 py-1 align-top font-bold">JENIS SPM</td>
-                        <td class="w-4 py-1 align-top text-center">:</td>
-                        <td class="px-2 py-1 align-top">{{ expenditure.type ? expenditure.type.toUpperCase() : 'LS BJ' }}</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold">JENIS SPM</td>
+                        <td class="w-4 py-0.5 align-top text-center">:</td>
+                        <td class="px-1.5 py-0.5 align-top">{{ expenditure.type ? expenditure.type.toUpperCase() : 'LS BJ' }}</td>
                     </tr>
                     <tr>
-                        <td class="px-2 py-1 align-top font-bold">NILAI SPM</td>
-                        <td class="w-4 py-1 align-top text-center">:</td>
-                        <td class="px-2 py-1 align-top font-bold font-mono">Rp {{ formatCurrency(totalAmount) }}</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold">NILAI SPM</td>
+                        <td class="w-4 py-0.5 align-top text-center">:</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold font-mono">Rp {{ formatCurrency(totalAmount) }}</td>
                     </tr>
                     <tr>
-                        <td class="px-2 py-1 align-top font-bold pb-2">KEPERLUAN</td>
-                        <td class="w-4 py-1 align-top text-center pb-2">:</td>
-                        <td class="px-2 py-1 align-top pb-2">{{ expenditure.description || '-' }}</td>
+                        <td class="px-1.5 py-0.5 align-top font-bold pb-1">KEPERLUAN</td>
+                        <td class="w-4 py-0.5 align-top text-center pb-1">:</td>
+                        <td class="px-1.5 py-0.5 align-top pb-1">{{ expenditure.description || '-' }}</td>
                     </tr>
                 </tbody>
             </table>
 
             <!-- CHECKLIST TABLE -->
-            <table class="w-full text-[10px] border-collapse border border-black mb-8">
+            <table class="w-full text-[8.5px] leading-tight border-collapse border border-black mb-2">
                 <thead>
-                    <tr class="border-b border-black">
-                        <th class="border-r border-black px-2 py-1 w-8 text-center font-bold">NO</th>
-                        <th class="border-r border-black px-2 py-1 w-24 text-center font-bold"></th>
-                        <th class="px-2 py-1 text-center font-bold">DAFTAR CHEK LIST</th>
+                    <tr class="border-b border-black bg-gray-50">
+                        <th class="border-r border-black px-1 py-0.5 w-6 text-center font-bold">NO</th>
+                        <th class="border-r border-black px-1 py-0.5 w-16 text-center font-bold">PARAF</th>
+                        <th class="px-1.5 py-0.5 text-center font-bold">DAFTAR CHEK LIST</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="(item, idx) in checklistItems" :key="idx" class="border-b border-black">
-                        <td class="border-r border-black px-2 py-0.5 text-center align-top">{{ idx + 1 }}</td>
-                        <td class="border-r border-black px-2 py-0.5 text-center align-top">
-                            <div class="w-full h-3.5"></div>
+                        <td class="border-r border-black px-1 py-0.25 text-center align-top">{{ idx + 1 }}</td>
+                        <td class="border-r border-black px-1 py-0.25 text-center align-top">
+                            <div class="w-full h-2.5"></div>
                         </td>
-                        <td class="px-2 py-0.5 align-top">{{ item }}</td>
+                        <td class="px-1.5 py-0.25 align-top">{{ item }}</td>
                     </tr>
                 </tbody>
             </table>
 
             <!-- SIGNATURES -->
-            <div class="flex justify-between text-[11px] mt-6 px-4">
+            <div class="flex justify-between text-[9.5px] mt-2 px-6 print:break-inside-avoid">
                 <div class="w-64 flex flex-col items-center">
-                    <p class="mb-16">PPTK</p>
+                    <p class="font-bold mb-8">PPTK</p>
                     <p class="font-bold underline uppercase">{{ expenditure.ptk?.name || 'STEVY ROTIKAN, Amd.Farm' }}</p>
                     <p>NIP. {{ expenditure.ptk?.nip || '197909122008021001' }}</p>
                 </div>
                 <div class="w-64 flex flex-col items-center">
-                    <p class="mb-1">Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
-                    <p class="mb-16">VERIFIKASI</p>
+                    <p class="mb-0.5">Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
+                    <p class="font-bold mb-8">VERIFIKASI</p>
                     <p class="font-bold underline uppercase">( .................................................... )</p>
                     <p class="text-transparent">.</p>
                 </div>
@@ -165,3 +179,17 @@ const checklistItems = [
         </div>
     </div>
 </template>
+
+<style>
+@media print {
+    @page {
+        size: auto;
+        margin: 5mm 8mm;
+    }
+    html, body {
+        background-color: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+</style>

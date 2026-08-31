@@ -64,33 +64,36 @@ const terbilang = (angka) => {
             <Button variant="outline" size="sm" @click="goBack">
                 <ArrowLeft class="w-4 h-4 mr-2" /> Kembali
             </Button>
-            <Button size="sm" @click="printPage" class="bg-primary text-primary-foreground">
-                <Printer class="w-4 h-4 mr-2" /> Cetak Surat Pernyataan
-            </Button>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-muted-foreground hidden sm:inline">Ukuran Kertas: A4 / F4 (2 Halaman)</span>
+                <Button size="sm" @click="printPage" class="bg-primary text-primary-foreground">
+                    <Printer class="w-4 h-4 mr-2" /> Cetak Surat Pernyataan
+                </Button>
+            </div>
         </div>
 
         <div class="space-y-8 print:space-y-0">
             <!-- ================= PAGE 1: SURAT PERNYATAAN PENCAIRAN SPM-LS ================= -->
-            <div class="page-container max-w-4xl mx-auto bg-white text-black p-8 sm:p-12 shadow-md rounded-xl font-sans print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-0 print:m-0 print:break-after-page">
+            <div class="page-container max-w-4xl mx-auto bg-white text-black p-6 sm:p-10 shadow-md rounded-xl font-sans print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-0 print:m-0 print:break-after-page">
                 <!-- HEADER -->
-                <div class="flex items-center relative mb-4 border-b-2 border-black pb-3">
-                    <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-16 w-auto absolute left-0 top-0" />
+                <div class="flex items-center relative mb-3 border-b-2 border-black pb-2">
+                    <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-14 w-auto absolute left-0 top-0" />
                     <div class="w-full text-center">
-                        <h1 class="text-sm font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
-                        <h2 class="text-base font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
-                        <h3 class="text-xs">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
-                        <p class="text-xs">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
+                        <h1 class="text-xs font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
+                        <h2 class="text-sm font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
+                        <h3 class="text-[11px]">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
+                        <p class="text-[10px]">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
                     </div>
                 </div>
 
                 <!-- SUB HEADER -->
-                <div class="text-center mb-6">
-                    <h2 class="text-sm font-bold uppercase underline tracking-wider">SURAT PERNYATAAN PENCAIRAN SPM-LS</h2>
-                    <p class="text-xs font-bold mt-1">Nomor: {{ expenditure.document_number ? expenditure.document_number.replace('SPP', 'SPM') : '-' }}</p>
+                <div class="text-center my-4">
+                    <h2 class="text-xs font-bold uppercase underline tracking-wider">SURAT PERNYATAAN PENCAIRAN SPM-LS</h2>
+                    <p class="text-[10px] font-bold mt-1">Nomor: {{ expenditure.document_number ? expenditure.document_number.replace('SPP', 'SPM') : '-' }}</p>
                 </div>
 
                 <!-- STATEMENT BODY -->
-                <div class="text-xs space-y-4 text-justify leading-relaxed px-1">
+                <div class="text-[10.5px] space-y-3 text-justify leading-relaxed px-1 mt-4">
                     <p>
                         Sehubungan dengan Surat Perintah Membayar Langsung (SPM-LS) Barang dan Jasa Nomor: <strong>{{ expenditure.document_number ? expenditure.document_number.replace('SPP', 'SPM') : '-' }}</strong> Tanggal <strong>{{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</strong> Sebesar <strong>Rp. {{ formatCurrency(totalAmount) }}</strong> (<em>{{ terbilang(totalAmount) }} Rupiah</em>) untuk keperluan <strong>{{ expenditure.description || '-' }}</strong>.
                     </p>
@@ -101,13 +104,13 @@ const terbilang = (angka) => {
                 </div>
 
                 <!-- SIGNATURE SECTION -->
-                <div class="flex justify-end text-xs mt-12 px-2 print:break-inside-avoid">
+                <div class="flex justify-end text-[10px] mt-10 px-2 print:break-inside-avoid">
                     <div class="w-72 text-center flex flex-col items-center">
                         <p>Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
                         <p class="font-bold">Kuasa Pengguna Anggaran</p>
                         <p class="font-bold">BLUD RSUD M. W. Maramis</p>
                         <p class="font-bold">Kabupaten Minahasa Utara</p>
-                        <div class="h-20"></div>
+                        <div class="h-16"></div>
                         <p class="font-bold underline uppercase">{{ expenditure.kpa?.name || 'dr. ALAIN VINCENT BEYAH' }}</p>
                         <p>NIP. {{ expenditure.kpa?.nip || '198201292009031001' }}</p>
                     </div>
@@ -115,31 +118,31 @@ const terbilang = (angka) => {
             </div>
 
             <!-- ================= PAGE 2: SURAT PERNYATAAN PENGAJUAN SPP-LS ================= -->
-            <div class="page-container max-w-4xl mx-auto bg-white text-black p-8 sm:p-12 shadow-md rounded-xl font-sans print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-0 print:m-0 print:break-before-page">
+            <div class="page-container max-w-4xl mx-auto bg-white text-black p-6 sm:p-10 shadow-md rounded-xl font-sans print:shadow-none print:rounded-none print:w-full print:max-w-none print:p-0 print:m-0 print:break-before-page">
                 <!-- HEADER -->
-                <div class="flex items-center relative mb-4 border-b-2 border-black pb-3">
-                    <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-16 w-auto absolute left-0 top-0" />
+                <div class="flex items-center relative mb-3 border-b-2 border-black pb-2">
+                    <img src="/images/logo-minahasa-utara.png" alt="Logo Minahasa Utara" class="h-14 w-auto absolute left-0 top-0" />
                     <div class="w-full text-center">
-                        <h1 class="text-sm font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
-                        <h2 class="text-base font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
-                        <h3 class="text-xs">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
-                        <p class="text-xs">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
+                        <h1 class="text-xs font-bold uppercase tracking-wide">PEMERINTAH KABUPATEN MINAHASA UTARA</h1>
+                        <h2 class="text-sm font-bold uppercase tracking-wide">RSUD MARIA WALANDA MARAMIS</h2>
+                        <h3 class="text-[11px]">JL. Arnold Mononutu Kelurahan Sarongsong II Kec. Airmadidi 95371</h3>
+                        <p class="text-[10px]">Situs Web: rsudmwmaramis.minut.go.id, Email: mwmaramis@gmail.com</p>
                     </div>
                 </div>
 
                 <!-- SUB HEADER -->
-                <div class="text-center mb-6">
-                    <h2 class="text-sm font-bold uppercase underline tracking-wider">SURAT PERNYATAAN PENGAJUAN SPP-LS</h2>
-                    <p class="text-xs font-bold mt-1">Nomor: {{ expenditure.document_number || '-' }}</p>
+                <div class="text-center my-4">
+                    <h2 class="text-xs font-bold uppercase underline tracking-wider">SURAT PERNYATAAN PENGAJUAN SPP-LS</h2>
+                    <p class="text-[10px] font-bold mt-1">Nomor: {{ expenditure.document_number || '-' }}</p>
                 </div>
 
                 <!-- STATEMENT BODY -->
-                <div class="text-xs space-y-4 text-justify leading-relaxed px-1">
+                <div class="text-[10.5px] space-y-3 text-justify leading-relaxed px-1 mt-4">
                     <p>
                         Sehubungan dengan Surat Permintaan Pembayaran Langsung (SPP-LS) Barang dan Jasa Nomor: <strong>{{ expenditure.document_number || '-' }}</strong> Tanggal <strong>{{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</strong> Sebesar <strong>Rp. {{ formatCurrency(totalAmount) }}</strong> (<em>{{ terbilang(totalAmount) }} Rupiah</em>) untuk keperluan <strong>{{ expenditure.description || '-' }}</strong>.
                     </p>
 
-                    <ol class="list-decimal list-outside pl-5 space-y-2">
+                    <ol class="list-decimal list-outside pl-5 space-y-1.5">
                         <li>Jumlah tersebut diatas akan dipergunakan untuk keperluan guna membiayai kegiatan yang akan kami laksanakan sesuai RBA-BLUD.</li>
                         <li>Jumlah tersebut akan digunakan untuk membiayai pengeluaran-pengeluaran yang menurut ketentuan yang berlaku harus digunakan dengan pembayaran LS.</li>
                     </ol>
@@ -150,12 +153,12 @@ const terbilang = (angka) => {
                 </div>
 
                 <!-- SIGNATURE SECTION -->
-                <div class="flex justify-end text-xs mt-12 px-2 print:break-inside-avoid">
+                <div class="flex justify-end text-[10px] mt-10 px-2 print:break-inside-avoid">
                     <div class="w-72 text-center flex flex-col items-center">
                         <p>Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
                         <p class="font-bold">Pejabat Pelaksana Teknis Kegiatan</p>
                         <p class="font-bold">(PPTK)</p>
-                        <div class="h-20"></div>
+                        <div class="h-16"></div>
                         <p class="font-bold underline uppercase">{{ expenditure.ptk?.name || 'STEVY ROTIKAN, Amd.Farm' }}</p>
                         <p>NIP. {{ expenditure.ptk?.nip || '197909122008021001' }}</p>
                     </div>
@@ -168,8 +171,8 @@ const terbilang = (angka) => {
 <style>
 @media print {
     @page {
-        size: A4 portrait;
-        margin: 15mm 20mm;
+        size: auto;
+        margin: 8mm 12mm;
     }
     html, body {
         background-color: #fff !important;
