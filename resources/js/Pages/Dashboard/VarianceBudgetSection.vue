@@ -115,8 +115,9 @@ const sisaPaguPct = computed(() => totalExpenseBudget.value ? (sisaPaguBelanja.v
 
 // Tab state
 const activeTab = ref('revenue'); // 'revenue' | 'expense'
+const activeCumulativeTab = ref('revenue'); // 'revenue' | 'expense'
 
-// ── Chart: Revenue Budget vs Actual ─────────────────────────
+// ── Chart 1: Monthly Budget vs Actual ─────────────────────────
 const filteredRevenueBudget = computed(() => {
     return revenueBudget.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
 });
@@ -204,6 +205,107 @@ const expenseChartData = computed(() => ({
     ],
 }));
 
+// ── Chart 2: Cumulative (YTD) Budget vs Actual ────────────────
+const cumulativeRevBudgetAll = computed(() => {
+    let sum = 0;
+    return revenueBudget.value.map(val => { sum += val; return sum; });
+});
+const cumulativeRevActualAll = computed(() => {
+    let sum = 0;
+    return revenueActual.value.map(val => { sum += val; return sum; });
+});
+const cumulativeExpBudgetAll = computed(() => {
+    let sum = 0;
+    return expenseBudget.value.map(val => { sum += val; return sum; });
+});
+const cumulativeExpActualAll = computed(() => {
+    let sum = 0;
+    return expenseActual.value.map(val => { sum += val; return sum; });
+});
+
+const filteredCumulativeRevBudget = computed(() => {
+    return cumulativeRevBudgetAll.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+const filteredCumulativeRevActual = computed(() => {
+    return cumulativeRevActualAll.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+const filteredCumulativeExpBudget = computed(() => {
+    return cumulativeExpBudgetAll.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+const filteredCumulativeExpActual = computed(() => {
+    return cumulativeExpActualAll.value.map((val, i) => (i >= startIdx.value && i <= endIdx.value) ? val : null);
+});
+
+const cumulativeRevenueChartData = computed(() => ({
+    labels: months.value,
+    datasets: [
+        {
+            label: 'Anggaran Kumulatif',
+            data: filteredCumulativeRevBudget.value,
+            borderColor: '#94a3b8',
+            backgroundColor: 'rgba(148,163,184,0.08)',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 4,
+            pointBackgroundColor: '#94a3b8',
+            tension: 0.35,
+            fill: false,
+            order: 2,
+            spanGaps: false,
+        },
+        {
+            label: 'Realisasi Kumulatif',
+            data: filteredCumulativeRevActual.value,
+            borderColor: '#10B981',
+            backgroundColor: 'rgba(16,185,129,0.10)',
+            borderWidth: 2.5,
+            pointRadius: 5,
+            pointBackgroundColor: '#10B981',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            tension: 0.35,
+            fill: true,
+            order: 1,
+            spanGaps: false,
+        },
+    ],
+}));
+
+const cumulativeExpenseChartData = computed(() => ({
+    labels: months.value,
+    datasets: [
+        {
+            label: 'Anggaran Kumulatif',
+            data: filteredCumulativeExpBudget.value,
+            borderColor: '#94a3b8',
+            backgroundColor: 'rgba(148,163,184,0.08)',
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: 4,
+            pointBackgroundColor: '#94a3b8',
+            tension: 0.35,
+            fill: false,
+            order: 2,
+            spanGaps: false,
+        },
+        {
+            label: 'Realisasi Kumulatif',
+            data: filteredCumulativeExpActual.value,
+            borderColor: '#F43F5E',
+            backgroundColor: 'rgba(244,63,94,0.10)',
+            borderWidth: 2.5,
+            pointRadius: 5,
+            pointBackgroundColor: '#F43F5E',
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            tension: 0.35,
+            fill: true,
+            order: 1,
+            spanGaps: false,
+        },
+    ],
+}));
+
 const lineChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -228,8 +330,8 @@ const lineChartOptions = {
                 afterBody: (items) => {
                     const validItems = items.filter(i => i.raw !== null && i.raw !== undefined);
                     if (validItems.length < 2) return [];
-                    const budget = validItems.find(i => i.dataset.label === 'Anggaran')?.raw ?? 0;
-                    const actual = validItems.find(i => i.dataset.label === 'Realisasi')?.raw ?? 0;
+                    const budget = validItems.find(i => i.dataset.label?.includes('Anggaran'))?.raw ?? 0;
+                    const actual = validItems.find(i => i.dataset.label?.includes('Realisasi'))?.raw ?? 0;
                     const diff   = actual - budget;
                     const pct    = budget ? ((diff / budget) * 100).toFixed(1) : 0;
                     return ['', `Selisih: ${diff >= 0 ? '+' : ''}${formatRupiahShort(diff)} (${diff >= 0 ? '+' : ''}${pct}%)`];
@@ -454,14 +556,17 @@ const severityClass = {
 
         </div>
 
-        <!-- ── ROW 2: Chart Budget vs Actual ───────────────────── -->
+        <!-- ── ROW 2: Chart Budget vs Actual (Bulanan) ───────────── -->
         <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
 
             <!-- Tab Header -->
             <div class="px-5 py-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <h3 class="text-sm font-semibold text-secondary">Tren Anggaran vs Realisasi</h3>
-                    <p class="text-xs text-muted-foreground mt-0.5">Garis putus-putus = anggaran · Garis solid = realisasi</p>
+                <div class="flex items-center gap-2.5">
+                    <div>
+                        <h3 class="text-sm font-semibold text-secondary">Tren Anggaran vs Realisasi (Bulanan)</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">Perbandingan nominal per bulan · Garis putus-putus = anggaran, garis solid = realisasi</p>
+                    </div>
+                    <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide hidden sm:inline-block">Bulanan</span>
                 </div>
                 <!-- Tab toggle -->
                 <div class="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
@@ -530,6 +635,93 @@ const severityClass = {
                                 expenseActual[i] <= expenseBudget[i] ? 'text-emerald-600' : 'text-rose-500'
                             ]">
                                 {{ expenseActual[i] >= expenseBudget[i] ? '+' : '' }}{{ expenseBudget[i] ? (((expenseActual[i] - expenseBudget[i]) / expenseBudget[i]) * 100).toFixed(1) : 0 }}%
+                            </span>
+                        </template>
+                        <span class="text-[9px] text-muted-foreground">{{ m }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── ROW 3: Chart Budget vs Actual (Akumulasi Kumulatif YTD) ── -->
+        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+
+            <!-- Tab Header -->
+            <div class="px-5 py-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <div>
+                        <h3 class="text-sm font-semibold text-secondary">Akumulasi Anggaran vs Realisasi (Kumulatif YTD)</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">Tren kumulatif dari awal tahun berjalan · Garis putus-putus = anggaran, garis solid = realisasi</p>
+                    </div>
+                    <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide hidden sm:inline-block">Kumulatif</span>
+                </div>
+                <!-- Tab toggle -->
+                <div class="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
+                    <button
+                        @click="activeCumulativeTab = 'revenue'"
+                        :class="[
+                            'px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all duration-200',
+                            activeCumulativeTab === 'revenue'
+                                ? 'bg-card text-secondary shadow-sm'
+                                : 'text-muted-foreground hover:text-secondary'
+                        ]"
+                    >
+                        📈 Pendapatan
+                    </button>
+                    <button
+                        @click="activeCumulativeTab = 'expense'"
+                        :class="[
+                            'px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all duration-200',
+                            activeCumulativeTab === 'expense'
+                                ? 'bg-card text-secondary shadow-sm'
+                                : 'text-muted-foreground hover:text-secondary'
+                        ]"
+                    >
+                        📉 Pengeluaran
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chart Area -->
+            <div class="p-5" style="height: 300px;">
+                <Line
+                    v-if="activeCumulativeTab === 'revenue'"
+                    :data="cumulativeRevenueChartData"
+                    :options="lineChartOptions"
+                />
+                <Line
+                    v-else
+                    :data="cumulativeExpenseChartData"
+                    :options="lineChartOptions"
+                />
+            </div>
+
+            <!-- Cumulative Variance Summary Bar per Month -->
+            <div class="px-5 pb-5">
+                <p class="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">Akumulasi Selisih per Bulan (YTD)</p>
+                <div class="grid grid-cols-6 sm:grid-cols-12 gap-1.5">
+                    <div
+                        v-for="(m, i) in months"
+                        :key="m"
+                        :class="[
+                            'flex flex-col items-center gap-1 transition-all duration-200 rounded-md py-1',
+                            (i >= startIdx && i <= endIdx) ? 'opacity-100 bg-muted/40 font-medium' : 'opacity-25'
+                        ]"
+                    >
+                        <template v-if="activeCumulativeTab === 'revenue'">
+                            <span :class="[
+                                'text-[9px] font-bold',
+                                cumulativeRevActualAll[i] >= cumulativeRevBudgetAll[i] ? 'text-emerald-600' : 'text-rose-500'
+                            ]">
+                                {{ cumulativeRevActualAll[i] >= cumulativeRevBudgetAll[i] ? '+' : '' }}{{ cumulativeRevBudgetAll[i] ? (((cumulativeRevActualAll[i] - cumulativeRevBudgetAll[i]) / cumulativeRevBudgetAll[i]) * 100).toFixed(1) : 0 }}%
+                            </span>
+                        </template>
+                        <template v-else>
+                            <span :class="[
+                                'text-[9px] font-bold',
+                                cumulativeExpActualAll[i] <= cumulativeExpBudgetAll[i] ? 'text-emerald-600' : 'text-rose-500'
+                            ]">
+                                {{ cumulativeExpActualAll[i] >= cumulativeExpBudgetAll[i] ? '+' : '' }}{{ cumulativeExpBudgetAll[i] ? (((cumulativeExpActualAll[i] - cumulativeExpBudgetAll[i]) / cumulativeExpBudgetAll[i]) * 100).toFixed(1) : 0 }}%
                             </span>
                         </template>
                         <span class="text-[9px] text-muted-foreground">{{ m }}</span>
