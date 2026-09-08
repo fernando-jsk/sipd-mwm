@@ -21,10 +21,12 @@ class RbaDocumentController extends Controller
         $rbaType = $isPendapatan ? 'Pendapatan' : 'Belanja';
         $prefix = $isPendapatan ? '4' : '5';
 
+        $rbaViewType = $request->query('rba_view_type', 'gelondongan');
+
         // 1. Get ALL account codes and their associated document for the active year and active version
         $allAccounts = AccountCode::where('code', 'like', $prefix . '%')
-            ->with(['rbaDocuments' => function ($query) use ($budgetYear, $activeVersion) {
-                $query->where('budget_year', $budgetYear)->where('version', $activeVersion);
+            ->with(['rbaDocuments' => function ($query) use ($budgetYear, $activeVersion, $rbaViewType) {
+                $query->where('budget_year', $budgetYear)->where('version', $activeVersion)->where('rba_type', $rbaViewType);
             }])
             ->orderBy('code')
             ->get();
@@ -62,6 +64,7 @@ class RbaDocumentController extends Controller
             $map[$acc->id]['rba_document_id'] = $doc ? $doc->id : null;
             $map[$acc->id]['tree_jumlah'] = $doc ? (float) $doc->total_budget : 0;
             $map[$acc->id]['tree_has_rba'] = $doc ? true : false;
+            $map[$acc->id]['mapped_to_rba_id'] = $doc ? $doc->mapped_to_rba_id : null;
             
             // Map realisasi
             $map[$acc->id]['tree_realisasi'] = isset($realizations[$acc->id]) ? (float) $realizations[$acc->id] : 0;
@@ -129,14 +132,30 @@ class RbaDocumentController extends Controller
         // Exclude those that already have a document for this year and active version!
         $leafAccounts = AccountCode::where('code', 'like', $prefix . '%')
             ->whereDoesntHave('children')
-            ->whereDoesntHave('rbaDocuments', function ($query) use ($budgetYear, $activeVersion) {
-                $query->where('budget_year', $budgetYear)->where('version', $activeVersion);
+            ->whereDoesntHave('rbaDocuments', function ($query) use ($budgetYear, $activeVersion, $rbaViewType) {
+                $query->where('budget_year', $budgetYear)->where('version', $activeVersion)->where('rba_type', $rbaViewType);
             })
             ->orderBy('code')
             ->get(['id', 'code', 'name']);
 
         $fundingSources = \App\Models\FundingSource::orderBy('name')->get(['id', 'name']);
         $users = \App\Models\User::orderBy('name')->get(['id', 'name']);
+
+        $gelondonganDocs = [];
+        if ($rbaViewType === 'rinci') {
+            $gelondonganDocs = RbaDocument::with('accountCode')
+                ->where('budget_year', $budgetYear)
+                ->where('version', $activeVersion)
+                ->where('rba_type', 'gelondongan')
+                ->get()
+                ->map(function ($d) {
+                    return [
+                        'id' => $d->id,
+                        'code' => $d->accountCode->code,
+                        'name' => $d->accountCode->name
+                    ];
+                });
+        }
 
         return Inertia::render('Rba/Index', [
             'activeTree' => $activeTree,
@@ -145,7 +164,9 @@ class RbaDocumentController extends Controller
             'currentVersionName' => $activeVersionName,
             'fundingSources' => $fundingSources,
             'users' => $users,
-            'rbaType' => $rbaType
+            'rbaType' => $rbaType,
+            'rbaViewType' => $rbaViewType,
+            'gelondonganDocs' => $gelondonganDocs,
         ]);
     }
 
@@ -154,7 +175,9 @@ class RbaDocumentController extends Controller
         $request->validate([
             'account_code_id' => 'required|exists:account_codes,id',
             'funding_source_id' => 'required|exists:funding_sources,id',
-            'pptk_id' => 'required|exists:users,id'
+            'pptk_id' => 'required|exists:users,id',
+            'rba_type' => 'required|in:gelondongan,rinci',
+            'mapped_to_rba_id' => 'required_if:rba_type,rinci|nullable|exists:rba_documents,id',
         ]);
 
         $budgetYear = $request->session()->get('active_budget_year', date('Y'));
@@ -166,6 +189,7 @@ class RbaDocumentController extends Controller
         $exists = RbaDocument::where('account_code_id', $request->account_code_id)
             ->where('budget_year', $budgetYear)
             ->where('version', $activeVersion)
+            ->where('rba_type', $request->rba_type)
             ->exists();
 
         if ($exists) {
@@ -180,7 +204,9 @@ class RbaDocumentController extends Controller
             'version' => $activeVersion,
             'version_name' => $activeVersionName,
             'status' => 'draft',
-            'total_budget' => 0
+            'total_budget' => 0,
+            'rba_type' => $request->rba_type,
+            'mapped_to_rba_id' => $request->mapped_to_rba_id,
         ]);
 
         return back()->with('message', 'Dokumen RBA berhasil ditambahkan.');
@@ -190,7 +216,8 @@ class RbaDocumentController extends Controller
     {
         $validated = $request->validate([
             'funding_source_id' => 'required|exists:funding_sources,id',
-            'pptk_id' => 'required|exists:users,id'
+            'pptk_id' => 'required|exists:users,id',
+            'mapped_to_rba_id' => 'nullable|exists:rba_documents,id',
         ]);
 
         $rbaDocument->update($validated);

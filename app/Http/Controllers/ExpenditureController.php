@@ -331,6 +331,7 @@ class ExpenditureController extends Controller
     public function printSppd(Expenditure $expenditure)
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSppd', [
             'expenditure' => $expenditure
         ]);
@@ -339,6 +340,7 @@ class ExpenditureController extends Controller
     public function printSpm(Expenditure $expenditure)
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSpm', [
             'expenditure' => $expenditure
         ]);
@@ -359,6 +361,7 @@ class ExpenditureController extends Controller
         $activeVersion = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
         $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)
             ->where('version', $activeVersion)
+            ->where('rba_type', 'rinci')
             ->whereHas('accountCode', function($q) {
                 $q->where('code', 'like', '5%');
             })
@@ -374,6 +377,7 @@ class ExpenditureController extends Controller
     public function printLembarPeneliti(Expenditure $expenditure)
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintLembarPeneliti', [
             'expenditure' => $expenditure
         ]);
@@ -382,11 +386,13 @@ class ExpenditureController extends Controller
     public function printSuratPengantar(Expenditure $expenditure)
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         
         $year = date('Y', strtotime($expenditure->date));
         $activeVersion = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
         $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)
             ->where('version', $activeVersion)
+            ->where('rba_type', 'rinci')
             ->whereHas('accountCode', function($q) {
                 $q->where('code', 'like', '5%');
             })
@@ -401,6 +407,7 @@ class ExpenditureController extends Controller
     public function printSuratPernyataan(Expenditure $expenditure)
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSuratPernyataan', [
             'expenditure' => $expenditure
         ]);
@@ -409,6 +416,7 @@ class ExpenditureController extends Controller
     public function printSuratVerifikasi(Expenditure $expenditure)
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         $ppk = User::role('kabag-keuangan')->first();
         return Inertia::render('Expenditures/PrintSuratVerifikasi', [
             'expenditure' => $expenditure,
@@ -419,6 +427,7 @@ class ExpenditureController extends Controller
     public function printKwitansi(Expenditure $expenditure)
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintKwitansi', [
             'expenditure' => $expenditure
         ]);
@@ -431,6 +440,7 @@ class ExpenditureController extends Controller
         }
 
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintOpd', [
             'expenditure' => $expenditure
         ]);
@@ -443,6 +453,7 @@ class ExpenditureController extends Controller
         }
 
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes']);
+        $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSpd', [
             'expenditure' => $expenditure
         ]);
@@ -504,6 +515,7 @@ class ExpenditureController extends Controller
         $rbaDocs = RbaDocument::with('accountCode')
             ->where('budget_year', $budgetYear)
             ->where('version', $activeVersion)
+            ->where('rba_type', 'rinci')
             ->get();
             
         // Hitung pemakaian pagu
@@ -578,6 +590,7 @@ class ExpenditureController extends Controller
         foreach ($requestedAmounts as $accId => $amount) {
             $rbaDoc = RbaDocument::where('budget_year', $budgetYear)
                 ->where('version', $activeVersion)
+                ->where('rba_type', 'rinci')
                 ->where('account_code_id', $accId)
                 ->first();
 
