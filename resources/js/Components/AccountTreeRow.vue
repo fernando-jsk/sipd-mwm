@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { ChevronRight, ChevronDown, FileEdit, Trash2 } from 'lucide-vue-next';
+import { ChevronRight, ChevronDown, FileEdit, Trash2, Pencil } from 'lucide-vue-next';
 import { Button } from '@/Components/ui/button';
 import { TableRow, TableCell } from '@/Components/ui/table';
 import { Link } from '@inertiajs/vue3';
@@ -16,7 +16,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['delete-document']);
+const emit = defineEmits(['delete-document', 'edit-document']);
 
 const isExpanded = ref(true);
 
@@ -76,12 +76,15 @@ const paddingLeft = computed(() => {
         </TableCell>
         
         <TableCell class="text-right">
-            <div class="flex items-center justify-end gap-2" v-if="!hasChildren">
+            <div class="flex items-center justify-end gap-1.5" v-if="!hasChildren && row.rba_document_id">
                 <Button as-child variant="default" size="sm">
                     <Link :href="`/rba/${row.rba_document_id}`">
                         <FileEdit class="w-4 h-4 mr-1" />
                         Rincian
                     </Link>
+                </Button>
+                <Button variant="outline" size="icon" class="h-8 w-8 hover:bg-muted" @click="$emit('edit-document', row)" title="Edit Dokumen RBA">
+                    <Pencil class="w-4 h-4" />
                 </Button>
                 <Button variant="destructive" size="icon" class="h-8 w-8" @click="$emit('delete-document', row)" title="Hapus Dokumen RBA">
                     <Trash2 class="w-4 h-4" />
@@ -97,6 +100,7 @@ const paddingLeft = computed(() => {
             :row="child"
             :level="level + 1"
             @delete-document="$emit('delete-document', $event)"
+            @edit-document="$emit('edit-document', $event)"
         />
     </template>
 </template>
