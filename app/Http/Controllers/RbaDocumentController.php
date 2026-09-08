@@ -60,6 +60,8 @@ class RbaDocumentController extends Controller
             
             // Map the document properties to the node
             $map[$acc->id]['rba_document_id'] = $doc ? $doc->id : null;
+            $map[$acc->id]['funding_source_id'] = $doc ? $doc->funding_source_id : null;
+            $map[$acc->id]['pptk_id'] = $doc ? $doc->pptk_id : null;
             $map[$acc->id]['tree_jumlah'] = $doc ? (float) $doc->total_budget : 0;
             $map[$acc->id]['tree_has_rba'] = $doc ? true : false;
             
@@ -189,13 +191,59 @@ class RbaDocumentController extends Controller
     public function update(Request $request, RbaDocument $rbaDocument)
     {
         $validated = $request->validate([
-            'funding_source_id' => 'required|exists:funding_sources,id',
-            'pptk_id' => 'required|exists:users,id'
+            'account_code_id' => [
+                'nullable',
+                'exists:account_codes,id',
+                function ($attribute, $value, $fail) use ($rbaDocument) {
+                    if ($value && $value != $rbaDocument->account_code_id) {
+                        // Harus merupakan rekening level terakhir (tidak memiliki sub rekening)
+                        $hasChildren = AccountCode::where('parent_id', $value)->exists();
+                        if ($hasChildren) {
+                            $fail('Rekening yang dipilih harus merupakan rekening rincian (level terakhir).');
+                        }
+
+                        // Harus memiliki prefix jenis yang sama (Belanja atau Pendapatan)
+                        $targetAccount = AccountCode::find($value);
+                        $currentAccount = $rbaDocument->accountCode;
+                        if ($targetAccount && $currentAccount) {
+                            $currentPrefix = substr($currentAccount->code, 0, 1);
+                            $targetPrefix = substr($targetAccount->code, 0, 1);
+                            if ($currentPrefix !== $targetPrefix) {
+                                $fail('Rekening baru harus memiliki jenis yang sama (Pendapatan/Belanja).');
+                            }
+                        }
+
+                        // Pastikan belum digunakan oleh dokumen RBA lain pada tahun dan versi yang sama
+                        $exists = RbaDocument::where('account_code_id', $value)
+                            ->where('budget_year', $rbaDocument->budget_year)
+                            ->where('version', $rbaDocument->version)
+                            ->where('id', '!=', $rbaDocument->id)
+                            ->exists();
+
+                        if ($exists) {
+                            $fail('Dokumen RBA untuk rekening tujuan sudah ada pada tahun anggaran ini.');
+                        }
+                    }
+                }
+            ],
+            'funding_source_id' => 'sometimes|required|exists:funding_sources,id',
+            'pptk_id' => 'sometimes|required|exists:users,id'
         ]);
 
-        $rbaDocument->update($validated);
+        $updateData = [];
+        if (!empty($validated['account_code_id'])) {
+            $updateData['account_code_id'] = $validated['account_code_id'];
+        }
+        if (isset($validated['funding_source_id'])) {
+            $updateData['funding_source_id'] = $validated['funding_source_id'];
+        }
+        if (isset($validated['pptk_id'])) {
+            $updateData['pptk_id'] = $validated['pptk_id'];
+        }
 
-        return back()->with('message', 'Pengaturan dokumen RBA berhasil diperbarui.');
+        $rbaDocument->update($updateData);
+
+        return back()->with('message', 'Dokumen RBA berhasil diperbarui.');
     }
 
     public function destroy(RbaDocument $rbaDocument)
