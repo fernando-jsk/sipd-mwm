@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Label } from '@/Components/ui/label';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
-import { ArrowRight, FolderOpen, Plus, Search } from 'lucide-vue-next';
+import { ArrowRight, FolderOpen, Plus, Search, Pencil, ArrowLeftRight, CheckCircle2 } from 'lucide-vue-next';
 import AccountTreeRow from '@/Components/AccountTreeRow.vue';
 
 const props = defineProps({
@@ -95,6 +95,65 @@ const deleteDocument = () => {
         onSuccess: () => {
             isDeleteDialogOpen.value = false;
             documentToDelete.value = null;
+        }
+    });
+};
+
+// Edit Document State & Methods
+const isEditDialogOpen = ref(false);
+const editingRow = ref(null);
+const selectedNewAccount = ref(null);
+const showAccountPicker = ref(false);
+const accountSearchQuery = ref('');
+
+const filteredLeavesForEdit = computed(() => {
+    if (!accountSearchQuery.value) return props.leafAccounts;
+    const lowerQuery = accountSearchQuery.value.toLowerCase();
+    return props.leafAccounts.filter(acc => 
+        acc.code.toLowerCase().includes(lowerQuery) || 
+        acc.name.toLowerCase().includes(lowerQuery)
+    );
+});
+
+const editForm = useForm({
+    account_code_id: '',
+    funding_source_id: '',
+    pptk_id: ''
+});
+
+const openEditDocument = (row) => {
+    editingRow.value = row;
+    selectedNewAccount.value = null;
+    showAccountPicker.value = false;
+    accountSearchQuery.value = '';
+    editForm.account_code_id = row.id;
+    editForm.funding_source_id = row.funding_source_id ? row.funding_source_id.toString() : '';
+    editForm.pptk_id = row.pptk_id ? row.pptk_id.toString() : '';
+    editForm.clearErrors();
+    isEditDialogOpen.value = true;
+};
+
+const selectReplacementAccount = (acc) => {
+    selectedNewAccount.value = acc;
+    editForm.account_code_id = acc.id;
+    showAccountPicker.value = false;
+};
+
+const cancelAccountChange = () => {
+    selectedNewAccount.value = null;
+    if (editingRow.value) {
+        editForm.account_code_id = editingRow.value.id;
+    }
+};
+
+const submitEditDocument = () => {
+    if (!editingRow.value || !editingRow.value.rba_document_id) return;
+
+    editForm.put(`/rba/documents/${editingRow.value.rba_document_id}`, {
+        onSuccess: () => {
+            isEditDialogOpen.value = false;
+            editingRow.value = null;
+            selectedNewAccount.value = null;
         }
     });
 };
@@ -257,6 +316,159 @@ const deleteDocument = () => {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+
+                <!-- Dialog Edit Document -->
+                <Dialog v-model:open="isEditDialogOpen">
+                    <DialogContent class="sm:max-w-[550px] max-h-[85vh] flex flex-col">
+                        <DialogHeader>
+                            <DialogTitle class="flex items-center gap-2">
+                                <Pencil class="w-4 h-4 text-primary" />
+                                Edit Dokumen RBA
+                            </DialogTitle>
+                            <DialogDescription>
+                                Ubah kode rekening atau pengaturan dokumen RBA tanpa mengubah rincian belanja yang sudah ada.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <!-- If Account Picker is active: display search & selection table -->
+                        <div v-if="showAccountPicker" class="flex-1 flex flex-col min-h-0 space-y-3 py-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pilih Rekening Pengganti</span>
+                                <Button type="button" variant="ghost" size="sm" class="h-7 text-xs" @click="showAccountPicker = false">
+                                    Batal Cari
+                                </Button>
+                            </div>
+                            
+                            <div class="relative">
+                                <Search class="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input v-model="accountSearchQuery" placeholder="Cari kode atau nama rekening pengganti..." class="pl-9 h-9 text-sm" />
+                            </div>
+
+                            <div class="flex-1 overflow-y-auto border rounded-md max-h-[300px]">
+                                <Table>
+                                    <TableHeader class="sticky top-0 bg-background z-10 shadow-sm">
+                                        <TableRow>
+                                            <TableHead>Kode</TableHead>
+                                            <TableHead>Nama Rekening</TableHead>
+                                            <TableHead class="w-[80px]"></TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        <TableRow v-for="acc in filteredLeavesForEdit.slice(0, 100)" :key="acc.id">
+                                            <TableCell class="font-mono text-xs font-medium">{{ acc.code }}</TableCell>
+                                            <TableCell class="text-xs">{{ acc.name }}</TableCell>
+                                            <TableCell class="text-right">
+                                                <Button type="button" size="sm" class="h-7 text-xs" @click="selectReplacementAccount(acc)">
+                                                    Pilih
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow v-if="filteredLeavesForEdit.length === 0">
+                                            <TableCell colspan="3" class="h-20 text-center text-xs text-muted-foreground">
+                                                Tidak ada rekening rincian yang cocok.
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow v-else-if="filteredLeavesForEdit.length > 100">
+                                            <TableCell colspan="3" class="text-center text-xs text-muted-foreground py-2 bg-muted/30">
+                                                Menampilkan 100 dari {{ filteredLeavesForEdit.length }} hasil. Ketik lebih spesifik untuk menyaring.
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+
+                        <!-- Form Mode -->
+                        <form v-else @submit.prevent="submitEditDocument" class="space-y-4 py-2">
+                            <!-- Rekening Information & Switcher -->
+                            <div class="grid gap-1.5">
+                                <Label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Kode & Rekening Anggaran
+                                </Label>
+                                <div class="p-3.5 border rounded-xl bg-muted/30 space-y-3">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="space-y-0.5">
+                                            <span class="text-[10px] font-semibold text-muted-foreground uppercase">Rekening Saat Ini</span>
+                                            <p class="font-mono text-xs font-bold text-secondary dark:text-foreground">{{ editingRow?.code }}</p>
+                                            <p class="text-xs text-muted-foreground leading-snug">{{ editingRow?.name }}</p>
+                                        </div>
+                                        <Button type="button" variant="outline" size="sm" class="h-8 text-xs shrink-0" @click="showAccountPicker = true">
+                                            <ArrowLeftRight class="w-3.5 h-3.5 mr-1" />
+                                            Ganti Rekening
+                                        </Button>
+                                    </div>
+
+                                    <!-- If New Account Selected -->
+                                    <div v-if="selectedNewAccount" class="pt-3 border-t border-dashed border-primary/40">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div class="space-y-0.5">
+                                                <span class="text-[10px] font-semibold text-primary uppercase">Rekening Pengganti Baru</span>
+                                                <p class="font-mono text-xs font-bold text-primary">{{ selectedNewAccount.code }}</p>
+                                                <p class="text-xs text-muted-foreground leading-snug">{{ selectedNewAccount.name }}</p>
+                                            </div>
+                                            <Button type="button" variant="ghost" size="sm" class="h-7 text-xs text-destructive hover:bg-destructive/10 shrink-0" @click="cancelAccountChange">
+                                                Batal Ganti
+                                            </Button>
+                                        </div>
+                                        <div class="mt-2.5 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                                            <CheckCircle2 class="w-4 h-4 shrink-0" />
+                                            <span>Seluruh rincian belanja (RBA Details) akan tetap tersimpan dan otomatis dialihkan ke rekening ini.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <p v-if="editForm.errors.account_code_id" class="text-[11px] text-destructive">{{ editForm.errors.account_code_id }}</p>
+                            </div>
+
+                            <!-- Sumber Dana -->
+                            <div class="grid gap-1.5">
+                                <Label for="edit_funding_source_id" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Sumber Dana <span class="text-destructive">*</span>
+                                </Label>
+                                <Select v-model="editForm.funding_source_id" required>
+                                    <SelectTrigger id="edit_funding_source_id">
+                                        <SelectValue placeholder="Pilih Sumber Dana" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem v-for="fs in fundingSources" :key="fs.id" :value="fs.id.toString()">
+                                                {{ fs.name }} <span v-if="fs.code" class="text-muted-foreground text-xs ml-1">({{ fs.code }})</span>
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="editForm.errors.funding_source_id" class="text-[11px] text-destructive">{{ editForm.errors.funding_source_id }}</p>
+                            </div>
+
+                            <!-- PPTK -->
+                            <div class="grid gap-1.5">
+                                <Label for="edit_pptk_id" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Penanggung Jawab (PPTK) <span class="text-destructive">*</span>
+                                </Label>
+                                <Select v-model="editForm.pptk_id" required>
+                                    <SelectTrigger id="edit_pptk_id">
+                                        <SelectValue placeholder="Pilih PPTK" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">
+                                                {{ user.name }}
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="editForm.errors.pptk_id" class="text-[11px] text-destructive">{{ editForm.errors.pptk_id }}</p>
+                            </div>
+
+                            <DialogFooter class="mt-6 pt-4 border-t">
+                                <Button type="button" variant="outline" @click="isEditDialogOpen = false" :disabled="editForm.processing">Batal</Button>
+                                <Button type="submit" variant="default" :disabled="editForm.processing || !editForm.funding_source_id || !editForm.pptk_id">
+                                    <span v-if="editForm.processing">Menyimpan...</span>
+                                    <span v-else>Simpan Perubahan</span>
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             </div>
         </template>
 
@@ -280,7 +492,7 @@ const deleteDocument = () => {
                                     <TableHead class="text-right w-[200px]">Total Anggaran</TableHead>
                                     <TableHead class="text-right w-[200px]">Realisasi</TableHead>
                                     <TableHead class="text-right w-[200px]">Sisa Pagu</TableHead>
-                                    <TableHead class="text-right w-[150px]">Aksi</TableHead>
+                                    <TableHead class="text-right w-[180px]">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -290,6 +502,7 @@ const deleteDocument = () => {
                                         :key="node.id" 
                                         :row="node" 
                                         :level="0" 
+                                        @edit-document="openEditDocument"
                                         @delete-document="confirmDeleteDocument"
                                     />
                                 </template>
