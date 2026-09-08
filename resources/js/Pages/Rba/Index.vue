@@ -205,7 +205,7 @@ const submitEditDocument = () => {
                             Tambah Rekening RBA
                         </Button>
                     </DialogTrigger>
-                    <DialogContent class="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+                    <DialogContent class="sm:max-w-[750px] max-h-[85vh] flex flex-col">
                         <DialogHeader>
                             <DialogTitle>Tambah Rekening ke Kertas Kerja ({{ props.rbaViewType === 'rinci' ? 'Rinci' : 'Gelondongan' }})</DialogTitle>
                             <DialogDescription>
@@ -219,20 +219,20 @@ const submitEditDocument = () => {
                         </div>
 
                         <div class="flex-1 overflow-y-auto mt-4 border rounded-md min-h-[300px]">
-                            <Table>
+                            <Table class="w-full table-fixed">
                                 <TableHeader class="sticky top-0 bg-background z-10 shadow-sm">
                                     <TableRow>
-                                        <TableHead>Kode</TableHead>
+                                        <TableHead class="w-[160px]">Kode</TableHead>
                                         <TableHead>Nama Rekening</TableHead>
-                                        <TableHead class="w-[100px]"></TableHead>
+                                        <TableHead class="w-[85px] text-right"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     <TableRow v-for="acc in filteredLeaves.slice(0, 100)" :key="acc.id">
-                                        <TableCell class="font-medium">{{ acc.code }}</TableCell>
-                                        <TableCell>{{ acc.name }}</TableCell>
-                                        <TableCell class="text-right">
-                                            <Button @click="openSetupDocument(acc)" variant="outline" size="sm">
+                                        <TableCell class="font-mono text-xs font-medium text-secondary dark:text-foreground align-top py-2.5">{{ acc.code }}</TableCell>
+                                        <TableCell class="text-xs text-muted-foreground leading-relaxed break-words whitespace-normal align-top py-2.5">{{ acc.name }}</TableCell>
+                                        <TableCell class="text-right align-top py-2.5">
+                                            <Button @click="openSetupDocument(acc)" variant="outline" size="sm" class="h-7 text-xs">
                                                 Pilih
                                             </Button>
                                         </TableCell>
@@ -347,7 +347,7 @@ const submitEditDocument = () => {
 
                 <!-- Dialog Edit Document -->
                 <Dialog v-model:open="isEditDialogOpen">
-                    <DialogContent class="sm:max-w-[550px] max-h-[85vh] flex flex-col">
+                    <DialogContent :class="[showAccountPicker ? 'sm:max-w-[750px]' : 'sm:max-w-[550px]', 'max-h-[85vh] flex flex-col transition-all duration-200']">
                         <DialogHeader>
                             <DialogTitle class="flex items-center gap-2">
                                 <Pencil class="w-4 h-4 text-primary" />
@@ -372,20 +372,20 @@ const submitEditDocument = () => {
                                 <Input v-model="accountSearchQuery" placeholder="Cari kode atau nama rekening pengganti..." class="pl-9 h-9 text-sm" />
                             </div>
 
-                            <div class="flex-1 overflow-y-auto border rounded-md max-h-[300px]">
-                                <Table>
+                            <div class="flex-1 overflow-y-auto border rounded-md max-h-[350px]">
+                                <Table class="w-full table-fixed">
                                     <TableHeader class="sticky top-0 bg-background z-10 shadow-sm">
                                         <TableRow>
-                                            <TableHead>Kode</TableHead>
+                                            <TableHead class="w-[160px]">Kode</TableHead>
                                             <TableHead>Nama Rekening</TableHead>
-                                            <TableHead class="w-[80px]"></TableHead>
+                                            <TableHead class="w-[85px] text-right"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         <TableRow v-for="acc in filteredLeavesForEdit.slice(0, 100)" :key="acc.id">
-                                            <TableCell class="font-mono text-xs font-medium">{{ acc.code }}</TableCell>
-                                            <TableCell class="text-xs">{{ acc.name }}</TableCell>
-                                            <TableCell class="text-right">
+                                            <TableCell class="font-mono text-xs font-medium text-secondary dark:text-foreground align-top py-2.5">{{ acc.code }}</TableCell>
+                                            <TableCell class="text-xs text-muted-foreground leading-relaxed break-words whitespace-normal align-top py-2.5">{{ acc.name }}</TableCell>
+                                            <TableCell class="text-right align-top py-2.5">
                                                 <Button type="button" size="sm" class="h-7 text-xs" @click="selectReplacementAccount(acc)">
                                                     Pilih
                                                 </Button>
@@ -505,6 +505,9 @@ const submitEditDocument = () => {
             <div class="flex items-center gap-2">
                 <Link 
                     :href="`/rba/${props.rbaType.toLowerCase()}?rba_view_type=gelondongan`" 
+                    :only="['activeTree', 'rbaViewType', 'gelondonganDocs', 'leafAccounts']"
+                    preserve-scroll
+                    preserve-state
                     :class="[
                         'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border',
                         props.rbaViewType === 'gelondongan' 
@@ -516,6 +519,9 @@ const submitEditDocument = () => {
                 </Link>
                 <Link 
                     :href="`/rba/${props.rbaType.toLowerCase()}?rba_view_type=rinci`" 
+                    :only="['activeTree', 'rbaViewType', 'gelondonganDocs', 'leafAccounts']"
+                    preserve-scroll
+                    preserve-state
                     :class="[
                         'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border',
                         props.rbaViewType === 'rinci' 

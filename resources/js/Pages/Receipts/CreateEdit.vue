@@ -31,7 +31,7 @@ const form = useForm({
     document_number: props.receipt?.document_number || '',
     date: props.receipt?.date || new Date().toISOString().split('T')[0],
     receipt_type_id: props.receipt?.receipt_type_id?.toString() || '',
-    receipt_sub_type_id: props.receipt?.receipt_sub_type_id?.toString() || '',
+    receipt_sub_type_id: props.receipt?.receipt_sub_type_id?.toString() || 'none',
     description: props.receipt?.description || '',
     payer_name: props.receipt?.payer_name || '',
     payment_method: props.receipt?.payment_method || 'tunai',
@@ -56,9 +56,9 @@ const availableSubTypes = computed(() => {
 });
 
 watch(() => form.receipt_type_id, () => {
-    if (form.receipt_sub_type_id) {
+    if (form.receipt_sub_type_id && form.receipt_sub_type_id !== 'none') {
         const isValid = availableSubTypes.value.some(s => s.id.toString() === form.receipt_sub_type_id);
-        if (!isValid) form.receipt_sub_type_id = '';
+        if (!isValid) form.receipt_sub_type_id = 'none';
     }
 });
 
@@ -81,12 +81,14 @@ const formatCurrency = (value) => {
 };
 
 const submit = () => {
+    form.transform((data) => ({
+        ...data,
+        receipt_sub_type_id: data.receipt_sub_type_id === 'none' ? '' : data.receipt_sub_type_id,
+        _method: isEditing ? 'PUT' : undefined,
+    }));
+    
     if (isEditing) {
-        // use POST with _method=PUT to handle file uploads properly in Laravel Inertia
-        form.transform((data) => ({
-            ...data,
-            _method: 'PUT',
-        })).post(`/receipts/${props.receipt.id}`);
+        form.post(`/receipts/${props.receipt.id}`);
     } else {
         form.post('/receipts');
     }
@@ -174,7 +176,7 @@ const submit = () => {
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectGroup>
-                                            <SelectItem value="">-- Kosongkan --</SelectItem>
+                                            <SelectItem value="none">-- Kosongkan --</SelectItem>
                                             <SelectItem v-for="type in availableSubTypes" :key="type.id" :value="type.id.toString()">
                                                 {{ type.name }}
                                             </SelectItem>

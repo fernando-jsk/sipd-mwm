@@ -38,17 +38,18 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const eventFilter = ref(props.filters?.event || 'all');
 
-let searchTimeout = null;
-
-watch(search, (value) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
+watch(search, (value, oldValue, onCleanup) => {
+    const searchTimeout = setTimeout(() => {
         router.get(
             '/activity-logs',
             { search: value, event: eventFilter.value === 'all' ? null : eventFilter.value },
             { preserveState: true, replace: true }
         );
     }, 300);
+
+    onCleanup(() => {
+        clearTimeout(searchTimeout);
+    });
 });
 
 watch(eventFilter, (value) => {
