@@ -35,6 +35,14 @@ const props = defineProps({
     rbaType: {
         type: String,
         default: 'Belanja'
+    },
+    rbaViewType: {
+        type: String,
+        default: 'gelondongan'
+    },
+    gelondonganDocs: {
+        type: Array,
+        default: () => []
     }
 });
 
@@ -56,7 +64,9 @@ const selectedAccount = ref(null);
 const documentForm = useForm({
     account_code_id: '',
     funding_source_id: '',
-    pptk_id: ''
+    pptk_id: '',
+    rba_type: 'gelondongan',
+    mapped_to_rba_id: ''
 });
 
 const openSetupDocument = (acc) => {
@@ -64,6 +74,8 @@ const openSetupDocument = (acc) => {
     documentForm.account_code_id = acc.id;
     documentForm.funding_source_id = '';
     documentForm.pptk_id = '';
+    documentForm.rba_type = props.rbaViewType;
+    documentForm.mapped_to_rba_id = '';
     documentForm.clearErrors();
     
     isAddDialogOpen.value = false;
@@ -179,7 +191,7 @@ const submitEditDocument = () => {
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
-                    <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 mt-2">
                         <h2 class="font-semibold text-xl text-secondary dark:text-foreground leading-tight">Kertas Kerja RBA {{ props.rbaType }}</h2>
                         <div class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
                             Versi Aktif: {{ props.currentVersionName }}
@@ -193,11 +205,11 @@ const submitEditDocument = () => {
                             Tambah Rekening RBA
                         </Button>
                     </DialogTrigger>
-                    <DialogContent class="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+                    <DialogContent class="sm:max-w-[750px] max-h-[85vh] flex flex-col">
                         <DialogHeader>
-                            <DialogTitle>Tambah Rekening ke Kertas Kerja</DialogTitle>
+                            <DialogTitle>Tambah Rekening ke Kertas Kerja ({{ props.rbaViewType === 'rinci' ? 'Rinci' : 'Gelondongan' }})</DialogTitle>
                             <DialogDescription>
-                                Cari dan pilih rekening rincian (daun) yang akan disusun anggarannya.
+                                Cari dan pilih rekening yang akan disusun anggarannya sebagai RBA {{ props.rbaViewType === 'rinci' ? 'Rinci' : 'Gelondongan' }}.
                             </DialogDescription>
                         </DialogHeader>
                         
@@ -207,20 +219,20 @@ const submitEditDocument = () => {
                         </div>
 
                         <div class="flex-1 overflow-y-auto mt-4 border rounded-md min-h-[300px]">
-                            <Table>
+                            <Table class="w-full table-fixed">
                                 <TableHeader class="sticky top-0 bg-background z-10 shadow-sm">
                                     <TableRow>
-                                        <TableHead>Kode</TableHead>
+                                        <TableHead class="w-[160px]">Kode</TableHead>
                                         <TableHead>Nama Rekening</TableHead>
-                                        <TableHead class="w-[100px]"></TableHead>
+                                        <TableHead class="w-[85px] text-right"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     <TableRow v-for="acc in filteredLeaves.slice(0, 100)" :key="acc.id">
-                                        <TableCell class="font-medium">{{ acc.code }}</TableCell>
-                                        <TableCell>{{ acc.name }}</TableCell>
-                                        <TableCell class="text-right">
-                                            <Button @click="openSetupDocument(acc)" variant="outline" size="sm">
+                                        <TableCell class="font-mono text-xs font-medium text-secondary dark:text-foreground align-top py-2.5">{{ acc.code }}</TableCell>
+                                        <TableCell class="text-xs text-muted-foreground leading-relaxed break-words whitespace-normal align-top py-2.5">{{ acc.name }}</TableCell>
+                                        <TableCell class="text-right align-top py-2.5">
+                                            <Button @click="openSetupDocument(acc)" variant="outline" size="sm" class="h-7 text-xs">
                                                 Pilih
                                             </Button>
                                         </TableCell>
@@ -285,10 +297,26 @@ const submitEditDocument = () => {
                                 </Select>
                                 <p v-if="documentForm.errors.pptk_id" class="text-[10px] text-destructive">{{ documentForm.errors.pptk_id }}</p>
                             </div>
+                            <div v-if="documentForm.rba_type === 'rinci'" class="space-y-2">
+                                <Label for="mapped_to_rba_id">Induk Gelondongan <span class="text-destructive">*</span></Label>
+                                <Select v-model="documentForm.mapped_to_rba_id" required>
+                                    <SelectTrigger id="mapped_to_rba_id">
+                                        <SelectValue placeholder="Pilih Rekening Gelondongan Induk" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem v-for="doc in gelondonganDocs" :key="doc.id" :value="doc.id.toString()">
+                                                {{ doc.code }} - {{ doc.name }}
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <p v-if="documentForm.errors.mapped_to_rba_id" class="text-[10px] text-destructive">{{ documentForm.errors.mapped_to_rba_id }}</p>
+                            </div>
                             
                             <DialogFooter class="mt-6 pt-4 border-t">
                                 <Button type="button" variant="outline" @click="isSetupDialogOpen = false; isAddDialogOpen = true" :disabled="documentForm.processing">Kembali</Button>
-                                <Button type="submit" variant="default" :disabled="documentForm.processing || !documentForm.funding_source_id || !documentForm.pptk_id">
+                                <Button type="submit" variant="default" :disabled="documentForm.processing || !documentForm.funding_source_id || !documentForm.pptk_id || (documentForm.rba_type === 'rinci' && !documentForm.mapped_to_rba_id)">
                                     <span v-if="documentForm.processing">Memproses...</span>
                                     <span v-else>Buat Dokumen</span>
                                 </Button>
@@ -319,7 +347,7 @@ const submitEditDocument = () => {
 
                 <!-- Dialog Edit Document -->
                 <Dialog v-model:open="isEditDialogOpen">
-                    <DialogContent class="sm:max-w-[550px] max-h-[85vh] flex flex-col">
+                    <DialogContent :class="[showAccountPicker ? 'sm:max-w-[750px]' : 'sm:max-w-[550px]', 'max-h-[85vh] flex flex-col transition-all duration-200']">
                         <DialogHeader>
                             <DialogTitle class="flex items-center gap-2">
                                 <Pencil class="w-4 h-4 text-primary" />
@@ -344,20 +372,20 @@ const submitEditDocument = () => {
                                 <Input v-model="accountSearchQuery" placeholder="Cari kode atau nama rekening pengganti..." class="pl-9 h-9 text-sm" />
                             </div>
 
-                            <div class="flex-1 overflow-y-auto border rounded-md max-h-[300px]">
-                                <Table>
+                            <div class="flex-1 overflow-y-auto border rounded-md max-h-[350px]">
+                                <Table class="w-full table-fixed">
                                     <TableHeader class="sticky top-0 bg-background z-10 shadow-sm">
                                         <TableRow>
-                                            <TableHead>Kode</TableHead>
+                                            <TableHead class="w-[160px]">Kode</TableHead>
                                             <TableHead>Nama Rekening</TableHead>
-                                            <TableHead class="w-[80px]"></TableHead>
+                                            <TableHead class="w-[85px] text-right"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         <TableRow v-for="acc in filteredLeavesForEdit.slice(0, 100)" :key="acc.id">
-                                            <TableCell class="font-mono text-xs font-medium">{{ acc.code }}</TableCell>
-                                            <TableCell class="text-xs">{{ acc.name }}</TableCell>
-                                            <TableCell class="text-right">
+                                            <TableCell class="font-mono text-xs font-medium text-secondary dark:text-foreground align-top py-2.5">{{ acc.code }}</TableCell>
+                                            <TableCell class="text-xs text-muted-foreground leading-relaxed break-words whitespace-normal align-top py-2.5">{{ acc.name }}</TableCell>
+                                            <TableCell class="text-right align-top py-2.5">
                                                 <Button type="button" size="sm" class="h-7 text-xs" @click="selectReplacementAccount(acc)">
                                                     Pilih
                                                 </Button>
@@ -473,6 +501,38 @@ const submitEditDocument = () => {
         </template>
 
         <div class="max-w-7xl mx-auto space-y-6">
+            <!-- Tabs Navigasi RBA Gelondongan / Rinci -->
+            <div class="flex items-center gap-2">
+                <Link 
+                    :href="`/rba/${props.rbaType.toLowerCase()}?rba_view_type=gelondongan`" 
+                    :only="['activeTree', 'rbaViewType', 'gelondonganDocs', 'leafAccounts']"
+                    preserve-scroll
+                    preserve-state
+                    :class="[
+                        'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border',
+                        props.rbaViewType === 'gelondongan' 
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
+                            : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border-border/80'
+                    ]"
+                >
+                    RBA Gelondongan
+                </Link>
+                <Link 
+                    :href="`/rba/${props.rbaType.toLowerCase()}?rba_view_type=rinci`" 
+                    :only="['activeTree', 'rbaViewType', 'gelondonganDocs', 'leafAccounts']"
+                    preserve-scroll
+                    preserve-state
+                    :class="[
+                        'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 border',
+                        props.rbaViewType === 'rinci' 
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm' 
+                            : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border-border/80'
+                    ]"
+                >
+                    RBA Rinci
+                </Link>
+            </div>
+
             <Card>
                 <CardHeader>
                     <CardTitle class="flex items-center gap-2">

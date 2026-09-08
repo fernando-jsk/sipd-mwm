@@ -26,16 +26,18 @@ const props = defineProps({
 
 const search = ref(props.filters?.search || '');
 const searchBy = ref(props.filters?.search_by || 'all');
-const statusFilter = ref(props.filters?.status || '');
+const statusFilter = ref(props.filters?.status || 'all');
 const sortFilter = ref(props.filters?.sort || 'doc_desc');
 
-let searchTimeout = null;
-
-watch([search, searchBy, statusFilter, sortFilter], ([newSearch, newSearchBy, newStatus, newSort]) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        router.get('/expenditures/opd', { search: newSearch, search_by: newSearchBy, status: newStatus, sort: newSort }, { preserveState: true, replace: true });
+watch([search, searchBy, statusFilter, sortFilter], ([newSearch, newSearchBy, newStatus, newSort], oldValue, onCleanup) => {
+    const searchTimeout = setTimeout(() => {
+        const finalStatus = newStatus === 'all' ? '' : newStatus;
+        router.get('/expenditures/opd', { search: newSearch, search_by: newSearchBy, status: finalStatus, sort: newSort }, { preserveState: true, replace: true });
     }, 300);
+
+    onCleanup(() => {
+        clearTimeout(searchTimeout);
+    });
 });
 
 const getStatusColor = (status) => {
@@ -101,7 +103,7 @@ const getStatusLabel = (status) => {
                             <SelectValue placeholder="Semua Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="">Semua Status</SelectItem>
+                            <SelectItem value="all">Semua Status</SelectItem>
                             <SelectItem value="submitted">Menunggu Otorisasi</SelectItem>
                             <SelectItem value="authorized">Diotorisasi</SelectItem>
                             <SelectItem value="disbursed">Dicairkan</SelectItem>

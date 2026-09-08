@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 class RbaDocument extends Model
 {
     use HasFactory, LogsActivity;
-    protected $fillable = ['account_code_id', 'funding_source_id', 'pptk_id', 'budget_year', 'version', 'version_name', 'status', 'total_budget'];
+    protected $fillable = ['account_code_id', 'funding_source_id', 'pptk_id', 'budget_year', 'version', 'version_name', 'status', 'total_budget', 'rba_type', 'mapped_to_rba_id'];
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -55,5 +55,15 @@ class RbaDocument extends Model
     {
         $this->total_budget = $this->rbaDetails()->where('type', 'item')->sum('jumlah');
         $this->save();
+    }
+
+    public function mappedTo(): BelongsTo
+    {
+        return $this->belongsTo(RbaDocument::class, 'mapped_to_rba_id');
+    }
+
+    public function mappedFrom(): HasMany
+    {
+        return $this->hasMany(RbaDocument::class, 'mapped_to_rba_id');
     }
 }

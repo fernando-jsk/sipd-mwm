@@ -41,11 +41,8 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const status = ref(props.filters?.status || 'all');
 const date = ref(props.filters?.date || '');
-let searchTimeout = null;
-
-watch([search, status, date], ([newSearch, newStatus, newDate]) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
+watch([search, status, date], ([newSearch, newStatus, newDate], oldValue, onCleanup) => {
+    const searchTimeout = setTimeout(() => {
         let params = {};
         if (newSearch) params.search = newSearch;
         if (newStatus && newStatus !== 'all') params.status = newStatus;
@@ -53,6 +50,10 @@ watch([search, status, date], ([newSearch, newStatus, newDate]) => {
         
         router.get('/receipts', params, { preserveState: true, replace: true });
     }, 300);
+
+    onCleanup(() => {
+        clearTimeout(searchTimeout);
+    });
 });
 
 const formatCurrency = (value) => {

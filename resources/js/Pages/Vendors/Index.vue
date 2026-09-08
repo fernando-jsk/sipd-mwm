@@ -38,13 +38,14 @@ const props = defineProps({
 
 const search = ref(props.filters?.search || '');
 const typeFilter = ref(props.filters?.type || 'all');
-let searchTimeout = null;
-
-const applyFilters = () => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
-        router.get('/vendors', { search: search.value, type: typeFilter.value }, { preserveState: true, replace: true });
+const applyFilters = ([newSearch, newType], oldValue, onCleanup) => {
+    const searchTimeout = setTimeout(() => {
+        router.get('/vendors', { search: newSearch, type: newType }, { preserveState: true, replace: true });
     }, 300);
+
+    onCleanup(() => {
+        clearTimeout(searchTimeout);
+    });
 };
 
 watch([search, typeFilter], applyFilters);

@@ -30,13 +30,14 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
-let searchTimeout = null;
-
-watch(search, (value) => {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(() => {
+watch(search, (value, oldValue, onCleanup) => {
+    const searchTimeout = setTimeout(() => {
         router.get('/account-codes', { search: value }, { preserveState: true, replace: true });
     }, 300);
+
+    onCleanup(() => {
+        clearTimeout(searchTimeout);
+    });
 });
 
 const deleteForm = useForm({});
