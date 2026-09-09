@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
-import { Search } from '@lucide/vue';
+import { Search, FileText } from 'lucide-vue-next';
 import { Badge } from '@/Components/ui/badge';
 import {
   Table,
@@ -56,6 +56,13 @@ const deleteItem = () => {
             itemToDelete.value = null;
         }
     });
+};
+
+// Full Description Dialog State
+const selectedDescription = ref(null);
+
+const viewFullDescription = (item) => {
+    selectedDescription.value = item;
 };
 </script>
 
@@ -110,32 +117,49 @@ const deleteItem = () => {
             </div>
 
             <div class="overflow-x-auto">
-                <Table>
-                    <TableHeader>
+                <Table class="w-full">
+                    <TableHeader class="bg-muted/50">
                         <TableRow class="hover:bg-transparent">
-                            <TableHead class="w-[150px]">Kode Rekening</TableHead>
-                            <TableHead>Nama Akun</TableHead>
-                            <TableHead>Keterangan</TableHead>
+                            <TableHead class="w-[160px]">Kode Rekening</TableHead>
+                            <TableHead class="min-w-[220px]">Nama Akun</TableHead>
+                            <TableHead class="w-[280px] max-w-[320px]">Keterangan</TableHead>
                             <TableHead class="w-[100px]">Status</TableHead>
-                            <TableHead class="text-right w-[150px]">Aksi</TableHead>
+                            <TableHead class="text-right w-[140px]">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-for="item in accountCodes.data" :key="item.id">
-                            <TableCell class="font-medium font-mono text-sm">
+                            <TableCell class="font-medium font-mono text-xs text-secondary dark:text-foreground">
                                 {{ item.code }}
                             </TableCell>
-                            <TableCell class="font-semibold text-secondary">
+                            <TableCell class="font-semibold text-secondary dark:text-foreground text-sm">
                                 <div class="flex items-center" :style="{ paddingLeft: `${(item.level - 1) * 1.5}rem` }">
                                     <span v-if="item.level > 1" class="text-muted-foreground mr-1.5 opacity-50">↳</span>
                                     <span :class="{'text-primary': item.level === 1}">{{ item.name }}</span>
                                 </div>
                             </TableCell>
-                            <TableCell class="text-muted-foreground text-xs">
-                                {{ item.description || '-' }}
+                            <TableCell class="text-xs max-w-[320px]">
+                                <div v-if="item.description">
+                                    <p class="text-muted-foreground line-clamp-2 leading-relaxed break-words" :title="item.description">
+                                        {{ item.description }}
+                                    </p>
+                                    <button 
+                                        v-if="item.description.length > 80"
+                                        type="button"
+                                        @click="viewFullDescription(item)"
+                                        class="text-[11px] font-medium text-primary hover:underline mt-0.5 inline-flex items-center gap-1 focus:outline-none"
+                                    >
+                                        Lihat Selengkapnya
+                                    </button>
+                                </div>
+                                <span v-else class="text-muted-foreground/50">-</span>
                             </TableCell>
                             <TableCell>
-                                <Badge :variant="item.is_active ? 'default' : 'secondary'" class="text-[10px] tracking-wider uppercase">
+                                <Badge 
+                                    :variant="item.is_active ? 'default' : 'secondary'" 
+                                    :class="item.is_active ? 'bg-[#4ADE80]/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20' : 'bg-muted text-muted-foreground'"
+                                    class="text-[10px] tracking-wider uppercase font-semibold"
+                                >
                                     {{ item.is_active ? 'Aktif' : 'Nonaktif' }}
                                 </Badge>
                             </TableCell>
@@ -196,6 +220,27 @@ const deleteItem = () => {
                     <Button variant="destructive" @click="deleteItem" :disabled="deleteForm.processing">
                         {{ deleteForm.processing ? 'Menghapus...' : 'Ya, Hapus Data' }}
                     </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Full Description Dialog -->
+        <Dialog :open="!!selectedDescription" @update:open="!$event && (selectedDescription = null)">
+            <DialogContent class="sm:max-w-[550px] max-h-[85vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle class="flex items-center gap-2 text-base">
+                        <FileText class="w-4 h-4 text-primary" />
+                        Keterangan Kode Rekening
+                    </DialogTitle>
+                    <DialogDescription class="font-mono text-xs text-secondary dark:text-foreground font-semibold mt-1">
+                        {{ selectedDescription?.code }} - {{ selectedDescription?.name }}
+                    </DialogDescription>
+                </DialogHeader>
+                <div class="overflow-y-auto max-h-[50vh] pr-1 my-3 text-xs leading-relaxed text-foreground whitespace-pre-line bg-muted/30 p-3.5 rounded-lg border border-border/60">
+                    {{ selectedDescription?.description }}
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" size="sm" @click="selectedDescription = null">Tutup</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
