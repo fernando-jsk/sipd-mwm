@@ -367,6 +367,16 @@ class ExpenditureController extends Controller
             })
             ->sum('total_budget');
 
+        if ($totalDpa <= 0) {
+            $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)
+                ->where('version', $activeVersion)
+                ->where('rba_type', 'gelondongan')
+                ->whereHas('accountCode', function($q) {
+                    $q->where('code', 'like', '5%');
+                })
+                ->sum('total_budget');
+        }
+
         return Inertia::render('Expenditures/PrintRingkasan', [
             'expenditure' => $expenditure,
             'sppList' => $sppList,
@@ -397,6 +407,16 @@ class ExpenditureController extends Controller
                 $q->where('code', 'like', '5%');
             })
             ->sum('total_budget');
+
+        if ($totalDpa <= 0) {
+            $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)
+                ->where('version', $activeVersion)
+                ->where('rba_type', 'gelondongan')
+                ->whereHas('accountCode', function($q) {
+                    $q->where('code', 'like', '5%');
+                })
+                ->sum('total_budget');
+        }
 
         return Inertia::render('Expenditures/PrintSuratPengantar', [
             'expenditure' => $expenditure,
@@ -517,6 +537,14 @@ class ExpenditureController extends Controller
             ->where('version', $activeVersion)
             ->where('rba_type', 'rinci')
             ->get();
+
+        if ($rbaDocs->isEmpty()) {
+            $rbaDocs = RbaDocument::with('accountCode')
+                ->where('budget_year', $budgetYear)
+                ->where('version', $activeVersion)
+                ->where('rba_type', 'gelondongan')
+                ->get();
+        }
             
         // Hitung pemakaian pagu
         $usageQuery = DB::table('expenditure_details')
@@ -595,6 +623,14 @@ class ExpenditureController extends Controller
                 ->first();
 
             if (!$rbaDoc) {
+                $rbaDoc = RbaDocument::where('budget_year', $budgetYear)
+                    ->where('version', $activeVersion)
+                    ->where('rba_type', 'gelondongan')
+                    ->where('account_code_id', $accId)
+                    ->first();
+            }
+
+            if (!$rbaDoc) {
                 throw ValidationException::withMessages([
                     'details' => "Akun anggaran tidak ditemukan pada RBA aktif."
                 ]);
@@ -621,5 +657,70 @@ class ExpenditureController extends Controller
                 session()->flash('warning', 'Peringatan: Beberapa pengeluaran melebihi sisa pagu anggaran.');
             }
         }
+    }
+
+    /**
+     * Kelompokkan detail belanja ke format rekening Gelondongan induk untuk cetakan dokumen.
+     * Jika rekening sudah merupakan gelondongan atau belum dimapping, pertahankan rekening aslinya.
+     */
+    private function groupDetailsByGelondongan(Expenditure $expenditure): void
+    {
+        if (!$expenditure->relationLoaded('details') || $expenditure->details->isEmpty()) {
+            return;
+        }
+
+        $year = date('Y', strtotime($expenditure->date));
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
+
+        $accountCodeIds = $expenditure->details->pluck('account_code_id')->unique();
+
+        // Ambil dokumen RBA untuk rekening yang ada di rincian belanja beserta mapping rekening gelondongan induknya
+        $rbaDocs = RbaDocument::with(['mappedTo.accountCode'])
+            ->whereIn('account_code_id', $accountCodeIds)
+            ->where('budget_year', $year)
+            ->where('version', $activeVersion)
+            ->get()
+            ->keyBy('account_code_id');
+
+        $grouped = [];
+
+        foreach ($expenditure->details as $detail) {
+            $rbaDoc = $rbaDocs->get($detail->account_code_id);
+
+            // Jika rbaDoc bertipe 'rinci' dan memiliki mappedTo (rekening gelondongan induk)
+            if ($rbaDoc && $rbaDoc->rba_type === 'rinci' && $rbaDoc->mappedTo && $rbaDoc->mappedTo->accountCode) {
+                $targetAccount = $rbaDoc->mappedTo->accountCode;
+            } else {
+                // Pertahankan rekening aslinya jika sudah merupakan gelondongan atau belum dimapping
+                $targetAccount = $detail->accountCode;
+            }
+
+            $targetAccountId = $targetAccount ? $targetAccount->id : $detail->account_code_id;
+
+            if (!isset($grouped[$targetAccountId])) {
+                $grouped[$targetAccountId] = [
+                    'first_id' => $detail->id,
+                    'target_account' => $targetAccount,
+                    'amount' => 0,
+                ];
+            }
+
+            $grouped[$targetAccountId]['amount'] += (float) $detail->amount;
+        }
+
+        $newDetails = collect($grouped)->map(function ($item, $accId) use ($expenditure) {
+            $newDetail = new ExpenditureDetail([
+                'expenditure_id' => $expenditure->id,
+                'account_code_id' => $accId,
+                'amount' => $item['amount'],
+            ]);
+            $newDetail->id = $item['first_id'];
+            if ($item['target_account']) {
+                $newDetail->setRelation('accountCode', $item['target_account']);
+            }
+            return $newDetail;
+        })->values();
+
+        $expenditure->setRelation('details', $newDetails);
     }
 }
