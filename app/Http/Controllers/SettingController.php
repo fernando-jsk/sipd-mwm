@@ -2,8 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
+use App\Models\Expenditure;
+use App\Models\ExpenditureDetail;
+use App\Models\ExpenditureTax;
+use App\Models\FundingSource;
+use App\Models\Journal;
+use App\Models\JournalDetail;
+use App\Models\RbaDetail;
+use App\Models\RbaDocument;
+use App\Models\Receipt;
+use App\Models\ReceiptDetail;
 use App\Models\Setting;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class SettingController extends Controller
@@ -219,25 +233,35 @@ class SettingController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (!\Illuminate\Support\Facades\Hash::check($request->password, auth()->user()->password)) {
+        if (!Hash::check($request->password, auth()->user()->password)) {
             return redirect()->back()->with('error', 'Password tidak valid. Operasi dibatalkan.');
         }
 
         try {
-            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-            \App\Models\Expenditure::truncate();
-            \App\Models\ExpenditureDetail::truncate();
-            \App\Models\ExpenditureTax::truncate();
-            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            
-            activity('setting')
-                ->log("Menghapus permanen seluruh data pengeluaran (SPPD, OPD, SPD) beserta rinciannya");
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-            return redirect()->back()->with('message', 'Seluruh data pengeluaran berhasil dibersihkan.');
+            // Hapus jurnal terkait pengeluaran beserta rinciannya
+            JournalDetail::whereIn('journal_id', function ($query) {
+                $query->select('id')
+                    ->from('journals')
+                    ->where('journalable_type', Expenditure::class);
+            })->delete();
+
+            Journal::where('journalable_type', Expenditure::class)->delete();
+
+            Expenditure::truncate();
+            ExpenditureDetail::truncate();
+            ExpenditureTax::truncate();
+
+            activity('setting')
+                ->log("Menghapus permanen seluruh data pengeluaran (SPPD, OPD, SPD) beserta rincian dan jurnal terkait");
+
+            return redirect()->back()->with('message', 'Seluruh data pengeluaran dan jurnal terkait berhasil dibersihkan.');
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            \Illuminate\Support\Facades\Log::error("Failed to clear expenditures: " . $e->getMessage());
+            Log::error("Failed to clear expenditures: " . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         }
     }
 
@@ -247,30 +271,40 @@ class SettingController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (!\Illuminate\Support\Facades\Hash::check($request->password, auth()->user()->password)) {
+        if (!Hash::check($request->password, auth()->user()->password)) {
             return redirect()->back()->with('error', 'Password tidak valid. Operasi dibatalkan.');
         }
 
         try {
             // Hapus file lampiran jika ada
-            $attachmentPaths = \App\Models\Receipt::whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
+            $attachmentPaths = Receipt::whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
             if (!empty($attachmentPaths)) {
-                \Illuminate\Support\Facades\Storage::disk('public')->delete($attachmentPaths);
+                Storage::disk('public')->delete($attachmentPaths);
             }
 
-            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-            \App\Models\Receipt::truncate();
-            \App\Models\ReceiptDetail::truncate();
-            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            
-            activity('setting')
-                ->log("Menghapus permanen seluruh data penerimaan (TBP/STS) beserta rinciannya");
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-            return redirect()->back()->with('message', 'Seluruh data penerimaan berhasil dibersihkan.');
+            // Hapus jurnal terkait penerimaan beserta rinciannya
+            JournalDetail::whereIn('journal_id', function ($query) {
+                $query->select('id')
+                    ->from('journals')
+                    ->where('journalable_type', Receipt::class);
+            })->delete();
+
+            Journal::where('journalable_type', Receipt::class)->delete();
+
+            Receipt::truncate();
+            ReceiptDetail::truncate();
+
+            activity('setting')
+                ->log("Menghapus permanen seluruh data penerimaan (TBP/STS) beserta rincian dan jurnal terkait");
+
+            return redirect()->back()->with('message', 'Seluruh data penerimaan dan jurnal terkait berhasil dibersihkan.');
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-            \Illuminate\Support\Facades\Log::error("Failed to clear receipts: " . $e->getMessage());
+            Log::error("Failed to clear receipts: " . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         }
     }
 }
