@@ -348,7 +348,7 @@ class ExpenditureController extends Controller
 
     public function printRingkasan(Expenditure $expenditure)
     {
-        $expenditure->load(['vendor']);
+        $expenditure->load(['vendor', 'treasurer', 'kpa', 'ptk']);
         
         $year = date('Y', strtotime($expenditure->date));
         $sppList = Expenditure::whereYear('date', $year)

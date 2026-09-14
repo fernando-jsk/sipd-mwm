@@ -95,7 +95,7 @@ const deleteUser = () => {
                 <Search class="absolute left-3 text-muted-foreground size-4" />
                 <Input
                     type="text"
-                    placeholder="Cari nama atau username..."
+                    placeholder="Cari nama, NIP, atau username..."
                     v-model="search"
                     class="w-full pl-9 shadow-sm bg-white dark:bg-slate-900"
                 />
@@ -107,6 +107,7 @@ const deleteUser = () => {
                 <TableHeader class="bg-muted/40">
                     <TableRow>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Nama</TableHead>
+                        <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">NIP</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Username</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Role</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 text-right">Aksi</TableHead>
@@ -115,6 +116,7 @@ const deleteUser = () => {
                 <TableBody>
                     <TableRow v-for="user in users.data" :key="user.id">
                         <TableCell class="py-3 font-medium text-foreground">{{ user.name }}</TableCell>
+                        <TableCell class="py-3 text-sm font-mono text-muted-foreground">{{ user.nip || '-' }}</TableCell>
                         <TableCell class="py-3 text-sm text-muted-foreground">{{ user.username }}</TableCell>
                         <TableCell class="py-3">
                             <span v-for="role in user.roles" :key="role.id" class="text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 bg-[#4ADE80]/10 text-emerald-700 dark:text-emerald-400 mr-1">
@@ -130,7 +132,7 @@ const deleteUser = () => {
                         </TableCell>
                     </TableRow>
                     <TableRow v-if="users.data.length === 0">
-                        <TableCell colspan="4" class="h-24 text-center text-muted-foreground text-sm">
+                        <TableCell colspan="5" class="h-24 text-center text-muted-foreground text-sm">
                             Belum ada data user.
                         </TableCell>
                     </TableRow>

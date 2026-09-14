@@ -170,6 +170,7 @@ const printDocument = () => {
                         <p class="mb-1">...................., {{ formatDate(receipt.date) }}</p>
                         <p class="mb-16">Bendahara Penerimaan</p>
                         <p class="font-bold underline">{{ receipt.treasurer?.name || '____________________' }}</p>
+                        <p class="text-xs mt-0.5">NIP. {{ receipt.treasurer?.nip || '____________________' }}</p>
                     </div>
                 </div>
             </div>

@@ -20,6 +20,7 @@ class UserController extends Controller
             $search = $request->input('search');
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nip', 'like', "%{$search}%")
                   ->orWhere('username', 'like', "%{$search}%");
             });
         }
@@ -44,6 +45,7 @@ class UserController extends Controller
     {
         $user = User::create([
             'name' => $request->name,
+            'nip' => $request->nip,
             'username' => $request->username,
             'password' => Hash::make($request->password),
         ]);
@@ -68,6 +70,7 @@ class UserController extends Controller
     {
         $data = [
             'name' => $request->name,
+            'nip' => $request->nip,
             'username' => $request->username,
         ];
         
