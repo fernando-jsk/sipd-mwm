@@ -69,7 +69,7 @@ const goBack = () => {
                     <div class="flex">
                         <div class="w-32 font-semibold">NIP</div>
                         <div class="w-4">:</div>
-                        <div class="flex-1 font-mono">197309152006042007</div>
+                        <div class="flex-1 font-mono">{{ ppk?.nip || '-' }}</div>
                     </div>
                     <div class="flex">
                         <div class="w-32 font-semibold">Jabatan</div>
@@ -97,7 +97,7 @@ const goBack = () => {
                     <p class="font-bold">PPK RSUD BLUD</p>
                     <div class="h-20"></div>
                     <p class="font-bold underline uppercase">{{ ppk?.name || 'MONALISA F.SUMAMPOUW,SST,M.Kes' }}</p>
-                    <p>NIP. 197309152006042007</p>
+                    <p>NIP. {{ ppk?.nip || '-' }}</p>
                 </div>
             </div>
             

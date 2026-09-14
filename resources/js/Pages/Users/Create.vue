@@ -21,6 +21,7 @@ const props = defineProps({
 
 const form = useForm({
     name: '',
+    nip: '',
     username: '',
     password: '',
     role: '',
@@ -81,6 +82,19 @@ const submit = () => {
                                     required 
                                 />
                                 <p v-if="form.errors.name" class="text-[11px] text-destructive">{{ form.errors.name }}</p>
+                            </div>
+
+                            <div class="grid gap-1.5">
+                                <Label for="nip" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.nip}">NIP (Opsional)</Label>
+                                <Input 
+                                    id="nip" 
+                                    type="text" 
+                                    v-model="form.nip" 
+                                    placeholder="Contoh: 198201292009031001"
+                                    :class="{'border-destructive focus-visible:ring-destructive/20': form.errors.nip, 'focus-visible:ring-primary': !form.errors.nip}"
+                                    :aria-invalid="!!form.errors.nip"
+                                />
+                                <p v-if="form.errors.nip" class="text-[11px] text-destructive">{{ form.errors.nip }}</p>
                             </div>
                             
                             <div class="grid gap-1.5">
