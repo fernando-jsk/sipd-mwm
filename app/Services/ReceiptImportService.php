@@ -20,23 +20,72 @@ class ReceiptImportService
      */
     public function import(string $path, string $status): int
     {
-        $data = array_map(function ($v) {
-            return str_getcsv($v, ';');
-        }, file($path));
-
-        if (count($data) < 8) {
-            throw new Exception('Format file CSV tidak valid. Harus dipisahkan dengan titik koma (;).');
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (empty($lines)) {
+            throw new Exception('File CSV kosong.');
         }
 
-        $mainHeaders = $data[4];
-        $subHeaders = $data[6];
+        // Deteksi delimiter (; atau ,) secara otomatis
+        $delimiter = ';';
+        foreach ($lines as $line) {
+            $semicolons = substr_count($line, ';');
+            $commas = substr_count($line, ',');
+            if ($semicolons > 0 || $commas > 0) {
+                $delimiter = $semicolons >= $commas ? ';' : ',';
+                break;
+            }
+        }
+
+        $data = array_map(function ($v) use ($delimiter) {
+            return str_getcsv($v, $delimiter);
+        }, $lines);
+
+        if (count($data) < 2) {
+            throw new Exception('Format file CSV tidak valid. Tidak ada baris data yang ditemukan.');
+        }
+
+        // Temukan baris data pertama secara dinamis berdasarkan pola tanggal di kolom 1
+        $firstDataRowIndex = null;
+        for ($i = 0; $i < count($data); $i++) {
+            $dateCandidate = isset($data[$i][1]) ? trim($data[$i][1]) : '';
+            if (!empty($dateCandidate) && (
+                \DateTime::createFromFormat('d/m/Y', $dateCandidate) ||
+                \DateTime::createFromFormat('Y-m-d', $dateCandidate) ||
+                \DateTime::createFromFormat('d-m-Y', $dateCandidate)
+            )) {
+                $firstDataRowIndex = $i;
+                break;
+            }
+        }
+
+        // Tentukan baris header utama dan sub-header
+        $mainHeaders = [];
+        $subHeaders = [];
+
+        if ($firstDataRowIndex !== null && $firstDataRowIndex >= 7) {
+            // Layout standar SIMRS (main di baris 4, sub di baris 6, data mulai baris 7)
+            $mainHeaders = $data[4] ?? [];
+            $subHeaders = $data[6] ?? [];
+        } elseif ($firstDataRowIndex !== null && $firstDataRowIndex >= 2) {
+            // Layout terkompresi / modifikasi Excel
+            $mainHeaders = $data[$firstDataRowIndex - 2] ?? [];
+            $subHeaders = $data[$firstDataRowIndex - 1] ?? [];
+        } elseif ($firstDataRowIndex !== null && $firstDataRowIndex == 1) {
+            // Hanya 1 baris header tepat di atas data
+            $mainHeaders = $data[0] ?? [];
+            $subHeaders = [];
+        } else {
+            // Fallback default
+            $mainHeaders = $data[4] ?? ($data[0] ?? []);
+            $subHeaders = $data[6] ?? ($data[1] ?? []);
+        }
 
         $receiptTypes = ReceiptType::all();
         $createdReceiptsCount = 0;
 
         DB::beginTransaction();
         try {
-            // 1. Pemetaan Header Dinamis dan Auto-Creation Kategori
+            // 1. Pemetaan Header Dinamis dengan Resolusi Cerdas (Smart Hierarchical Matching)
             $columnMap = [];
             $currentMainHeader = '';
             
@@ -50,70 +99,133 @@ class ReceiptImportService
                 
                 $subVal = isset($subHeaders[$col]) ? trim($subHeaders[$col]) : '';
                 
-                if (empty($currentMainHeader)) {
-                    continue; 
-                }
-                
-                // Abaikan jika ada kata "total" (case-insensitive)
+                // Abaikan jika kolom merupakan ringkasan total
                 if (stripos($currentMainHeader, 'total') !== false || stripos($subVal, 'total') !== false) {
                     continue;
                 }
                 
-                // Cari atau buat Parent Kategori
-                $parentType = $receiptTypes->where('name', $currentMainHeader)->whereNull('parent_id')->first();
-                if (!$parentType) {
-                    // Coba case-insensitive search
-                    $parentType = $receiptTypes->where('parent_id', null)
-                        ->filter(fn($t) => strtolower($t->name) === strtolower($currentMainHeader))
-                        ->first();
-                        
-                    if (!$parentType) {
-                        $parentType = ReceiptType::create([
+                if (empty($currentMainHeader) && empty($subVal)) {
+                    continue; 
+                }
+
+                // Resolusi Kategori:
+                // Langkah 1: Cek apakah $subVal cocok dengan ReceiptType yang ada di database
+                $matchedSub = null;
+                if (!empty($subVal)) {
+                    $matchedSub = $receiptTypes->first(fn($t) => strtolower(trim($t->name)) === strtolower($subVal));
+                }
+
+                // Langkah 2: Cek apakah $currentMainHeader cocok dengan ReceiptType yang ada di database
+                $matchedMain = null;
+                if (!empty($currentMainHeader)) {
+                    $matchedMain = $receiptTypes->first(fn($t) => strtolower(trim($t->name)) === strtolower($currentMainHeader));
+                }
+
+                $parentTypeId = null;
+                $subTypeId = null;
+                $payerName = '';
+
+                if ($matchedSub) {
+                    // Jika sub-header cocok dengan ReceiptType yang sudah terdaftar
+                    if ($matchedSub->parent_id) {
+                        $parentTypeId = $matchedSub->parent_id;
+                        $subTypeId = $matchedSub->id;
+                    } else {
+                        $parentTypeId = $matchedSub->id;
+                        $subTypeId = null;
+                    }
+                    $payerName = $matchedSub->name;
+                } elseif ($matchedMain) {
+                    // Jika main-header cocok dengan ReceiptType yang sudah terdaftar
+                    if ($matchedMain->parent_id) {
+                        // Kasus di mana sub-jenis (seperti PX DR UMUM) terbaca di mainHeaders:
+                        // Ambil parent_id sebagai jenis utama dan matchedMain sebagai sub-jenis
+                        $parentTypeId = $matchedMain->parent_id;
+                        $subTypeId = $matchedMain->id;
+                        $payerName = !empty($subVal) ? $subVal : $matchedMain->name;
+                    } else {
+                        // matchedMain adalah kategori induk utama (misal: PASIEN UMUM, PIHAK III, BPJS KESEHATAN)
+                        $parentTypeId = $matchedMain->id;
+                        $payerName = $matchedMain->name;
+
+                        if (!empty($subVal)) {
+                            $payerName = $subVal;
+                            // Cari sub-kategori yang terdaftar di bawah parent ini
+                            $sub = $receiptTypes->first(fn($t) => $t->parent_id == $parentTypeId && strtolower(trim($t->name)) === strtolower($subVal));
+                            if (!$sub) {
+                                // Cek apakah nama sub sudah terdaftar di tempat lain untuk mencegah duplicate entry
+                                $existingSub = $receiptTypes->first(fn($t) => strtolower(trim($t->name)) === strtolower($subVal));
+                                if ($existingSub) {
+                                    $subTypeId = $existingSub->id;
+                                    $parentTypeId = $existingSub->parent_id ?? $parentTypeId;
+                                } else {
+                                    $sub = ReceiptType::create([
+                                        'name' => $subVal,
+                                        'parent_id' => $parentTypeId,
+                                        'is_active' => true,
+                                        'created_by' => Auth::id() ?? 1,
+                                    ]);
+                                    $receiptTypes->push($sub);
+                                    $subTypeId = $sub->id;
+                                }
+                            } else {
+                                $subTypeId = $sub->id;
+                            }
+                        }
+                    }
+                } else {
+                    // Jika kategori benar-benar baru dan belum terdaftar di database
+                    $existing = $receiptTypes->first(fn($t) => strtolower(trim($t->name)) === strtolower($currentMainHeader));
+                    if ($existing) {
+                        $parentTypeId = $existing->parent_id ?? $existing->id;
+                        $subTypeId = $existing->parent_id ? $existing->id : null;
+                        $payerName = !empty($subVal) ? $subVal : $existing->name;
+                    } else {
+                        $parent = ReceiptType::create([
                             'name' => $currentMainHeader,
                             'is_active' => true,
                             'created_by' => Auth::id() ?? 1,
                         ]);
-                        $receiptTypes->push($parentType); // Tambah ke cache lokal
-                    }
-                }
-                
-                // Cari atau buat Sub Kategori
-                $subType = null;
-                if (!empty($subVal)) {
-                    $subType = $receiptTypes->where('parent_id', $parentType->id)->where('name', $subVal)->first();
-                    if (!$subType) {
-                        $subType = $receiptTypes->where('parent_id', $parentType->id)
-                            ->filter(fn($t) => strtolower($t->name) === strtolower($subVal))
-                            ->first();
-                            
-                        if (!$subType) {
-                            $subType = ReceiptType::create([
+                        $receiptTypes->push($parent);
+                        $parentTypeId = $parent->id;
+                        $payerName = $parent->name;
+
+                        if (!empty($subVal)) {
+                            $payerName = $subVal;
+                            $sub = ReceiptType::create([
                                 'name' => $subVal,
-                                'parent_id' => $parentType->id,
+                                'parent_id' => $parentTypeId,
                                 'is_active' => true,
                                 'created_by' => Auth::id() ?? 1,
                             ]);
-                            $receiptTypes->push($subType); // Tambah ke cache lokal
+                            $receiptTypes->push($sub);
+                            $subTypeId = $sub->id;
                         }
                     }
                 }
-                
-                $columnMap[$col] = [
-                    'parent_id' => $parentType->id,
-                    'sub_id' => $subType ? $subType->id : null,
-                    'payer_name' => !empty($subVal) ? $subVal : $currentMainHeader,
-                ];
+
+                if ($parentTypeId) {
+                    $columnMap[$col] = [
+                        'parent_id' => $parentTypeId,
+                        'sub_id' => $subTypeId,
+                        'payer_name' => $payerName ?: $currentMainHeader,
+                    ];
+                }
             }
 
-            // 2. Membaca Data Transaksi
-            for ($i = 7; $i < count($data); $i++) {
+            // 2. Membaca Data Transaksi secara Dinamis
+            $startRow = $firstDataRowIndex ?? 7;
+            for ($i = $startRow; $i < count($data); $i++) {
                 $row = $data[$i];
                 if (!isset($row[1]) || empty(trim($row[1])) || stripos($row[1], 'total') !== false || stripos($row[1], 'jasa') !== false) {
                     continue;
                 }
 
                 $tanggalString = trim($row[1]);
-                $dateObj = \DateTime::createFromFormat('d/m/Y', $tanggalString);
+                $dateObj = \DateTime::createFromFormat('d/m/Y', $tanggalString) ?:
+                           \DateTime::createFromFormat('Y-m-d', $tanggalString) ?:
+                           \DateTime::createFromFormat('d-m-Y', $tanggalString);
+
                 if (!$dateObj) {
                     continue;
                 }
