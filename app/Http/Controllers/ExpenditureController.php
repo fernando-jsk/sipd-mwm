@@ -24,16 +24,27 @@ class ExpenditureController extends Controller
 
     public function sppdIndex(Request $request)
     {
-        $query = Expenditure::with(['vendor', 'treasurer', 'kpa', 'ptk', 'createdBy']);
+        $query = Expenditure::with(['vendor', 'treasurer', 'kpa', 'ptk', 'createdBy'])->withSum('details', 'amount');
         $query = $this->applyFiltersAndSort($query, $request, 'document_number');
+
+        // Hitung total nominal terfilter
+        $cloned = (clone $query)->reorder();
+        $cloned->getQuery()->limit = null;
+        $cloned->getQuery()->offset = null;
+        $filteredExpenditureIds = $cloned->select('expenditures.id');
+        $totalAmount = (float) ExpenditureDetail::whereIn('expenditure_id', $filteredExpenditureIds)->sum('amount');
 
         $expenditures = $query->paginate(20)->withQueryString();
 
-        $filters = (object) array_merge(['sort' => 'doc_desc'], $request->only('search', 'search_by', 'status', 'sort'));
+        $filters = (object) array_merge(
+            ['sort' => 'doc_desc'],
+            $request->only('search', 'search_by', 'status', 'start_date', 'end_date', 'date', 'sort')
+        );
 
         return Inertia::render('Expenditures/SppdIndex', [
             'expenditures' => $expenditures,
             'filters' => $filters,
+            'totalAmount' => $totalAmount,
             'users' => User::all(['id', 'name']),
         ]);
     }
@@ -511,11 +522,26 @@ class ExpenditureController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Date range filter (start_date & end_date) with fallback to single date
+        if ($request->filled('start_date')) {
+            $query->whereDate('date', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('date', '<=', $request->end_date);
+        }
+        if (!$request->filled('start_date') && !$request->filled('end_date') && $request->filled('date')) {
+            $query->whereDate('date', $request->date);
+        }
+
         $sort = $request->input('sort', 'doc_desc');
         if ($sort === 'oldest') {
             $query->orderBy('created_at', 'asc');
         } elseif ($sort === 'newest') {
             $query->orderBy('created_at', 'desc');
+        } elseif ($sort === 'date_asc') {
+            $query->orderBy('date', 'asc')->orderBy('id', 'asc');
+        } elseif ($sort === 'date_desc') {
+            $query->orderBy('date', 'desc')->orderBy('id', 'desc');
         } elseif ($sort === 'doc_asc') {
             $query->orderBy('document_number', 'asc');
         } elseif ($sort === 'doc_desc') {
