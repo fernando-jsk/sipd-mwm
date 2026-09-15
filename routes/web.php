@@ -55,6 +55,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/settings/funding-sources/{fundingSource}', [SettingController::class, 'destroyFundingSource'])->name('settings.funding-sources.destroy');
 
         // Clear Expenditures & Receipts
+        Route::get('/settings/clear-preview', [SettingController::class, 'clearPreview'])->name('settings.clear-preview');
         Route::delete('/settings/clear-expenditures', [SettingController::class, 'clearExpenditures'])->name('settings.clear-expenditures');
         Route::delete('/settings/clear-receipts', [SettingController::class, 'clearReceipts'])->name('settings.clear-receipts');
     });
