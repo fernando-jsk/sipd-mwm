@@ -4,7 +4,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
-import { Search, Plus, Eye, FileSpreadsheet, Upload } from '@lucide/vue';
+import { Search, Plus, Eye, FileSpreadsheet, Upload, Calendar, Coins, RotateCcw } from '@lucide/vue';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -24,13 +25,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/Components/ui/table';
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 const props = defineProps({
     expenditures: Object,
     filters: Object,
+    totalAmount: {
+        type: Number,
+        default: 0
+    },
     users: Array,
 });
 
@@ -58,17 +63,72 @@ const search = ref(props.filters?.search || '');
 const searchBy = ref(props.filters?.search_by || 'all');
 const statusFilter = ref(props.filters?.status || 'all');
 const sortFilter = ref(props.filters?.sort || 'doc_desc');
+const startDate = ref(props.filters?.start_date || props.filters?.date || '');
+const endDate = ref(props.filters?.end_date || props.filters?.date || '');
 
-watch([search, searchBy, statusFilter, sortFilter], ([newSearch, newSearchBy, newStatus, newSort], oldValue, onCleanup) => {
+const hasActiveFilters = computed(() => {
+    return !!(
+        search.value ||
+        (searchBy.value && searchBy.value !== 'all') ||
+        (statusFilter.value && statusFilter.value !== 'all') ||
+        startDate.value ||
+        endDate.value ||
+        sortFilter.value !== 'doc_desc'
+    );
+});
+
+const resetFilters = () => {
+    search.value = '';
+    searchBy.value = 'all';
+    statusFilter.value = 'all';
+    startDate.value = '';
+    endDate.value = '';
+    sortFilter.value = 'doc_desc';
+};
+
+watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSearch, newSearchBy, newStatus, newSort, newStartDate, newEndDate], oldValue, onCleanup) => {
     const searchTimeout = setTimeout(() => {
-        const finalStatus = newStatus === 'all' ? '' : newStatus;
-        router.get('/expenditures/sppd', { search: newSearch, search_by: newSearchBy, status: finalStatus, sort: newSort }, { preserveState: true, replace: true });
+        const params = {};
+        if (newSearch) params.search = newSearch;
+        if (newSearchBy && newSearchBy !== 'all') params.search_by = newSearchBy;
+        if (newStatus && newStatus !== 'all') params.status = newStatus;
+        if (newSort) params.sort = newSort;
+        if (newStartDate) params.start_date = newStartDate;
+        if (newEndDate) params.end_date = newEndDate;
+
+        const routeUrl = window.location.pathname.startsWith('/expenditures/sppd') ? '/expenditures/sppd' : '/expenditures';
+        router.get(routeUrl, params, { preserveState: true, replace: true });
     }, 300);
 
     onCleanup(() => {
         clearTimeout(searchTimeout);
     });
 });
+
+watch(() => props.filters, (newFilters) => {
+    if (newFilters) {
+        if (newFilters.search !== undefined && newFilters.search !== search.value) search.value = newFilters.search || '';
+        if (newFilters.search_by !== undefined && newFilters.search_by !== searchBy.value) searchBy.value = newFilters.search_by || 'all';
+        if (newFilters.status !== undefined && newFilters.status !== statusFilter.value) statusFilter.value = newFilters.status || 'all';
+        if (newFilters.start_date !== undefined && newFilters.start_date !== startDate.value) startDate.value = newFilters.start_date || '';
+        if (newFilters.end_date !== undefined && newFilters.end_date !== endDate.value) endDate.value = newFilters.end_date || '';
+        if (newFilters.sort !== undefined && newFilters.sort !== sortFilter.value) sortFilter.value = newFilters.sort || 'doc_desc';
+    }
+}, { deep: true });
+
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value || 0);
+};
+
+const getRecipientName = (item) => {
+    if (item.payment_method === 'rekanan' && item.vendor) {
+        return item.vendor.name;
+    }
+    if (item.payment_method === 'pegawai') {
+        return 'Pegawai Internal';
+    }
+    return item.payment_method || '-';
+};
 
 const getStatusColor = (status) => {
     switch (status) {
@@ -140,38 +200,38 @@ const getStatusLabel = (status) => {
             <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.error }}</span>
         </div>
 
-        <div class="bg-card text-card-foreground border border-border/80 rounded-xl shadow-sm overflow-hidden">
-            <div class="p-4 border-b border-border/80 bg-muted/20 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <h3 class="font-semibold text-sm">Dokumen SPPD</h3>
-                
-                <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
-                    <Select v-model="statusFilter">
-                        <SelectTrigger class="w-full sm:w-[150px] bg-background">
-                            <SelectValue placeholder="Semua Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Semua Status</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="submitted">Diajukan</SelectItem>
-                            <SelectItem value="authorized">Diotorisasi</SelectItem>
-                            <SelectItem value="disbursed">Dicairkan</SelectItem>
-                            <SelectItem value="rejected">Ditolak</SelectItem>
-                        </SelectContent>
-                    </Select>
+        <!-- Ringkasan Nominal Sesuai Filter -->
+        <div class="flex items-center">
+            <Card size="sm" class="border-border/80 shadow-sm bg-card w-full sm:w-80">
+                <CardHeader class="flex flex-row items-center justify-between space-y-0">
+                    <CardTitle class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Total Nominal Pencairan
+                    </CardTitle>
+                    <div class="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <Coins class="size-4" />
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div class="text-2xl font-bold tracking-tight text-secondary dark:text-foreground">
+                        {{ formatCurrency(totalAmount) }}
+                    </div>
+                    <p class="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                            {{ expenditures.total }} Data
+                        </span>
+                        <span v-if="hasActiveFilters">sesuai filter aktif</span>
+                        <span v-else>total keseluruhan</span>
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
 
-                    <Select v-model="sortFilter">
-                        <SelectTrigger class="w-full sm:w-[160px] bg-background">
-                            <SelectValue placeholder="Urutkan" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="newest">Terbaru</SelectItem>
-                            <SelectItem value="oldest">Terlama</SelectItem>
-                            <SelectItem value="doc_asc">No. SPPD (A-Z)</SelectItem>
-                            <SelectItem value="doc_desc">No. SPPD (Z-A)</SelectItem>
-                        </SelectContent>
-                    </Select>
-
-                    <div class="flex items-center space-x-0 w-full sm:w-auto">
+        <!-- Filter Section -->
+        <Card class="mb-6 border-border/80 shadow-sm p-4 sm:p-5">
+            <div class="flex flex-col gap-4">
+                <!-- Baris 1: Pencarian Cepat, Status, Urutan, dan Tombol Reset -->
+                <div class="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+                    <div class="flex items-center space-x-0 flex-1">
                         <Select v-model="searchBy">
                             <SelectTrigger class="w-[140px] rounded-r-none border-r-0 bg-muted/50 focus:ring-0 focus:ring-offset-0">
                                 <SelectValue placeholder="Pencarian" />
@@ -185,46 +245,130 @@ const getStatusLabel = (status) => {
                                 <SelectItem value="spd_number">No. SPD</SelectItem>
                             </SelectContent>
                         </Select>
-                        <div class="relative w-full sm:w-64">
+                        <div class="relative w-full">
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
                                 <Search class="w-4 h-4" />
                             </div>
                             <Input 
                                 v-model="search" 
                                 type="text" 
-                                placeholder="Ketik kata kunci..." 
-                                class="pl-9 w-full rounded-l-none bg-background focus-visible:z-10"
+                                placeholder="Ketik kata kunci pencarian..." 
+                                class="pl-9 w-full rounded-l-none bg-background focus-visible:ring-primary shadow-sm"
                             />
                         </div>
                     </div>
+
+                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+                        <div class="w-full sm:w-40">
+                            <Select v-model="statusFilter">
+                                <SelectTrigger class="w-full shadow-sm bg-background">
+                                    <SelectValue placeholder="Semua Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Semua Status</SelectItem>
+                                    <SelectItem value="draft">Draft</SelectItem>
+                                    <SelectItem value="submitted">Diajukan</SelectItem>
+                                    <SelectItem value="authorized">Diotorisasi</SelectItem>
+                                    <SelectItem value="disbursed">Dicairkan</SelectItem>
+                                    <SelectItem value="rejected">Ditolak</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div class="w-full sm:w-44">
+                            <Select v-model="sortFilter">
+                                <SelectTrigger class="w-full shadow-sm bg-background">
+                                    <SelectValue placeholder="Urutkan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="doc_desc">No. SPPD (Z-A)</SelectItem>
+                                    <SelectItem value="doc_asc">No. SPPD (A-Z)</SelectItem>
+                                    <SelectItem value="date_desc">Tanggal Terbaru</SelectItem>
+                                    <SelectItem value="date_asc">Tanggal Terlama</SelectItem>
+                                    <SelectItem value="newest">Input Terbaru</SelectItem>
+                                    <SelectItem value="oldest">Input Terlama</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <Button
+                            v-if="hasActiveFilters"
+                            variant="ghost"
+                            size="default"
+                            @click="resetFilters"
+                            class="text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors h-9 px-3 shrink-0"
+                            title="Reset semua filter ke kondisi awal"
+                        >
+                            <RotateCcw class="size-3.5 mr-1.5" />
+                            Reset
+                        </Button>
+                    </div>
+                </div>
+
+                <!-- Baris 2: Filter Rentang Tanggal -->
+                <div class="pt-3 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <!-- Tanggal Mulai -->
+                    <div class="grid gap-1.5">
+                        <Label for="start_date" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                            <Calendar class="size-3.5 text-primary" />
+                            Tanggal Mulai
+                        </Label>
+                        <Input
+                            id="start_date"
+                            type="date"
+                            v-model="startDate"
+                            :max="endDate || undefined"
+                            class="bg-background shadow-sm focus-visible:ring-primary"
+                        />
+                    </div>
+
+                    <!-- Tanggal Selesai -->
+                    <div class="grid gap-1.5">
+                        <Label for="end_date" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                            <Calendar class="size-3.5 text-primary" />
+                            Tanggal Selesai
+                        </Label>
+                        <Input
+                            id="end_date"
+                            type="date"
+                            v-model="endDate"
+                            :min="startDate || undefined"
+                            class="bg-background shadow-sm focus-visible:ring-primary"
+                        />
+                    </div>
                 </div>
             </div>
+        </Card>
 
+        <!-- Tabel SPPD -->
+        <Card class="p-0 overflow-hidden border-border/80 shadow-sm">
             <div class="overflow-x-auto">
                 <Table>
-                    <TableHeader>
+                    <TableHeader class="bg-muted/50">
                         <TableRow class="hover:bg-transparent">
-                            <TableHead>No. SPPD / Tanggal</TableHead>
-                            <TableHead>Uraian Pembayaran</TableHead>
-                            <TableHead>Jenis / Penerima</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead class="text-right">Aksi</TableHead>
+                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">No. SPPD / Tanggal</TableHead>
+                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Uraian Pembayaran</TableHead>
+                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Penerima / Nominal</TableHead>
+                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                            <TableHead class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-for="item in expenditures.data" :key="item.id">
                             <TableCell>
-                                <div class="font-semibold text-sm text-secondary font-mono">{{ item.document_number }}</div>
+                                <div class="font-semibold text-sm text-secondary dark:text-foreground font-mono">{{ item.document_number }}</div>
                                 <div class="text-xs text-muted-foreground">{{ format(new Date(item.date), 'dd MMM yyyy', { locale: id }) }}</div>
                             </TableCell>
                             <TableCell>
                                 <div class="text-sm max-w-xs truncate" :title="item.description">{{ item.description }}</div>
                             </TableCell>
                             <TableCell>
-                                <div class="flex flex-col items-start gap-1">
-                                    <Badge variant="outline" class="text-[10px] font-mono">{{ item.type }}</Badge>
-                                    <span class="text-xs text-muted-foreground line-clamp-2" :title="item.payment_method === 'rekanan' && item.vendor ? item.vendor.name : (item.payment_method === 'pegawai' ? 'Pegawai Internal' : item.payment_method)">
-                                        {{ item.payment_method === 'rekanan' && item.vendor ? item.vendor.name : (item.payment_method === 'pegawai' ? 'Pegawai Internal' : item.payment_method) }}
+                                <div class="flex flex-col items-start gap-0.5">
+                                    <span class="font-medium text-sm text-foreground line-clamp-1" :title="getRecipientName(item)">
+                                        {{ getRecipientName(item) }}
+                                    </span>
+                                    <span class="font-semibold text-xs text-emerald-600 dark:text-emerald-400 font-mono">
+                                        {{ formatCurrency(item.total_amount || item.details_sum_amount) }}
                                     </span>
                                 </div>
                             </TableCell>
@@ -251,25 +395,27 @@ const getStatusLabel = (status) => {
             </div>
             
             <!-- Pagination -->
-            <div class="p-4 border-t border-border/80 bg-muted/20 flex items-center justify-between" v-if="expenditures.data.length > 0">
+            <div class="p-4 border-t border-border/80 bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-4" v-if="expenditures.data.length > 0">
                 <span class="text-xs text-muted-foreground">
                     Menampilkan {{ expenditures.from }} - {{ expenditures.to }} dari {{ expenditures.total }} data
                 </span>
-                <div class="flex space-x-1">
+                <div class="flex items-center gap-1">
                     <Link 
                         v-for="(link, index) in expenditures.links" 
                         :key="index"
                         :href="link.url || '#'"
-                        class="px-3 py-1 text-xs border rounded-md"
+                        class="px-3 py-1.5 text-xs rounded-lg border transition-colors"
                         :class="[
-                            link.active ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-muted',
-                            !link.url ? 'opacity-50 cursor-not-allowed' : ''
+                            link.active ? 'bg-primary text-primary-foreground border-primary font-medium shadow-sm' : 'bg-card text-foreground border-border/80 hover:bg-muted',
+                            !link.url ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''
                         ]"
                         v-html="link.label"
                     ></Link>
                 </div>
             </div>
-        </div>
+        </Card>
+
+        <!-- Modal Import Excel -->
         <Dialog :open="isImportModalOpen" @update:open="isImportModalOpen = $event">
             <DialogContent class="sm:max-w-[425px]">
                 <DialogHeader>
