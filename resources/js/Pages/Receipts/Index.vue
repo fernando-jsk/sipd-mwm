@@ -4,8 +4,8 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
-import { Search, ArrowUpDown, Calendar, Tag, Layers, RotateCcw } from '@lucide/vue';
-import { Card } from '@/Components/ui/card';
+import { Search, ArrowUpDown, Calendar, Tag, Layers, RotateCcw, Coins } from '@lucide/vue';
+import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import {
   Table,
   TableBody,
@@ -39,6 +39,10 @@ const props = defineProps({
     receiptTypes: {
         type: Array,
         default: () => []
+    },
+    totalAmount: {
+        type: Number,
+        default: 0
     },
     filters: {
         type: Object,
@@ -231,6 +235,32 @@ const handleFileChange = (e) => {
         </div>
         <div v-if="$page.props.flash?.error" class="mb-4 bg-red-500/10 border border-red-500/20 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
             <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.error }}</span>
+        </div>
+
+        <!-- Ringkasan Nominal Sesuai Filter -->
+        <div class="flex items-center">
+            <Card size="sm" class="border-border/80 shadow-sm bg-card w-full sm:w-80">
+                <CardHeader class="flex flex-row items-center justify-between space-y-0">
+                    <CardTitle class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Total Nominal Penerimaan
+                    </CardTitle>
+                    <div class="size-8 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                        <Coins class="size-4" />
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div class="text-2xl font-bold tracking-tight text-secondary dark:text-foreground">
+                        {{ formatCurrency(totalAmount) }}
+                    </div>
+                    <p class="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                            {{ receipts.total }} Data
+                        </span>
+                        <span v-if="hasActiveFilters">sesuai filter aktif</span>
+                        <span v-else>total keseluruhan</span>
+                    </p>
+                </CardContent>
+            </Card>
         </div>
 
         <!-- Filter Section -->
