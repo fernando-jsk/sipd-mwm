@@ -1,230 +1,60 @@
 <script setup>
-import { Link, usePage, router } from '@inertiajs/vue3';
-import { LogOut, Calendar } from '@lucide/vue';
-import { ref, computed, onMounted } from 'vue';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/Components/ui/select';
+import SidebarContent from '@/Components/SidebarContent.vue';
+import { useSidebar } from '@/Composables/useSidebar';
 
-const page = usePage();
-const activeYear = ref(page.props.active_budget_year || new Date().getFullYear().toString());
-
-// Helper: cek apakah user memiliki permission tertentu
-const can = (permission) => {
-    if (page.props.auth?.roles?.includes('super-admin')) return true;
-    return page.props.auth?.permissions?.includes(permission) ?? false;
-};
-
-// Computed: visibilitas per section
-const showUserManagement = computed(() =>
-    can('manage users') || can('manage roles') || can('view activity logs') || can('manage settings')
-);
-const showMasterData = computed(() => can('view master data') || can('manage master data'));
-const showPerencanaan = computed(() => can('view rba') || can('manage rba'));
-
-const changeYear = (year) => {
-    router.post('/settings/budget-year', {
-        year: year
-    }, {
-        preserveScroll: true,
-        onSuccess: () => {
-            activeYear.value = year;
-        }
-    });
-};
-
-const navRef = ref(null);
-
-const handleScroll = (e) => {
-    sessionStorage.setItem('sidebar-scroll', e.target.scrollTop);
-};
-
-onMounted(() => {
-    if (navRef.value) {
-        const savedScroll = sessionStorage.getItem('sidebar-scroll');
-        if (savedScroll) {
-            navRef.value.scrollTop = parseInt(savedScroll, 10);
-            
-            // Double check inside requestAnimationFrame/timeout to ensure layout has settled
-            requestAnimationFrame(() => {
-                if (navRef.value) {
-                    navRef.value.scrollTop = parseInt(savedScroll, 10);
-                }
-            });
-        }
-    }
-});
+const { isCollapsed, isMobileOpen, closeMobile } = useSidebar();
 </script>
 
 <template>
-    <aside class="w-64 bg-card border-r border-border/80 hidden md:flex flex-col h-full shadow-sm">
-        <!-- App Title -->
-        <div class="h-16 flex items-center px-6 border-b border-border/80 gap-3">
-            <img src="/images/logo-mwm.png" alt="Logo MWM" class="h-8 w-auto shrink-0" />
-            <span class="text-xl font-bold tracking-tight text-secondary dark:text-foreground">SIPD MWM</span>
-        </div>
-
-        <!-- Navigation -->
-        <nav ref="navRef" class="flex-1 overflow-y-auto p-4 space-y-1" @scroll="handleScroll">
-            <Link href="/dashboard" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors">
-                Dashboard
-            </Link>
-
-            <!-- Master Data -->
-            <template v-if="showMasterData">
-                <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                    Master Data
-                </div>
-                <Link href="/account-codes" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/account-codes') }">
-                    Kode Rekening
-                </Link>
-                <Link href="/vendors" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/vendors') }">
-                    Data Rekanan
-                </Link>
-            </template>
-
-            <!-- Perencanaan -->
-            <template v-if="showPerencanaan">
-                <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                    Perencanaan
-                </div>
-                <Link href="/rba/pendapatan" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/rba/pendapatan') }">
-                    RBA Pendapatan
-                </Link>
-                <Link href="/rba/belanja" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/rba/belanja') }">
-                    RBA Belanja
-                </Link>
-            </template>
-
-            <!-- Bendahara Penerimaan -->
-            <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                Penerimaan
-            </div>
-            <Link href="/receipts" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/receipts') }">
-                1. Rekap Penerimaan Harian
-            </Link>
-
-            <!-- Bendahara -->
-            <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                Pengeluaran
-            </div>
-            <Link v-if="can('manage sppd')" href="/expenditures/sppd" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/expenditures/sppd') || $page.url === '/expenditures' }">
-                1. Pengajuan SPPD
-            </Link>
-            <Link v-if="can('authorize opd')" href="/expenditures/opd" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/expenditures/opd') }">
-                2. Otorisasi Direktur
-            </Link>
-            <Link v-if="can('disburse spd')" href="/expenditures/spd" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/expenditures/spd') }">
-                3. Verifikasi Pencairan Dana
-            </Link>
-
-            <!-- Akuntansi -->
-            <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                Akuntansi
-            </div>
-            <Link href="/journals" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/journals') }">
-                Jurnal Umum
-            </Link>
-            <Link href="/adjustments" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/adjustments') }">
-                Jurnal Penyesuaian
-            </Link>
-            <Link href="/reports/ledger" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/ledger') }">
-                Buku Besar (Ledger)
-            </Link>
-            <Link href="/reports/trial-balance" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/trial-balance') }">
-                Neraca Saldo
-            </Link>
-            <Link href="/reports/opening-balance" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/opening-balance') }">
-                Saldo Awal
-            </Link>
-            <Link href="/reports/closing-entry" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/closing-entry') }">
-                Tutup Buku
-            </Link>
-            
-            <!-- Laporan -->
-            <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                Laporan
-            </div>
-            
-            <Link href="/reports/lra" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lra') }">
-                Laporan Realisasi Anggaran
-            </Link>
-            <Link href="/reports/lo" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lo') }">
-                Laporan Operasional
-            </Link>
-            <Link href="/reports/lak" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lak') }">
-                Laporan Arus Kas
-            </Link>
-            <Link href="/reports/balance-sheet" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/balance-sheet') }">
-                Laporan Neraca
-            </Link>
-            <Link href="/reports/lpe" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lpe') }">
-                Laporan Perubahan Ekuitas
-            </Link>
-            <Link href="/reports/lpsal" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/reports/lpsal') }">
-                Laporan Perubahan SAL
-            </Link>
-
-            <!-- Pengaturan (hanya super-admin) -->
-            <template v-if="showUserManagement">
-                <div class="pt-4 pb-2 px-3 text-xs font-semibold text-primary uppercase tracking-wider">
-                    Pengaturan
-                </div>
-                <Link v-if="can('manage users')" href="/users" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/users') }">
-                    Manajemen User
-                </Link>
-                <Link v-if="can('manage roles')" href="/roles" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/roles') }">
-                    Manajemen Role
-                </Link>
-                <Link v-if="can('manage settings')" href="/settings" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/settings') }">
-                    Pengaturan Sistem
-                </Link>
-                <Link v-if="can('view activity logs')" href="/activity-logs" class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" :class="{ 'bg-muted text-foreground': $page.url.startsWith('/activity-logs') }">
-                    Log Aktivitas
-                </Link>
-            </template>
-        </nav>
-
-        <!-- Budget Year Selector -->
-        <div class="px-4 py-3 border-t border-border/80 bg-background/50">
-            <div class="flex items-center gap-1.5 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                <Calendar class="w-3.5 h-3.5" />
-                <span>Tahun Anggaran</span>
-            </div>
-            <Select v-model="activeYear" @update:modelValue="changeYear">
-                <SelectTrigger class="w-full h-8 text-xs font-medium">
-                    <SelectValue placeholder="Pilih Tahun" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectGroup>
-                        <SelectItem value="2025">Tahun 2025</SelectItem>
-                        <SelectItem value="2026">Tahun 2026</SelectItem>
-                        <SelectItem value="2027">Tahun 2027</SelectItem>
-                    </SelectGroup>
-                </SelectContent>
-            </Select>
-        </div>
-
-        <!-- User Info & Logout (Footer) -->
-        <div class="p-4 border-t border-border/80 bg-muted/20 mt-auto">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="size-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                    {{ $page.props.auth?.user?.name ? $page.props.auth.user.name.charAt(0).toUpperCase() : 'U' }}
-                </div>
-                <div class="overflow-hidden">
-                    <p class="text-sm font-medium text-secondary dark:text-foreground truncate">{{ $page.props.auth?.user?.name || 'Administrator' }}</p>
-                    <p class="text-[11px] text-muted-foreground truncate">{{ $page.props.auth?.user?.username || 'admin' }}</p>
-                </div>
-            </div>
-            <Link href="/logout" method="post" as="button" class="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors">
-                <LogOut class="size-4" />
-                Log Out
-            </Link>
+    <!-- Desktop Collapsible Sidebar -->
+    <aside
+        class="bg-card border-r border-border/80 hidden md:flex flex-col h-full shadow-sm shrink-0 transition-all duration-300 ease-in-out relative overflow-hidden select-none"
+        :class="isCollapsed ? 'w-0 border-r-0 opacity-0 pointer-events-none' : 'w-64 opacity-100'"
+        aria-label="Sidebar Navigasi"
+    >
+        <!-- Fixed width inner container to ensure content slides smoothly without jittering/squishing -->
+        <div class="w-64 h-full flex flex-col overflow-hidden">
+            <SidebarContent />
         </div>
     </aside>
+
+    <!-- Mobile Drawer (Slide-over with Backdrop) -->
+    <Teleport to="body">
+        <!-- Backdrop Overlay -->
+        <Transition
+            enter-active-class="transition-opacity duration-300 ease-out"
+            enter-from-class="opacity-0"
+            enter-to-class="opacity-100"
+            leave-active-class="transition-opacity duration-200 ease-in"
+            leave-from-class="opacity-100"
+            leave-to-class="opacity-0"
+        >
+            <div
+                v-if="isMobileOpen"
+                class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 md:hidden"
+                @click="closeMobile"
+                aria-hidden="true"
+            />
+        </Transition>
+
+        <!-- Slide-over Panel -->
+        <Transition
+            enter-active-class="transition-transform duration-300 ease-out"
+            enter-from-class="-translate-x-full"
+            enter-to-class="translate-x-0"
+            leave-active-class="transition-transform duration-200 ease-in"
+            leave-from-class="translate-x-0"
+            leave-to-class="-translate-x-full"
+        >
+            <div
+                v-if="isMobileOpen"
+                class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-card border-r border-border/80 flex flex-col shadow-2xl md:hidden overflow-hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Menu Navigasi Mobile"
+            >
+                <SidebarContent :is-mobile="true" @close="closeMobile" />
+            </div>
+        </Transition>
+    </Teleport>
 </template>
