@@ -16,9 +16,9 @@ import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Input } from '@/Components/ui/input';
-import { Trash2, AlertTriangle, UploadCloud, PlusCircle, Pencil } from 'lucide-vue-next';
+import { Trash2, AlertTriangle, UploadCloud, PlusCircle, Pencil, Calendar, Loader2 } from 'lucide-vue-next';
 import { router, usePage } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
     settings: Object,
@@ -176,16 +176,72 @@ const executeDeleteFs = () => {
     });
 };
 
+const formatDateDisplay = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
+};
+
+const getFilterDescription = (startDate, endDate) => {
+    if (startDate && endDate) {
+        return `periode ${formatDateDisplay(startDate)} s/d ${formatDateDisplay(endDate)}`;
+    } else if (startDate) {
+        return `mulai tanggal ${formatDateDisplay(startDate)}`;
+    } else if (endDate) {
+        return `sampai dengan tanggal ${formatDateDisplay(endDate)}`;
+    }
+    return 'seluruh data tanpa batasan tanggal';
+};
+
 const isClearExpendituresDialogOpen = ref(false);
 const clearExpendituresForm = useForm({
-    password: ''
+    password: '',
+    start_date: '',
+    end_date: '',
 });
+const expendituresPreview = ref({ count: 0, total: 0, loading: false });
+
+let expenditureFetchTimeout = null;
+const fetchExpendituresPreview = () => {
+    clearTimeout(expenditureFetchTimeout);
+    expendituresPreview.value.loading = true;
+    expenditureFetchTimeout = setTimeout(async () => {
+        try {
+            const params = new URLSearchParams({
+                type: 'expenditure',
+                start_date: clearExpendituresForm.start_date || '',
+                end_date: clearExpendituresForm.end_date || '',
+            });
+            const res = await fetch(`/settings/clear-preview?${params.toString()}`);
+            if (res.ok) {
+                const data = await res.json();
+                expendituresPreview.value = { ...data, loading: false };
+            } else {
+                expendituresPreview.value.loading = false;
+            }
+        } catch (e) {
+            expendituresPreview.value.loading = false;
+        }
+    }, 200);
+};
 
 const openClearExpendituresDialog = () => {
     clearExpendituresForm.password = '';
+    clearExpendituresForm.start_date = '';
+    clearExpendituresForm.end_date = '';
     clearExpendituresForm.clearErrors();
     isClearExpendituresDialogOpen.value = true;
+    fetchExpendituresPreview();
 };
+
+watch(
+    () => [clearExpendituresForm.start_date, clearExpendituresForm.end_date],
+    () => {
+        if (isClearExpendituresDialogOpen.value) {
+            fetchExpendituresPreview();
+        }
+    }
+);
 
 const executeClearExpenditures = () => {
     clearExpendituresForm.delete('/settings/clear-expenditures', {
@@ -199,14 +255,53 @@ const executeClearExpenditures = () => {
 
 const isClearReceiptsDialogOpen = ref(false);
 const clearReceiptsForm = useForm({
-    password: ''
+    password: '',
+    start_date: '',
+    end_date: '',
 });
+const receiptsPreview = ref({ count: 0, total: 0, loading: false });
+
+let receiptFetchTimeout = null;
+const fetchReceiptsPreview = () => {
+    clearTimeout(receiptFetchTimeout);
+    receiptsPreview.value.loading = true;
+    receiptFetchTimeout = setTimeout(async () => {
+        try {
+            const params = new URLSearchParams({
+                type: 'receipt',
+                start_date: clearReceiptsForm.start_date || '',
+                end_date: clearReceiptsForm.end_date || '',
+            });
+            const res = await fetch(`/settings/clear-preview?${params.toString()}`);
+            if (res.ok) {
+                const data = await res.json();
+                receiptsPreview.value = { ...data, loading: false };
+            } else {
+                receiptsPreview.value.loading = false;
+            }
+        } catch (e) {
+            receiptsPreview.value.loading = false;
+        }
+    }, 200);
+};
 
 const openClearReceiptsDialog = () => {
     clearReceiptsForm.password = '';
+    clearReceiptsForm.start_date = '';
+    clearReceiptsForm.end_date = '';
     clearReceiptsForm.clearErrors();
     isClearReceiptsDialogOpen.value = true;
+    fetchReceiptsPreview();
 };
+
+watch(
+    () => [clearReceiptsForm.start_date, clearReceiptsForm.end_date],
+    () => {
+        if (isClearReceiptsDialogOpen.value) {
+            fetchReceiptsPreview();
+        }
+    }
+);
 
 const executeClearReceipts = () => {
     clearReceiptsForm.delete('/settings/clear-receipts', {
@@ -478,8 +573,8 @@ const executeClearReceipts = () => {
                 <CardContent class="p-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
-                            <h4 class="font-semibold text-sm">Bersihkan Seluruh Data Pengeluaran</h4>
-                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus semua data SPPD, Rincian, Pajak, OPD, dan SPD secara permanen. Master data seperti vendor dan pegawai akan tetap dipertahankan.</p>
+                            <h4 class="font-semibold text-sm">Bersihkan Data Pengeluaran</h4>
+                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus data SPPD, Rincian, Pajak, OPD, dan SPD secara permanen berdasarkan rentang tanggal atau seluruhnya. Master data seperti vendor dan pegawai akan tetap dipertahankan.</p>
                         </div>
                         <Button variant="destructive" @click="openClearExpendituresDialog">
                             Bersihkan Data
@@ -488,8 +583,8 @@ const executeClearReceipts = () => {
                     <div class="border-t border-destructive/10 my-4"></div>
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div>
-                            <h4 class="font-semibold text-sm">Bersihkan Seluruh Data Penerimaan</h4>
-                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus semua data Tanda Bukti Penerimaan (TBP/STS) beserta rinciannya secara permanen.</p>
+                            <h4 class="font-semibold text-sm">Bersihkan Data Penerimaan</h4>
+                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus data Tanda Bukti Penerimaan (TBP/STS) beserta rinciannya secara permanen berdasarkan rentang tanggal atau seluruhnya.</p>
                         </div>
                         <Button variant="destructive" @click="openClearReceiptsDialog">
                             Bersihkan Data
@@ -573,27 +668,112 @@ const executeClearReceipts = () => {
 
             <!-- Dialog Konfirmasi Hapus Pengeluaran -->
             <Dialog v-model:open="isClearExpendituresDialogOpen">
-                <DialogContent class="sm:max-w-[425px]">
+                <DialogContent class="sm:max-w-[480px]">
                     <DialogHeader>
                         <DialogTitle class="text-destructive flex items-center gap-2">
-                            <AlertTriangle class="w-5 h-5" />
-                            Konfirmasi Keamanan
+                            <AlertTriangle class="w-5 h-5 shrink-0" />
+                            Bersihkan Data Pengeluaran
                         </DialogTitle>
-                        <DialogDescription class="mt-2 text-destructive font-medium">
-                            Anda akan menghapus seluruh data transaksi pengeluaran.
+                        <DialogDescription class="mt-1.5 text-xs text-muted-foreground">
+                            Pilih rentang tanggal transaksi yang ingin dihapus atau kosongkan untuk menghapus seluruhnya.
                         </DialogDescription>
                     </DialogHeader>
                     
-                    <form @submit.prevent="executeClearExpenditures" class="space-y-4 py-4">
-                        <div class="space-y-3">
-                            <Label for="confirmPassword">Untuk melanjutkan, silakan masukkan password akun Anda:</Label>
-                            <Input id="confirmPassword" type="password" v-model="clearExpendituresForm.password" autocomplete="current-password" required />
-                            <p v-if="clearExpendituresForm.errors.password" class="text-sm text-destructive">{{ clearExpendituresForm.errors.password }}</p>
+                    <form @submit.prevent="executeClearExpenditures" class="space-y-4 py-3">
+                        <!-- Filter Rentang Tanggal -->
+                        <div class="p-3.5 rounded-lg border border-border/80 bg-muted/30 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <Label class="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                    <Calendar class="w-3.5 h-3.5 text-destructive" />
+                                    Filter Tanggal (Opsional)
+                                </Label>
+                                <button
+                                    v-if="clearExpendituresForm.start_date || clearExpendituresForm.end_date"
+                                    type="button"
+                                    @click="clearExpendituresForm.start_date = ''; clearExpendituresForm.end_date = ''"
+                                    class="text-[11px] text-muted-foreground hover:text-destructive transition-colors underline cursor-pointer"
+                                >
+                                    Reset Tanggal
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="grid gap-1.5">
+                                    <Label for="expenditure_start_date" class="text-xs text-muted-foreground">Tanggal Awal</Label>
+                                    <Input
+                                        id="expenditure_start_date"
+                                        type="date"
+                                        v-model="clearExpendituresForm.start_date"
+                                        :max="clearExpendituresForm.end_date || undefined"
+                                        class="bg-background focus-visible:ring-destructive"
+                                    />
+                                    <p v-if="clearExpendituresForm.errors.start_date" class="text-[11px] text-destructive">
+                                        {{ clearExpendituresForm.errors.start_date }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-1.5">
+                                    <Label for="expenditure_end_date" class="text-xs text-muted-foreground">Tanggal Akhir</Label>
+                                    <Input
+                                        id="expenditure_end_date"
+                                        type="date"
+                                        v-model="clearExpendituresForm.end_date"
+                                        :min="clearExpendituresForm.start_date || undefined"
+                                        class="bg-background focus-visible:ring-destructive"
+                                    />
+                                    <p v-if="clearExpendituresForm.errors.end_date" class="text-[11px] text-destructive">
+                                        {{ clearExpendituresForm.errors.end_date }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Preview Info / Summary -->
+                            <div class="pt-1 text-xs">
+                                <div v-if="expendituresPreview.loading" class="flex items-center gap-2 text-muted-foreground py-1">
+                                    <Loader2 class="w-3.5 h-3.5 animate-spin" />
+                                    <span>Menghitung jumlah data...</span>
+                                </div>
+                                <div v-else-if="clearExpendituresForm.start_date || clearExpendituresForm.end_date" class="space-y-1">
+                                    <div v-if="expendituresPreview.count > 0" class="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300">
+                                        Ditemukan <strong>{{ expendituresPreview.count }} transaksi</strong> pada {{ getFilterDescription(clearExpendituresForm.start_date, clearExpendituresForm.end_date) }} yang akan dihapus permanen.
+                                    </div>
+                                    <div v-else class="p-2.5 rounded-md bg-muted text-muted-foreground border border-border">
+                                        Tidak ditemukan transaksi pengeluaran pada rentang tanggal tersebut.
+                                    </div>
+                                </div>
+                                <div v-else class="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive font-medium">
+                                    Perhatian: Anda akan menghapus <strong>SELURUH {{ expendituresPreview.total ? `(${expendituresPreview.total} data)` : '' }}</strong> data transaksi pengeluaran secara permanen.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Konfirmasi Password -->
+                        <div class="space-y-1.5">
+                            <Label for="confirmPasswordExpenditures" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Masukkan Password Akun Anda <span class="text-destructive">*</span>
+                            </Label>
+                            <Input
+                                id="confirmPasswordExpenditures"
+                                type="password"
+                                v-model="clearExpendituresForm.password"
+                                autocomplete="current-password"
+                                placeholder="Ketik password untuk konfirmasi"
+                                required
+                                class="focus-visible:ring-destructive"
+                            />
+                            <p v-if="clearExpendituresForm.errors.password" class="text-[11px] text-destructive">
+                                {{ clearExpendituresForm.errors.password }}
+                            </p>
                         </div>
                         
                         <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
-                            <Button type="button" variant="outline" @click="isClearExpendituresDialogOpen = false">Batal</Button>
-                            <Button type="submit" variant="destructive" :disabled="clearExpendituresForm.processing || !clearExpendituresForm.password">
+                            <Button type="button" variant="outline" @click="isClearExpendituresDialogOpen = false">
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="destructive"
+                                :disabled="clearExpendituresForm.processing || !clearExpendituresForm.password || ((clearExpendituresForm.start_date || clearExpendituresForm.end_date) && expendituresPreview.count === 0 && !expendituresPreview.loading)"
+                            >
                                 {{ clearExpendituresForm.processing ? 'Menghapus...' : 'Ya, Bersihkan Data' }}
                             </Button>
                         </div>
@@ -603,27 +783,112 @@ const executeClearReceipts = () => {
 
             <!-- Dialog Konfirmasi Hapus Penerimaan -->
             <Dialog v-model:open="isClearReceiptsDialogOpen">
-                <DialogContent class="sm:max-w-[425px]">
+                <DialogContent class="sm:max-w-[480px]">
                     <DialogHeader>
                         <DialogTitle class="text-destructive flex items-center gap-2">
-                            <AlertTriangle class="w-5 h-5" />
-                            Konfirmasi Keamanan
+                            <AlertTriangle class="w-5 h-5 shrink-0" />
+                            Bersihkan Data Penerimaan
                         </DialogTitle>
-                        <DialogDescription class="mt-2 text-destructive font-medium">
-                            Anda akan menghapus seluruh data transaksi penerimaan (TBP/STS).
+                        <DialogDescription class="mt-1.5 text-xs text-muted-foreground">
+                            Pilih rentang tanggal transaksi yang ingin dihapus atau kosongkan untuk menghapus seluruhnya.
                         </DialogDescription>
                     </DialogHeader>
                     
-                    <form @submit.prevent="executeClearReceipts" class="space-y-4 py-4">
-                        <div class="space-y-3">
-                            <Label for="confirmPasswordReceipts">Untuk melanjutkan, silakan masukkan password akun Anda:</Label>
-                            <Input id="confirmPasswordReceipts" type="password" v-model="clearReceiptsForm.password" autocomplete="current-password" required />
-                            <p v-if="clearReceiptsForm.errors.password" class="text-sm text-destructive">{{ clearReceiptsForm.errors.password }}</p>
+                    <form @submit.prevent="executeClearReceipts" class="space-y-4 py-3">
+                        <!-- Filter Rentang Tanggal -->
+                        <div class="p-3.5 rounded-lg border border-border/80 bg-muted/30 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <Label class="text-xs font-semibold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                    <Calendar class="w-3.5 h-3.5 text-destructive" />
+                                    Filter Tanggal (Opsional)
+                                </Label>
+                                <button
+                                    v-if="clearReceiptsForm.start_date || clearReceiptsForm.end_date"
+                                    type="button"
+                                    @click="clearReceiptsForm.start_date = ''; clearReceiptsForm.end_date = ''"
+                                    class="text-[11px] text-muted-foreground hover:text-destructive transition-colors underline cursor-pointer"
+                                >
+                                    Reset Tanggal
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div class="grid gap-1.5">
+                                    <Label for="receipt_start_date" class="text-xs text-muted-foreground">Tanggal Awal</Label>
+                                    <Input
+                                        id="receipt_start_date"
+                                        type="date"
+                                        v-model="clearReceiptsForm.start_date"
+                                        :max="clearReceiptsForm.end_date || undefined"
+                                        class="bg-background focus-visible:ring-destructive"
+                                    />
+                                    <p v-if="clearReceiptsForm.errors.start_date" class="text-[11px] text-destructive">
+                                        {{ clearReceiptsForm.errors.start_date }}
+                                    </p>
+                                </div>
+                                <div class="grid gap-1.5">
+                                    <Label for="receipt_end_date" class="text-xs text-muted-foreground">Tanggal Akhir</Label>
+                                    <Input
+                                        id="receipt_end_date"
+                                        type="date"
+                                        v-model="clearReceiptsForm.end_date"
+                                        :min="clearReceiptsForm.start_date || undefined"
+                                        class="bg-background focus-visible:ring-destructive"
+                                    />
+                                    <p v-if="clearReceiptsForm.errors.end_date" class="text-[11px] text-destructive">
+                                        {{ clearReceiptsForm.errors.end_date }}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Preview Info / Summary -->
+                            <div class="pt-1 text-xs">
+                                <div v-if="receiptsPreview.loading" class="flex items-center gap-2 text-muted-foreground py-1">
+                                    <Loader2 class="w-3.5 h-3.5 animate-spin" />
+                                    <span>Menghitung jumlah data...</span>
+                                </div>
+                                <div v-else-if="clearReceiptsForm.start_date || clearReceiptsForm.end_date" class="space-y-1">
+                                    <div v-if="receiptsPreview.count > 0" class="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300">
+                                        Ditemukan <strong>{{ receiptsPreview.count }} transaksi</strong> pada {{ getFilterDescription(clearReceiptsForm.start_date, clearReceiptsForm.end_date) }} yang akan dihapus permanen.
+                                    </div>
+                                    <div v-else class="p-2.5 rounded-md bg-muted text-muted-foreground border border-border">
+                                        Tidak ditemukan transaksi penerimaan pada rentang tanggal tersebut.
+                                    </div>
+                                </div>
+                                <div v-else class="p-2.5 rounded-md bg-destructive/10 border border-destructive/20 text-destructive font-medium">
+                                    Perhatian: Anda akan menghapus <strong>SELURUH {{ receiptsPreview.total ? `(${receiptsPreview.total} data)` : '' }}</strong> data transaksi penerimaan secara permanen.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Konfirmasi Password -->
+                        <div class="space-y-1.5">
+                            <Label for="confirmPasswordReceipts" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                Masukkan Password Akun Anda <span class="text-destructive">*</span>
+                            </Label>
+                            <Input
+                                id="confirmPasswordReceipts"
+                                type="password"
+                                v-model="clearReceiptsForm.password"
+                                autocomplete="current-password"
+                                placeholder="Ketik password untuk konfirmasi"
+                                required
+                                class="focus-visible:ring-destructive"
+                            />
+                            <p v-if="clearReceiptsForm.errors.password" class="text-[11px] text-destructive">
+                                {{ clearReceiptsForm.errors.password }}
+                            </p>
                         </div>
                         
                         <div class="flex justify-end gap-3 mt-6 pt-4 border-t">
-                            <Button type="button" variant="outline" @click="isClearReceiptsDialogOpen = false">Batal</Button>
-                            <Button type="submit" variant="destructive" :disabled="clearReceiptsForm.processing || !clearReceiptsForm.password">
+                            <Button type="button" variant="outline" @click="isClearReceiptsDialogOpen = false">
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant="destructive"
+                                :disabled="clearReceiptsForm.processing || !clearReceiptsForm.password || ((clearReceiptsForm.start_date || clearReceiptsForm.end_date) && receiptsPreview.count === 0 && !receiptsPreview.loading)"
+                            >
                                 {{ clearReceiptsForm.processing ? 'Menghapus...' : 'Ya, Bersihkan Data' }}
                             </Button>
                         </div>

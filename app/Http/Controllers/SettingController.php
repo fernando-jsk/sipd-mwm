@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 use Inertia\Inertia;
 
 class SettingController extends Controller
@@ -227,10 +228,45 @@ class SettingController extends Controller
         return redirect()->back()->with('message', 'Sumber Dana berhasil dihapus.');
     }
 
+    public function clearPreview(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:expenditure,receipt',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date',
+        ]);
+
+        $query = $request->type === 'expenditure'
+            ? Expenditure::query()
+            : Receipt::query();
+
+        if ($request->filled('start_date')) {
+            $query->whereDate('date', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('date', '<=', $request->end_date);
+        }
+
+        $count = $query->count();
+        $total = $request->type === 'expenditure'
+            ? Expenditure::count()
+            : Receipt::count();
+
+        return response()->json([
+            'count' => $count,
+            'total' => $total,
+            'is_filtered' => $request->filled('start_date') || $request->filled('end_date'),
+        ]);
+    }
+
     public function clearExpenditures(Request $request)
     {
         $request->validate([
             'password' => 'required|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ], [
+            'end_date.after_or_equal' => 'Tanggal akhir harus sama dengan atau setelah tanggal awal.',
         ]);
 
         if (!Hash::check($request->password, auth()->user()->password)) {
@@ -240,23 +276,80 @@ class SettingController extends Controller
         try {
             DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-            // Hapus jurnal terkait pengeluaran beserta rinciannya
-            JournalDetail::whereIn('journal_id', function ($query) {
-                $query->select('id')
-                    ->from('journals')
-                    ->where('journalable_type', Expenditure::class);
-            })->delete();
+            $query = Expenditure::query();
+            $isFiltered = false;
 
-            Journal::where('journalable_type', Expenditure::class)->delete();
+            if ($request->filled('start_date')) {
+                $query->whereDate('date', '>=', $request->start_date);
+                $isFiltered = true;
+            }
+            if ($request->filled('end_date')) {
+                $query->whereDate('date', '<=', $request->end_date);
+                $isFiltered = true;
+            }
 
-            Expenditure::truncate();
-            ExpenditureDetail::truncate();
-            ExpenditureTax::truncate();
+            if ($isFiltered) {
+                $expenditures = $query->get(['id', 'attachment_path']);
+                $count = $expenditures->count();
 
-            activity('setting')
-                ->log("Menghapus permanen seluruh data pengeluaran (SPPD, OPD, SPD) beserta rincian dan jurnal terkait");
+                if ($count === 0) {
+                    return redirect()->back()->with('message', 'Tidak ada data transaksi pengeluaran pada rentang tanggal yang dipilih.');
+                }
 
-            return redirect()->back()->with('message', 'Seluruh data pengeluaran dan jurnal terkait berhasil dibersihkan.');
+                $expenditureIds = $expenditures->pluck('id')->toArray();
+
+                // Hapus file lampiran jika ada
+                $attachmentPaths = $expenditures->whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
+                if (!empty($attachmentPaths)) {
+                    Storage::disk('public')->delete($attachmentPaths);
+                }
+
+                // Hapus jurnal terkait pengeluaran beserta rinciannya
+                $journalIds = Journal::where('journalable_type', Expenditure::class)
+                    ->whereIn('journalable_id', $expenditureIds)
+                    ->pluck('id')
+                    ->toArray();
+
+                if (!empty($journalIds)) {
+                    JournalDetail::whereIn('journal_id', $journalIds)->delete();
+                    Journal::whereIn('id', $journalIds)->delete();
+                }
+
+                ExpenditureTax::whereIn('expenditure_id', $expenditureIds)->delete();
+                ExpenditureDetail::whereIn('expenditure_id', $expenditureIds)->delete();
+                Expenditure::whereIn('id', $expenditureIds)->delete();
+
+                $dateText = $this->formatDateRangeText($request->start_date, $request->end_date);
+
+                activity('setting')
+                    ->log("Menghapus data pengeluaran (SPPD, OPD, SPD) {$dateText} ({$count} data dihapus) beserta rincian dan jurnal terkait");
+
+                return redirect()->back()->with('message', "Sebanyak {$count} data pengeluaran {$dateText} dan jurnal terkait berhasil dibersihkan.");
+            } else {
+                // Hapus seluruh file lampiran jika ada
+                $attachmentPaths = Expenditure::whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
+                if (!empty($attachmentPaths)) {
+                    Storage::disk('public')->delete($attachmentPaths);
+                }
+
+                // Hapus jurnal terkait pengeluaran beserta rinciannya
+                JournalDetail::whereIn('journal_id', function ($query) {
+                    $query->select('id')
+                        ->from('journals')
+                        ->where('journalable_type', Expenditure::class);
+                })->delete();
+
+                Journal::where('journalable_type', Expenditure::class)->delete();
+
+                Expenditure::truncate();
+                ExpenditureDetail::truncate();
+                ExpenditureTax::truncate();
+
+                activity('setting')
+                    ->log("Menghapus permanen seluruh data pengeluaran (SPPD, OPD, SPD) beserta rincian dan jurnal terkait");
+
+                return redirect()->back()->with('message', 'Seluruh data pengeluaran dan jurnal terkait berhasil dibersihkan.');
+            }
         } catch (\Exception $e) {
             Log::error("Failed to clear expenditures: " . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
@@ -269,6 +362,10 @@ class SettingController extends Controller
     {
         $request->validate([
             'password' => 'required|string',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ], [
+            'end_date.after_or_equal' => 'Tanggal akhir harus sama dengan atau setelah tanggal awal.',
         ]);
 
         if (!Hash::check($request->password, auth()->user()->password)) {
@@ -276,35 +373,102 @@ class SettingController extends Controller
         }
 
         try {
-            // Hapus file lampiran jika ada
-            $attachmentPaths = Receipt::whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
-            if (!empty($attachmentPaths)) {
-                Storage::disk('public')->delete($attachmentPaths);
-            }
-
             DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
-            // Hapus jurnal terkait penerimaan beserta rinciannya
-            JournalDetail::whereIn('journal_id', function ($query) {
-                $query->select('id')
-                    ->from('journals')
-                    ->where('journalable_type', Receipt::class);
-            })->delete();
+            $query = Receipt::query();
+            $isFiltered = false;
 
-            Journal::where('journalable_type', Receipt::class)->delete();
+            if ($request->filled('start_date')) {
+                $query->whereDate('date', '>=', $request->start_date);
+                $isFiltered = true;
+            }
+            if ($request->filled('end_date')) {
+                $query->whereDate('date', '<=', $request->end_date);
+                $isFiltered = true;
+            }
 
-            Receipt::truncate();
-            ReceiptDetail::truncate();
+            if ($isFiltered) {
+                $receipts = $query->get(['id', 'attachment_path']);
+                $count = $receipts->count();
 
-            activity('setting')
-                ->log("Menghapus permanen seluruh data penerimaan (TBP/STS) beserta rincian dan jurnal terkait");
+                if ($count === 0) {
+                    return redirect()->back()->with('message', 'Tidak ada data transaksi penerimaan pada rentang tanggal yang dipilih.');
+                }
 
-            return redirect()->back()->with('message', 'Seluruh data penerimaan dan jurnal terkait berhasil dibersihkan.');
+                $receiptIds = $receipts->pluck('id')->toArray();
+
+                // Hapus file lampiran jika ada
+                $attachmentPaths = $receipts->whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
+                if (!empty($attachmentPaths)) {
+                    Storage::disk('public')->delete($attachmentPaths);
+                }
+
+                // Hapus jurnal terkait penerimaan beserta rinciannya
+                $journalIds = Journal::where('journalable_type', Receipt::class)
+                    ->whereIn('journalable_id', $receiptIds)
+                    ->pluck('id')
+                    ->toArray();
+
+                if (!empty($journalIds)) {
+                    JournalDetail::whereIn('journal_id', $journalIds)->delete();
+                    Journal::whereIn('id', $journalIds)->delete();
+                }
+
+                ReceiptDetail::whereIn('receipt_id', $receiptIds)->delete();
+                Receipt::whereIn('id', $receiptIds)->delete();
+
+                $dateText = $this->formatDateRangeText($request->start_date, $request->end_date);
+
+                activity('setting')
+                    ->log("Menghapus data penerimaan (TBP/STS) {$dateText} ({$count} data dihapus) beserta rincian dan jurnal terkait");
+
+                return redirect()->back()->with('message', "Sebanyak {$count} data penerimaan {$dateText} dan jurnal terkait berhasil dibersihkan.");
+            } else {
+                // Hapus file lampiran jika ada
+                $attachmentPaths = Receipt::whereNotNull('attachment_path')->pluck('attachment_path')->toArray();
+                if (!empty($attachmentPaths)) {
+                    Storage::disk('public')->delete($attachmentPaths);
+                }
+
+                // Hapus jurnal terkait penerimaan beserta rinciannya
+                JournalDetail::whereIn('journal_id', function ($query) {
+                    $query->select('id')
+                        ->from('journals')
+                        ->where('journalable_type', Receipt::class);
+                })->delete();
+
+                Journal::where('journalable_type', Receipt::class)->delete();
+
+                Receipt::truncate();
+                ReceiptDetail::truncate();
+
+                activity('setting')
+                    ->log("Menghapus permanen seluruh data penerimaan (TBP/STS) beserta rincian dan jurnal terkait");
+
+                return redirect()->back()->with('message', 'Seluruh data penerimaan dan jurnal terkait berhasil dibersihkan.');
+            }
         } catch (\Exception $e) {
             Log::error("Failed to clear receipts: " . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
         } finally {
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         }
+    }
+
+    private function formatDateRangeText(?string $startDate, ?string $endDate): string
+    {
+        if ($startDate && $endDate) {
+            $start = Carbon::parse($startDate)->format('d/m/Y');
+            $end = Carbon::parse($endDate)->format('d/m/Y');
+            return "periode {$start} s/d {$end}";
+        } elseif ($startDate) {
+            $start = Carbon::parse($startDate)->format('d/m/Y');
+            return "mulai tanggal {$start}";
+        } elseif ($endDate) {
+            $end = Carbon::parse($endDate)->format('d/m/Y');
+            return "sampai dengan tanggal {$end}";
+        }
+
+        return "seluruh periode";
     }
 }
