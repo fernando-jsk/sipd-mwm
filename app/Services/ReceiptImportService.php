@@ -244,12 +244,11 @@ class ReceiptImportService
                     $payerName = $map['payer_name'];
 
                     $amountString = trim($row[$col]);
-                    if (empty($amountString) || $amountString === '-' || $amountString === 'Rp-') {
+                    if (empty($amountString) || $amountString === '-' || $amountString === 'Rp-' || $amountString === 'Rp.-') {
                         continue;
                     }
 
-                    $amountString = preg_replace('/[^0-9]/', '', explode(',', $amountString)[0]);
-                    $amount = (float)$amountString;
+                    $amount = $this->parseAmount($amountString);
 
                     if ($amount > 0) {
                         $groupKey = $parentTypeId . '_' . $subTypeId . '_' . md5($payerName);
@@ -315,5 +314,43 @@ class ReceiptImportService
             DB::rollBack();
             throw $e;
         }
+    }
+
+    /**
+     * Konversi string nominal (format Indonesia / US / plain) menjadi float 2 angka di belakang koma.
+     */
+    private function parseAmount(string $amountString): float
+    {
+        $val = trim($amountString);
+        if (empty($val) || $val === '-' || $val === 'Rp-' || $val === 'Rp.-') {
+            return 0.0;
+        }
+
+        // Bersihkan karakter non-digit kecuali titik dan koma
+        $val = preg_replace('/[^\d,\.]/', '', $val);
+
+        if (strpos($val, ',') !== false && strpos($val, '.') !== false) {
+            // Format baku Indonesia: 1.250.000,50
+            $val = str_replace('.', '', $val);
+            $val = str_replace(',', '.', $val);
+        } elseif (strpos($val, ',') !== false) {
+            // Hanya ada koma:
+            // Jika 3 digit berulang di belakang koma (misal: 1,500,000) -> koma ribuan
+            // Jika 1 atau 2 digit di belakang koma (misal: 150000,50 atau 500,25) -> koma desimal
+            if (preg_match('/,\d{3}$/', $val) && !preg_match('/,\d{1,2}$/', $val)) {
+                $val = str_replace(',', '', $val);
+            } else {
+                $val = str_replace(',', '.', $val);
+            }
+        } elseif (strpos($val, '.') !== false) {
+            // Hanya ada titik:
+            // Jika tepat 3 digit di belakang titik (misal: 500.000 atau 1.500.000) -> titik ribuan
+            if (preg_match('/\.\d{3}$/', $val)) {
+                $val = str_replace('.', '', $val);
+            }
+            // Jika 1 atau 2 digit di belakang titik (misal: 500.50 atau 1250000.25) -> biarkan titik desimal
+        }
+
+        return round((float) $val, 2);
     }
 }

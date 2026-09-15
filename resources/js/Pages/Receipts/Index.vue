@@ -136,7 +136,14 @@ watch(() => props.filters, (newFilters) => {
 }, { deep: true });
 
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value || 0);
+    const num = Number(value) || 0;
+    const hasDecimal = num % 1 !== 0;
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: hasDecimal ? 2 : 0,
+        maximumFractionDigits: 2,
+    }).format(num);
 };
 
 const isImportModalOpen = ref(false);

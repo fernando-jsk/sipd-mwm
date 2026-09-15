@@ -19,11 +19,19 @@ const props = defineProps({
 });
 
 const totalAmount = computed(() => {
-    return props.receipt.details.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+    const total = props.receipt.details.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    return Math.round((total + Number.EPSILON) * 100) / 100;
 });
 
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
+    const num = Number(value) || 0;
+    const hasDecimal = num % 1 !== 0;
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: hasDecimal ? 2 : 0,
+        maximumFractionDigits: 2,
+    }).format(num);
 };
 
 const formatDate = (dateString) => {
