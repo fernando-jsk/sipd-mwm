@@ -58,6 +58,10 @@ class ReceiptController extends Controller
             $query->orderBy('date', 'desc')->orderBy('id', 'desc');
         }
 
+        // Total nominal sesuai filter
+        $filteredReceiptIds = (clone $query)->reorder()->select('receipts.id');
+        $totalAmount = (float) ReceiptDetail::whereIn('receipt_id', $filteredReceiptIds)->sum('amount');
+
         $receipts = $query->paginate(15)->withQueryString();
 
         $receiptTypes = ReceiptType::with(['children' => function ($q) {
@@ -71,6 +75,7 @@ class ReceiptController extends Controller
         return Inertia::render('Receipts/Index', [
             'receipts' => $receipts,
             'receiptTypes' => $receiptTypes,
+            'totalAmount' => $totalAmount,
             'filters' => array_merge(
                 $request->only('search', 'status', 'date', 'start_date', 'end_date', 'receipt_type_id', 'receipt_sub_type_id'),
                 ['sort' => $sort]
