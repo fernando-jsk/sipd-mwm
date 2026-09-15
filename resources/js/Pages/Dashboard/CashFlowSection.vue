@@ -134,7 +134,146 @@ const barChartOptions = {
 };
 
 // ============================================================
-// CHART 2 — Doughnut: Breakdown pengeluaran
+// CHART 2a — Doughnut: Breakdown Penerimaan (Jenis & Sub Jenis)
+// ============================================================
+const selectedReceiptType = ref('all');
+
+const receiptCategoryOptions = computed(() => {
+    const parents = props.data.receiptBreakdown?.parents || [];
+    const subs = props.data.receiptBreakdown?.subs || [];
+    
+    const options = [
+        { id: 'all', label: 'Semua Jenis (Kategori Utama)' }
+    ];
+
+    parents.forEach(p => {
+        const hasSubs = subs.some(s => s.parent_id === p.id && s.sub_id !== 'none');
+        if (hasSubs) {
+            options.push({
+                id: p.id,
+                label: `Sub Jenis: ${p.name}`
+            });
+        }
+    });
+
+    if (subs.length > 0) {
+        options.push({
+            id: 'top_subs',
+            label: 'Semua Sub Jenis (Top 10)'
+        });
+    }
+
+    return options;
+});
+
+watch(() => receiptCategoryOptions.value, (newOptions) => {
+    const exists = newOptions.some(opt => opt.id === selectedReceiptType.value);
+    if (!exists) {
+        selectedReceiptType.value = 'all';
+    }
+});
+
+const activeReceiptItems = computed(() => {
+    const parents = props.data.receiptBreakdown?.parents || [];
+    const subs = props.data.receiptBreakdown?.subs || [];
+
+    if (selectedReceiptType.value === 'all') {
+        return parents.map(p => ({
+            label: p.name,
+            total: p.total
+        }));
+    } else if (selectedReceiptType.value === 'top_subs') {
+        return [...subs]
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 10)
+            .map(s => ({
+                label: s.sub_name === 'Tanpa Sub Jenis' ? `${s.parent_name} (Langsung)` : `${s.sub_name} (${s.parent_name})`,
+                total: s.total
+            }));
+    } else {
+        return subs
+            .filter(s => s.parent_id === selectedReceiptType.value)
+            .map(s => ({
+                label: s.sub_name,
+                total: s.total
+            }));
+    }
+});
+
+const activeReceiptTotal = computed(() => {
+    return activeReceiptItems.value.reduce((sum, item) => sum + item.total, 0);
+});
+
+const receiptBaseBg = [
+    'rgba(16, 185, 129, 0.82)',  // Emerald
+    'rgba(59, 130, 246, 0.82)',   // Blue
+    'rgba(245, 158, 11, 0.82)',   // Amber
+    'rgba(139, 92, 246, 0.82)',   // Purple
+    'rgba(20, 184, 166, 0.82)',   // Teal
+    'rgba(236, 72, 153, 0.82)',   // Pink
+    'rgba(249, 115, 22, 0.82)',   // Orange
+    'rgba(99, 102, 241, 0.82)',   // Indigo
+    'rgba(132, 204, 22, 0.82)',   // Lime
+    'rgba(100, 116, 139, 0.82)',  // Slate
+];
+
+const receiptBaseBorder = [
+    '#059669',
+    '#2563eb',
+    '#d97706',
+    '#7c3aed',
+    '#0d9488',
+    '#db2777',
+    '#ea580c',
+    '#4f46e5',
+    '#65a30d',
+    '#475569',
+];
+
+const receiptDoughnutData = computed(() => {
+    const items = activeReceiptItems.value;
+    return {
+        labels: items.map(i => i.label),
+        datasets: [{
+            data: items.map(i => i.total),
+            backgroundColor: items.map((_, i) => receiptBaseBg[i % receiptBaseBg.length]),
+            borderColor: items.map((_, i) => receiptBaseBorder[i % receiptBaseBorder.length]),
+            borderWidth: 2,
+            hoverOffset: 8,
+        }]
+    };
+});
+
+const receiptDoughnutOptions = computed(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '66%',
+    plugins: {
+        legend: {
+            position: 'right',
+            labels: {
+                usePointStyle: true,
+                pointStyle: 'circle',
+                padding: 10,
+                font: { size: 10.5, family: 'inherit' },
+                color: '#64748b',
+                boxWidth: 8,
+            },
+        },
+        tooltip: {
+            callbacks: {
+                label: (ctx) => {
+                    const total = activeReceiptTotal.value || 1;
+                    const pct = ((ctx.raw / total) * 100).toFixed(1);
+                    return ` ${ctx.label}: ${formatRupiah(ctx.raw)} (${pct}%)`;
+                },
+            },
+        },
+    },
+}));
+
+// ============================================================
+// CHART 2b — Doughnut: Breakdown pengeluaran
 // ============================================================
 const baseBg     = ['rgba(255,135,129,0.80)', 'rgba(74,222,128,0.80)', 'rgba(96,165,250,0.80)', 'rgba(251,191,36,0.80)', 'rgba(167,139,250,0.80)', 'rgba(244,114,182,0.80)', 'rgba(56,189,248,0.80)', 'rgba(250,204,21,0.80)', 'rgba(163,230,53,0.80)', 'rgba(168,162,158,0.80)'];
 const baseBorder = ['#E64E47', '#22c55e', '#3b82f6', '#F59E0B', '#8B5CF6', '#ec4899', '#0ea5e9', '#eab308', '#84cc16', '#78716c'];
@@ -167,9 +306,10 @@ const doughnutOptions = {
             labels: {
                 usePointStyle: true,
                 pointStyle: 'circle',
-                padding: 12,
-                font: { size: 11, family: 'inherit' },
+                padding: 10,
+                font: { size: 10.5, family: 'inherit' },
                 color: '#64748b',
+                boxWidth: 8,
             },
         },
         tooltip: {
@@ -412,39 +552,69 @@ function formatRupiahShort(val) {
 
         </div>
 
-        <!-- ── ROW 2: Charts ────────────────────────────────────── -->
-        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <!-- ── ROW 2: Doughnut Charts (Penerimaan & Pengeluaran) ── -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-            <!-- Bar Chart: Tren Cash In vs Cash Out -->
-            <div class="lg:col-span-3 bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
-                <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+            <!-- Doughnut 1: Rincian Penerimaan -->
+            <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden flex flex-col">
+                <div class="px-5 py-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <h3 class="text-sm font-semibold text-secondary">Tren Pemasukan vs Pengeluaran</h3>
-                        <p class="text-xs text-muted-foreground mt-0.5">Tren bulanan (Jan – Des)</p>
+                        <h3 class="text-sm font-semibold text-secondary">Rincian Penerimaan</h3>
+                        <p class="text-xs text-muted-foreground mt-0.5">Distribusi penerimaan {{ selectedMonthLabel }}</p>
                     </div>
-                    <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">Bulanan</span>
+                    <div class="flex items-center gap-1.5">
+                        <select 
+                            v-model="selectedReceiptType"
+                            class="text-xs border-border/80 rounded-lg bg-card text-secondary shadow-sm focus:ring-primary focus:border-primary px-2.5 py-1 cursor-pointer max-w-[210px] truncate"
+                        >
+                            <option v-for="opt in receiptCategoryOptions" :key="opt.id" :value="opt.id">
+                                {{ opt.label }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
-                <div class="p-5" style="height: 288px;">
-                    <Bar :data="barChartData" :options="barChartOptions" />
+                <div class="p-4 flex items-center justify-center flex-1 relative" style="min-height: 288px;">
+                    <div v-if="activeReceiptItems.length === 0" class="flex flex-col items-center justify-center text-muted-foreground text-xs py-8">
+                        <span>Tidak ada transaksi penerimaan pada periode ini</span>
+                    </div>
+                    <Doughnut v-else :data="receiptDoughnutData" :options="receiptDoughnutOptions" />
                 </div>
             </div>
 
-            <!-- Doughnut: Cash Breakdown -->
-            <div class="lg:col-span-2 bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+            <!-- Doughnut 2: Rincian Pengeluaran -->
+            <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden flex flex-col">
                 <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-semibold text-secondary">Rincian Pengeluaran</h3>
                         <p class="text-xs text-muted-foreground mt-0.5">Distribusi pengeluaran {{ selectedMonthLabel }}</p>
                     </div>
+                    <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">Per Akun</span>
                 </div>
-                <div class="p-4 flex items-center justify-center" style="height: 288px;">
-                    <Doughnut :data="doughnutData" :options="doughnutOptions" />
+                <div class="p-4 flex items-center justify-center flex-1 relative" style="min-height: 288px;">
+                    <div v-if="(props.data.breakdownValues || []).length === 0" class="flex flex-col items-center justify-center text-muted-foreground text-xs py-8">
+                        <span>Tidak ada transaksi pengeluaran pada periode ini</span>
+                    </div>
+                    <Doughnut v-else :data="doughnutData" :options="doughnutOptions" />
                 </div>
             </div>
 
         </div>
 
-        <!-- ── ROW 3: Line Chart: Akumulasi Cash Flow ────────────── -->
+        <!-- ── ROW 3: Bar Chart: Tren Cash In vs Cash Out ────────── -->
+        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-semibold text-secondary">Tren Pemasukan vs Pengeluaran</h3>
+                    <p class="text-xs text-muted-foreground mt-0.5">Tren perbandingan arus kas bulanan (Jan – Des)</p>
+                </div>
+                <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">Bulanan</span>
+            </div>
+            <div class="p-5" style="height: 320px;">
+                <Bar :data="barChartData" :options="barChartOptions" />
+            </div>
+        </div>
+
+        <!-- ── ROW 4: Line Chart: Akumulasi Cash Flow ────────────── -->
         <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                 <div>

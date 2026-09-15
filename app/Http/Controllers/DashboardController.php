@@ -99,6 +99,58 @@ class DashboardController extends Controller
             $breakdownValues[] = (float) $exp->total;
         }
 
+        // --- 5b. Breakdown Penerimaan (Filtered by Active Year & Month Range) ---
+        $receiptBreakdownParent = DB::table('receipts')
+            ->join('receipt_details', 'receipts.id', '=', 'receipt_details.receipt_id')
+            ->leftJoin('receipt_types', 'receipts.receipt_type_id', '=', 'receipt_types.id')
+            ->whereYear('receipts.date', $activeYear)
+            ->where('receipts.status', 'submitted')
+            ->whereMonth('receipts.date', '>=', $startMonth)
+            ->whereMonth('receipts.date', '<=', $endMonth)
+            ->select(
+                'receipt_types.id as id',
+                DB::raw('COALESCE(receipt_types.name, "Lainnya") as name'),
+                DB::raw('SUM(receipt_details.amount) as total')
+            )
+            ->groupBy('receipt_types.id', 'receipt_types.name')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => (string) ($item->id ?? 'other'),
+                    'name' => $item->name,
+                    'total' => (float) $item->total,
+                ];
+            });
+
+        $receiptBreakdownSub = DB::table('receipts')
+            ->join('receipt_details', 'receipts.id', '=', 'receipt_details.receipt_id')
+            ->leftJoin('receipt_types as parent', 'receipts.receipt_type_id', '=', 'parent.id')
+            ->leftJoin('receipt_types as sub', 'receipts.receipt_sub_type_id', '=', 'sub.id')
+            ->whereYear('receipts.date', $activeYear)
+            ->where('receipts.status', 'submitted')
+            ->whereMonth('receipts.date', '>=', $startMonth)
+            ->whereMonth('receipts.date', '<=', $endMonth)
+            ->select(
+                'parent.id as parent_id',
+                DB::raw('COALESCE(parent.name, "Lainnya") as parent_name'),
+                'sub.id as sub_id',
+                DB::raw('COALESCE(sub.name, "Tanpa Sub Jenis") as sub_name'),
+                DB::raw('SUM(receipt_details.amount) as total')
+            )
+            ->groupBy('parent.id', 'parent.name', 'sub.id', 'sub.name')
+            ->orderByDesc('total')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'parent_id' => (string) ($item->parent_id ?? 'other'),
+                    'parent_name' => $item->parent_name,
+                    'sub_id' => (string) ($item->sub_id ?? 'none'),
+                    'sub_name' => $item->sub_name,
+                    'total' => (float) $item->total,
+                ];
+            });
+
         // --- Prepare Props ---
         $monthsCount = $endMonth - $startMonth + 1;
         
@@ -115,6 +167,10 @@ class DashboardController extends Controller
             'minimumSafeBalance' => $minimumSafeBalance,
             'breakdownLabels' => $breakdownLabels,
             'breakdownValues' => $breakdownValues,
+            'receiptBreakdown' => [
+                'parents' => $receiptBreakdownParent,
+                'subs' => $receiptBreakdownSub,
+            ],
             'dailyBurnRate' => $currentMonthOut / max(1, $monthsCount * 30),
         ];
 
