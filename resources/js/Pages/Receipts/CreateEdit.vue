@@ -73,11 +73,19 @@ const removeDetailRow = (index) => {
 };
 
 const totalAmount = computed(() => {
-    return form.details.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const total = form.details.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    return Math.round((total + Number.EPSILON) * 100) / 100;
 });
 
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
+    const num = Number(value) || 0;
+    const hasDecimal = num % 1 !== 0;
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: hasDecimal ? 2 : 0,
+        maximumFractionDigits: 2,
+    }).format(num);
 };
 
 const submit = () => {
@@ -305,7 +313,7 @@ const submit = () => {
                                             </Select>
                                         </TableCell>
                                         <TableCell class="align-top">
-                                            <Input type="number" v-model="form.details[index].amount" class="text-right" min="0" step="1" />
+                                            <Input type="number" v-model="form.details[index].amount" class="text-right" min="0" step="0.01" />
                                             <span class="text-xs text-red-500 mt-1 block" v-if="form.errors[`details.${index}.amount`]">{{ form.errors[`details.${index}.amount`] }}</span>
                                         </TableCell>
                                         <TableCell class="align-top text-center">
