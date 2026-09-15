@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
-import { Search } from '@lucide/vue';
+import { Search, ArrowUpDown } from '@lucide/vue';
 import {
   Table,
   TableBody,
@@ -41,12 +41,19 @@ const props = defineProps({
 const search = ref(props.filters?.search || '');
 const status = ref(props.filters?.status || 'all');
 const date = ref(props.filters?.date || '');
-watch([search, status, date], ([newSearch, newStatus, newDate], oldValue, onCleanup) => {
+const sort = ref(props.filters?.sort || 'date_desc');
+
+const toggleSort = () => {
+    sort.value = sort.value === 'date_desc' ? 'date_asc' : 'date_desc';
+};
+
+watch([search, status, date, sort], ([newSearch, newStatus, newDate, newSort], oldValue, onCleanup) => {
     const searchTimeout = setTimeout(() => {
         let params = {};
         if (newSearch) params.search = newSearch;
         if (newStatus && newStatus !== 'all') params.status = newStatus;
         if (newDate) params.date = newDate;
+        if (newSort) params.sort = newSort;
         
         router.get('/receipts', params, { preserveState: true, replace: true });
     }, 300);
@@ -158,8 +165,8 @@ const handleFileChange = (e) => {
             <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.error }}</span>
         </div>
 
-        <div class="mb-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div class="relative flex w-full sm:max-w-md items-center">
+        <div class="mb-5 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4">
+            <div class="relative flex w-full xl:max-w-md items-center">
                 <Search class="absolute left-3 text-muted-foreground size-4" />
                 <Input
                     type="text"
@@ -168,24 +175,37 @@ const handleFileChange = (e) => {
                     class="w-full pl-9 shadow-sm bg-white dark:bg-slate-900"
                 />
             </div>
-            <div class="flex items-center gap-2 w-full sm:w-auto">
-                <div class="w-full sm:w-40">
+            <div class="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full xl:w-auto">
+                <div class="w-full sm:w-36">
                     <Input type="date" v-model="date" class="w-full shadow-sm bg-white dark:bg-slate-900" />
                 </div>
-                <div class="w-full sm:w-48">
+                <div class="w-full sm:w-40">
                     <Select v-model="status">
-                    <SelectTrigger class="w-full shadow-sm bg-white dark:bg-slate-900">
-                        <SelectValue placeholder="Semua Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectGroup>
-                            <SelectItem value="all">Semua Status</SelectItem>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="submitted">Submitted</SelectItem>
-                        </SelectGroup>
-                    </SelectContent>
-                </Select>
-            </div>
+                        <SelectTrigger class="w-full shadow-sm bg-white dark:bg-slate-900">
+                            <SelectValue placeholder="Semua Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="all">Semua Status</SelectItem>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="submitted">Submitted</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div class="w-full sm:w-44">
+                    <Select v-model="sort">
+                        <SelectTrigger class="w-full shadow-sm bg-white dark:bg-slate-900">
+                            <SelectValue placeholder="Urutkan Tanggal" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectGroup>
+                                <SelectItem value="date_desc">Tanggal Terbaru</SelectItem>
+                                <SelectItem value="date_asc">Tanggal Terlama</SelectItem>
+                            </SelectGroup>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
         </div>
 
@@ -193,7 +213,12 @@ const handleFileChange = (e) => {
             <Table class="min-w-full">
                 <TableHeader class="bg-muted/40">
                     <TableRow>
-                        <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">No. Dokumen & Tanggal</TableHead>
+                        <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 cursor-pointer select-none hover:text-foreground transition-colors" @click="toggleSort" title="Klik untuk mengubah urutan tanggal">
+                            <div class="flex items-center gap-1.5">
+                                <span>No. Dokumen & Tanggal</span>
+                                <ArrowUpDown class="size-3.5 text-muted-foreground/70" />
+                            </div>
+                        </TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Jenis & Uraian</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Penyetor</TableHead>
                         <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Status</TableHead>

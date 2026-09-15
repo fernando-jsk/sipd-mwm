@@ -17,9 +17,9 @@ class ReceiptController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Receipt::with(['type', 'subType', 'treasurer'])->latest();
+        $query = Receipt::with(['type', 'subType', 'treasurer']);
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('document_number', 'like', "%{$search}%")
@@ -28,19 +28,29 @@ class ReceiptController extends Controller
             });
         }
 
-        if ($request->has('status') && $request->status !== '') {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        if ($request->has('date') && $request->date !== '') {
+        if ($request->filled('date')) {
             $query->whereDate('date', $request->date);
+        }
+
+        $sort = $request->input('sort', 'date_desc');
+        if ($sort === 'date_asc') {
+            $query->orderBy('date', 'asc')->orderBy('id', 'asc');
+        } else {
+            $query->orderBy('date', 'desc')->orderBy('id', 'desc');
         }
 
         $receipts = $query->paginate(15)->withQueryString();
 
         return Inertia::render('Receipts/Index', [
             'receipts' => $receipts,
-            'filters' => $request->only('search', 'status', 'date')
+            'filters' => array_merge(
+                $request->only('search', 'status', 'date'),
+                ['sort' => $sort]
+            )
         ]);
     }
 
