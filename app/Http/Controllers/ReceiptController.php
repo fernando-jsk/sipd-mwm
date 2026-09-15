@@ -32,8 +32,23 @@ class ReceiptController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('date')) {
+        // Date range filter (start_date & end_date) with fallback to single date
+        if ($request->filled('start_date')) {
+            $query->whereDate('date', '>=', $request->start_date);
+        }
+        if ($request->filled('end_date')) {
+            $query->whereDate('date', '<=', $request->end_date);
+        }
+        if (!$request->filled('start_date') && !$request->filled('end_date') && $request->filled('date')) {
             $query->whereDate('date', $request->date);
+        }
+
+        // Category (Jenis & Sub Jenis Penerimaan) filter
+        if ($request->filled('receipt_type_id') && $request->receipt_type_id !== 'all') {
+            $query->where('receipt_type_id', $request->receipt_type_id);
+        }
+        if ($request->filled('receipt_sub_type_id') && $request->receipt_sub_type_id !== 'all') {
+            $query->where('receipt_sub_type_id', $request->receipt_sub_type_id);
         }
 
         $sort = $request->input('sort', 'date_desc');
@@ -45,10 +60,19 @@ class ReceiptController extends Controller
 
         $receipts = $query->paginate(15)->withQueryString();
 
+        $receiptTypes = ReceiptType::with(['children' => function ($q) {
+            $q->where('is_active', true)->orderBy('name');
+        }])
+            ->whereNull('parent_id')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Receipts/Index', [
             'receipts' => $receipts,
+            'receiptTypes' => $receiptTypes,
             'filters' => array_merge(
-                $request->only('search', 'status', 'date'),
+                $request->only('search', 'status', 'date', 'start_date', 'end_date', 'receipt_type_id', 'receipt_sub_type_id'),
                 ['sort' => $sort]
             )
         ]);
