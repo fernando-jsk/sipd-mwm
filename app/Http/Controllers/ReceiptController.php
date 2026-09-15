@@ -17,7 +17,7 @@ class ReceiptController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Receipt::with(['type', 'subType', 'treasurer']);
+        $query = Receipt::with(['type', 'subType', 'treasurer'])->withSum('details', 'amount');
 
         if ($request->filled('search')) {
             $search = $request->search;

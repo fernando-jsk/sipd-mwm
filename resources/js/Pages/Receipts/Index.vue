@@ -132,7 +132,7 @@ watch(() => props.filters, (newFilters) => {
 }, { deep: true });
 
 const formatCurrency = (value) => {
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value || 0);
 };
 
 const isImportModalOpen = ref(false);
@@ -372,36 +372,36 @@ const handleFileChange = (e) => {
                 <Table class="min-w-full">
                     <TableHeader class="bg-muted/40">
                         <TableRow>
-                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 cursor-pointer select-none hover:text-foreground transition-colors" @click="toggleSort" title="Klik untuk mengubah urutan tanggal">
+                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 cursor-pointer select-none hover:text-foreground transition-colors w-[180px]" @click="toggleSort" title="Klik untuk mengubah urutan tanggal">
                                 <div class="flex items-center gap-1.5">
-                                    <span>No. Dokumen & Tanggal</span>
+                                    <span>Tanggal</span>
                                     <ArrowUpDown class="size-3.5 text-muted-foreground/70" />
                                 </div>
                             </TableHead>
-                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Jenis & Uraian</TableHead>
-                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Penyetor</TableHead>
-                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Status</TableHead>
+                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3">Jenis</TableHead>
+                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 text-right">Nominal</TableHead>
+                            <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 text-center">Status</TableHead>
                             <TableHead class="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 text-right">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         <TableRow v-for="item in receipts.data" :key="item.id">
-                            <TableCell class="py-3">
-                                <div class="font-medium text-foreground">{{ item.document_number || '-' }}</div>
-                                <div class="text-xs text-muted-foreground mt-0.5">{{ new Date(item.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) }}</div>
+                            <TableCell class="py-3 font-medium text-foreground whitespace-nowrap">
+                                {{ new Date(item.date).toLocaleDateString('id-ID', {day: 'numeric', month: 'long', year: 'numeric'}) }}
                             </TableCell>
                             <TableCell class="py-3">
-                                <div class="font-medium text-xs px-2 py-0.5 rounded bg-primary/10 text-primary w-fit mb-1">
-                                    {{ item.type?.name }}
-                                    <template v-if="item.sub_type"> &rsaquo; {{ item.sub_type.name }}</template>
+                                <div class="font-medium text-xs px-2.5 py-1 rounded-md bg-primary/10 text-primary w-fit inline-flex items-center gap-1.5">
+                                    <span>{{ item.type?.name || '-' }}</span>
+                                    <template v-if="item.sub_type">
+                                        <span class="text-primary/60">&rsaquo;</span>
+                                        <span class="font-semibold">{{ item.sub_type.name }}</span>
+                                    </template>
                                 </div>
-                                <div class="text-sm text-foreground line-clamp-2 max-w-sm">{{ item.description }}</div>
                             </TableCell>
-                            <TableCell class="py-3 text-sm text-foreground">
-                                {{ item.payer_name }}
-                                <div class="text-xs text-muted-foreground mt-0.5 capitalize">{{ item.payment_method }}</div>
+                            <TableCell class="py-3 text-sm font-semibold text-foreground text-right whitespace-nowrap">
+                                {{ formatCurrency(item.details_sum_amount ?? item.total_amount ?? 0) }}
                             </TableCell>
-                            <TableCell class="py-3">
+                            <TableCell class="py-3 text-center">
                                 <span :class="{
                                     'bg-slate-100 text-slate-700 border-slate-200': item.status === 'draft',
                                     'bg-blue-100 text-blue-700 border-blue-200': item.status === 'submitted',

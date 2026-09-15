@@ -13,6 +13,19 @@ class Receipt extends Model
 
     protected $guarded = ['id'];
 
+    protected $appends = ['total_amount'];
+
+    public function getTotalAmountAttribute()
+    {
+        if (isset($this->attributes['details_sum_amount'])) {
+            return (float) $this->attributes['details_sum_amount'];
+        }
+        if ($this->relationLoaded('details')) {
+            return (float) $this->details->sum('amount');
+        }
+        return (float) $this->details()->sum('amount');
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
