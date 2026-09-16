@@ -85,24 +85,32 @@ class ReceiptController extends Controller
 
     public function create()
     {
-        $receiptTypes = ReceiptType::with('children')->whereNull('parent_id')->where('is_active', true)->orderBy('name')->get();
-        // Get revenue account codes (starting with 4) that exist in RBA documents
-        $accountCodes = AccountCode::whereHas('rbaDocuments')
-            ->where('code', 'like', '4%')
+        $receiptTypes = ReceiptType::with(['children.accountCode', 'accountCode'])
+            ->whereNull('parent_id')
             ->where('is_active', true)
-            ->orderBy('code')
+            ->orderBy('name')
             ->get();
         $fundingSources = FundingSource::orderBy('name')->get();
 
         return Inertia::render('Receipts/CreateEdit', [
             'receiptTypes' => $receiptTypes,
-            'accountCodes' => $accountCodes,
             'fundingSources' => $fundingSources,
         ]);
     }
 
     public function store(Request $request)
     {
+        if ($request->filled('amount') && !$request->has('details')) {
+            $request->merge([
+                'details' => [
+                    [
+                        'amount' => $request->amount,
+                        'funding_source_id' => $request->funding_source_id,
+                    ]
+                ]
+            ]);
+        }
+
         $validated = $request->validate([
             'document_number' => 'nullable|string|unique:receipts,document_number',
             'date' => 'required|date',
@@ -115,36 +123,44 @@ class ReceiptController extends Controller
             'bank_account_number' => 'nullable|required_if:payment_method,transfer|string|max:255',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
+            'amount' => 'nullable|numeric|min:0.01',
+            'funding_source_id' => 'nullable|exists:funding_sources,id',
             'details' => 'required|array|min:1',
             'details.*.account_code_id' => 'nullable|exists:account_codes,id',
             'details.*.funding_source_id' => 'nullable|exists:funding_sources,id',
             'details.*.amount' => 'required|numeric|min:0.01',
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
-            $defaultAccountCodeId = null;
-            if (!empty($validated['receipt_sub_type_id'])) {
-                $defaultAccountCodeId = ReceiptType::find($validated['receipt_sub_type_id'])?->account_code_id;
-            }
-            if (!$defaultAccountCodeId && !empty($validated['receipt_type_id'])) {
-                $defaultAccountCodeId = ReceiptType::find($validated['receipt_type_id'])?->account_code_id;
-            }
+        $defaultAccountCodeId = null;
+        if (!empty($validated['receipt_sub_type_id'])) {
+            $defaultAccountCodeId = ReceiptType::find($validated['receipt_sub_type_id'])?->account_code_id;
+        }
+        if (!$defaultAccountCodeId && !empty($validated['receipt_type_id'])) {
+            $defaultAccountCodeId = ReceiptType::find($validated['receipt_type_id'])?->account_code_id;
+        }
 
+        if (!$defaultAccountCodeId) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'receipt_type_id' => 'Jenis atau Sub-jenis penerimaan yang dipilih belum memiliki pemetaan kode rekening. Silakan atur di menu Pengaturan Jenis Penerimaan terlebih dahulu.'
+            ]);
+        }
+
+        DB::transaction(function () use ($validated, $request, $defaultAccountCodeId) {
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
                 $attachmentPath = $request->file('attachment')->store('receipts', 'public');
             }
 
             $receipt = Receipt::create([
-                'document_number' => $validated['document_number'],
+                'document_number' => $validated['document_number'] ?? null,
                 'date' => $validated['date'],
                 'receipt_type_id' => $validated['receipt_type_id'],
                 'receipt_sub_type_id' => $validated['receipt_sub_type_id'] ?? null,
                 'description' => $validated['description'],
                 'payer_name' => $validated['payer_name'],
                 'payment_method' => $validated['payment_method'],
-                'bank_name' => $validated['bank_name'],
-                'bank_account_number' => $validated['bank_account_number'],
+                'bank_name' => $validated['bank_name'] ?? null,
+                'bank_account_number' => $validated['bank_account_number'] ?? null,
                 'attachment_path' => $attachmentPath,
                 'status' => 'draft',
                 'treasurer_id' => Auth::id(), // assuming logged in user is the treasurer
@@ -165,7 +181,7 @@ class ReceiptController extends Controller
 
     public function show(Receipt $receipt)
     {
-        $receipt->load(['type', 'subType', 'treasurer', 'creator', 'details.accountCode', 'details.fundingSource']);
+        $receipt->load(['type', 'subType', 'treasurer', 'creator', 'details.accountCode', 'details.fundingSource', 'journal']);
 
         return Inertia::render('Receipts/Show', [
             'receipt' => $receipt
@@ -178,19 +194,17 @@ class ReceiptController extends Controller
             return redirect()->route('receipts.index')->with('error', 'Hanya dokumen draft yang dapat diedit.');
         }
 
-        $receipt->load(['details']);
-        $receiptTypes = ReceiptType::with('children')->whereNull('parent_id')->where('is_active', true)->orderBy('name')->get();
-        $accountCodes = AccountCode::whereHas('rbaDocuments')
-            ->where('code', 'like', '4%')
+        $receipt->load(['details.accountCode', 'details.fundingSource', 'type.accountCode', 'subType.accountCode']);
+        $receiptTypes = ReceiptType::with(['children.accountCode', 'accountCode'])
+            ->whereNull('parent_id')
             ->where('is_active', true)
-            ->orderBy('code')
+            ->orderBy('name')
             ->get();
         $fundingSources = FundingSource::orderBy('name')->get();
 
         return Inertia::render('Receipts/CreateEdit', [
             'receipt' => $receipt,
             'receiptTypes' => $receiptTypes,
-            'accountCodes' => $accountCodes,
             'fundingSources' => $fundingSources,
         ]);
     }
@@ -199,6 +213,19 @@ class ReceiptController extends Controller
     {
         if ($receipt->status !== 'draft') {
             return redirect()->route('receipts.index')->with('error', 'Hanya dokumen draft yang dapat diedit.');
+        }
+
+        if ($request->filled('amount') && !$request->has('details')) {
+            $firstDetailId = $receipt->details()->first()?->id;
+            $request->merge([
+                'details' => [
+                    [
+                        'id' => $firstDetailId,
+                        'amount' => $request->amount,
+                        'funding_source_id' => $request->funding_source_id,
+                    ]
+                ]
+            ]);
         }
 
         $validated = $request->validate([
@@ -213,6 +240,8 @@ class ReceiptController extends Controller
             'bank_account_number' => 'nullable|required_if:payment_method,transfer|string|max:255',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
 
+            'amount' => 'nullable|numeric|min:0.01',
+            'funding_source_id' => 'nullable|exists:funding_sources,id',
             'details' => 'required|array|min:1',
             'details.*.id' => 'nullable|integer',
             'details.*.account_code_id' => 'nullable|exists:account_codes,id',
@@ -220,15 +249,21 @@ class ReceiptController extends Controller
             'details.*.amount' => 'required|numeric|min:0.01',
         ]);
 
-        DB::transaction(function () use ($validated, $request, $receipt) {
-            $defaultAccountCodeId = null;
-            if (!empty($validated['receipt_sub_type_id'])) {
-                $defaultAccountCodeId = ReceiptType::find($validated['receipt_sub_type_id'])?->account_code_id;
-            }
-            if (!$defaultAccountCodeId && !empty($validated['receipt_type_id'])) {
-                $defaultAccountCodeId = ReceiptType::find($validated['receipt_type_id'])?->account_code_id;
-            }
+        $defaultAccountCodeId = null;
+        if (!empty($validated['receipt_sub_type_id'])) {
+            $defaultAccountCodeId = ReceiptType::find($validated['receipt_sub_type_id'])?->account_code_id;
+        }
+        if (!$defaultAccountCodeId && !empty($validated['receipt_type_id'])) {
+            $defaultAccountCodeId = ReceiptType::find($validated['receipt_type_id'])?->account_code_id;
+        }
 
+        if (!$defaultAccountCodeId) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'receipt_type_id' => 'Jenis atau Sub-jenis penerimaan yang dipilih belum memiliki pemetaan kode rekening. Silakan atur di menu Pengaturan Jenis Penerimaan terlebih dahulu.'
+            ]);
+        }
+
+        DB::transaction(function () use ($validated, $request, $receipt, $defaultAccountCodeId) {
             $attachmentPath = $receipt->attachment_path;
             if ($request->hasFile('attachment')) {
                 if ($attachmentPath) {
@@ -238,15 +273,15 @@ class ReceiptController extends Controller
             }
 
             $receipt->update([
-                'document_number' => $validated['document_number'],
+                'document_number' => $validated['document_number'] ?? null,
                 'date' => $validated['date'],
                 'receipt_type_id' => $validated['receipt_type_id'],
                 'receipt_sub_type_id' => $validated['receipt_sub_type_id'] ?? null,
                 'description' => $validated['description'],
                 'payer_name' => $validated['payer_name'],
                 'payment_method' => $validated['payment_method'],
-                'bank_name' => $validated['bank_name'],
-                'bank_account_number' => $validated['bank_account_number'],
+                'bank_name' => $validated['bank_name'] ?? null,
+                'bank_account_number' => $validated['bank_account_number'] ?? null,
                 'attachment_path' => $attachmentPath,
             ]);
 
