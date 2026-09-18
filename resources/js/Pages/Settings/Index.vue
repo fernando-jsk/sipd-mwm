@@ -16,7 +16,9 @@ import { RadioGroup, RadioGroupItem } from '@/Components/ui/radio-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/ui/dialog';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import { Input } from '@/Components/ui/input';
-import { Trash2, AlertTriangle, UploadCloud, PlusCircle, Pencil, Calendar, Loader2 } from 'lucide-vue-next';
+import { Switch } from '@/Components/ui/switch';
+import { Badge } from '@/Components/ui/badge';
+import { Trash2, AlertTriangle, UploadCloud, PlusCircle, Pencil, Calendar, Loader2, BookOpen, Info, Save, Settings as SettingsIcon } from 'lucide-vue-next';
 import { router, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 
@@ -33,11 +35,103 @@ const props = defineProps({
     fundingSources: {
         type: Array,
         default: () => []
+    },
+    cashAccounts: {
+        type: Array,
+        default: () => []
+    },
+    expenditureRules: {
+        type: Object,
+        default: () => ({})
     }
 });
 
 const page = usePage();
 const canManageRevision = page.props.auth?.permissions?.includes('manage budget revision');
+
+const activeTab = ref('general');
+
+const defaultExpenditureRules = {
+    'UP': {
+        code: 'UP',
+        name: 'Uang Persediaan (UP)',
+        credit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.03')?.id?.toString() || '',
+        debit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.02')?.id?.toString() || '',
+        is_budgetary: false,
+        description: 'Uang Muka Kerja (Mutasi Kas Bank ke Kas Bendahara Pengeluaran)'
+    },
+    'GU': {
+        code: 'GU',
+        name: 'Ganti Uang (GU)',
+        credit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.03')?.id?.toString() || '',
+        debit_account_id: '',
+        is_budgetary: true,
+        description: 'Reimbursement Belanja Riil atas SPJ Bendahara'
+    },
+    'TU': {
+        code: 'TU',
+        name: 'Tambahan Uang (TU)',
+        credit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.03')?.id?.toString() || '',
+        debit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.02')?.id?.toString() || '',
+        is_budgetary: false,
+        description: 'Uang Muka Tambahan untuk Kebutuhan Mendesak'
+    },
+    'LS_Pegawai': {
+        code: 'LS_Pegawai',
+        name: 'LS Pegawai',
+        credit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.03')?.id?.toString() || '',
+        debit_account_id: '',
+        is_budgetary: true,
+        description: 'Pembayaran Langsung Belanja Pegawai (Gaji / Jaspel)'
+    },
+    'LS_Barang_Jasa_Modal': {
+        code: 'LS_Barang_Jasa_Modal',
+        name: 'LS Barang, Jasa dan Modal',
+        credit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.03')?.id?.toString() || '',
+        debit_account_id: '',
+        is_budgetary: true,
+        description: 'Pembayaran Langsung Belanja Barang/Jasa/Modal ke Rekanan'
+    },
+    'LS': {
+        code: 'LS',
+        name: 'LS Umum',
+        credit_account_id: props.cashAccounts.find(a => a.code === '1.1.01.03')?.id?.toString() || '',
+        debit_account_id: '',
+        is_budgetary: true,
+        description: 'Pembayaran Langsung (Umum)'
+    }
+};
+
+const expRules = ref(JSON.parse(JSON.stringify(defaultExpenditureRules)));
+
+if (props.expenditureRules && Object.keys(props.expenditureRules).length > 0) {
+    Object.keys(props.expenditureRules).forEach(key => {
+        const r = props.expenditureRules[key];
+        expRules.value[key] = {
+            ...defaultExpenditureRules[key],
+            ...r,
+            credit_account_id: r.credit_account_id ? r.credit_account_id.toString() : (defaultExpenditureRules[key]?.credit_account_id || ''),
+            debit_account_id: r.debit_account_id ? r.debit_account_id.toString() : '',
+            is_budgetary: Boolean(r.is_budgetary)
+        };
+    });
+}
+
+const rulesSubmitForm = useForm({
+    settings: [
+        {
+            key: 'expenditure_journal_rules',
+            value: ''
+        }
+    ]
+});
+
+const saveRules = () => {
+    rulesSubmitForm.settings[0].value = JSON.stringify(expRules.value);
+    rulesSubmitForm.post('/settings', {
+        preserveScroll: true
+    });
+};
 
 const isRevisionDialogOpen = ref(false);
 const isProcessingRevision = ref(false);
@@ -348,250 +442,414 @@ const executeClearReceipts = () => {
         </div>
 
         <div class="max-w-4xl mx-auto py-6">
-            <form @submit.prevent="submit">
+            <!-- Navigasi Tab Pengaturan -->
+            <div class="flex items-center gap-2 border-b border-border/80 pb-3 mb-6 overflow-x-auto">
+                <Button 
+                    type="button" 
+                    :variant="activeTab === 'general' ? 'default' : 'outline'"
+                    size="sm"
+                    @click="activeTab = 'general'"
+                    class="rounded-lg text-xs"
+                >
+                    Umum & Sumber Dana
+                </Button>
+                <Button 
+                    type="button" 
+                    :variant="activeTab === 'expenditure_rules' ? 'default' : 'outline'"
+                    size="sm"
+                    @click="activeTab = 'expenditure_rules'"
+                    class="rounded-lg text-xs flex items-center gap-1.5"
+                >
+                    <BookOpen class="w-3.5 h-3.5" />
+                    <span>Aturan Jurnal Pengeluaran (UP / LS / GU)</span>
+                    <Badge variant="secondary" class="text-[10px] px-1.5 py-0 h-4">Baru</Badge>
+                </Button>
+                <Button 
+                    v-if="canManageRevision"
+                    type="button" 
+                    :variant="activeTab === 'rba' ? 'default' : 'outline'"
+                    size="sm"
+                    @click="activeTab = 'rba'"
+                    class="rounded-lg text-xs"
+                >
+                    Manajemen RBA
+                </Button>
+                <Button 
+                    type="button" 
+                    :variant="activeTab === 'danger' ? 'destructive' : 'outline'"
+                    size="sm"
+                    @click="activeTab = 'danger'"
+                    class="rounded-lg text-xs"
+                >
+                    Danger Zone
+                </Button>
+            </div>
+
+            <!-- TAB 1: UMUM & SUMBER DANA -->
+            <div v-show="activeTab === 'general'" class="space-y-6">
+                <form @submit.prevent="submit">
+                    <Card class="border-border/80 shadow-sm">
+                        <CardHeader class="border-b border-border/80 pb-4">
+                            <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Konfigurasi Modul Keuangan</CardTitle>
+                            <CardDescription class="text-xs text-muted-foreground mt-0.5">Atur perilaku sistem terkait anggaran dan transaksi.</CardDescription>
+                        </CardHeader>
+                        
+                        <CardContent class="space-y-6">
+                            <div class="grid gap-3">
+                                <div>
+                                    <Label class="text-sm font-semibold text-foreground">Validasi Pagu Anggaran</Label>
+                                    <p class="text-xs text-muted-foreground mt-1">{{ props.settings.budget_validation_type?.description || 'Tipe validasi pagu saat pengeluaran melebihi anggaran.' }}</p>
+                                </div>
+                                
+                                <RadioGroup v-model="form.settings[0].value" class="flex flex-col space-y-2 mt-2">
+                                    <div class="flex items-center space-x-2 border rounded-md p-3" :class="form.settings[0].value === 'warning' ? 'border-primary bg-primary/5' : 'border-border'">
+                                        <RadioGroupItem id="warning" value="warning" />
+                                        <Label for="warning" class="flex flex-col cursor-pointer">
+                                            <span class="font-medium me-auto">Warning (Hanya Peringatan)</span>
+                                            <span class="text-xs text-muted-foreground">Mengizinkan transaksi dilanjutkan meskipun melebihi pagu anggaran, namun akan memunculkan peringatan.</span>
+                                        </Label>
+                                    </div>
+                                    <div class="flex items-center space-x-2 border rounded-md p-3" :class="form.settings[0].value === 'block' ? 'border-destructive bg-destructive/5' : 'border-border'">
+                                        <RadioGroupItem id="block" value="block" />
+                                        <Label for="block" class="flex flex-col cursor-pointer">
+                                            <span class="font-medium me-auto text-destructive">Strict / Block (Cegah Transaksi)</span>
+                                            <span class="text-xs text-muted-foreground">Sistem akan memblokir secara paksa (error) jika input pengeluaran melebihi sisa pagu anggaran.</span>
+                                        </Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                        </CardContent>
+                        
+                        <CardFooter class="flex justify-end space-x-2 bg-muted/20 border-t border-border/80 py-4">
+                            <Button type="submit" :disabled="form.processing">
+                                {{ form.processing ? 'Menyimpan...' : 'Simpan Pengaturan' }}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </form>
+
+                <!-- Master Jenis Penerimaan (Link) -->
+                <Card class="border-border/80 shadow-sm">
+                    <CardHeader class="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Master Jenis Penerimaan</CardTitle>
+                            <CardDescription class="text-xs text-muted-foreground mt-0.5">Kelola jenis penerimaan (Pendapatan Daerah, Pajak, Retribusi, dll).</CardDescription>
+                        </div>
+                        <Link href="/receipt-types">
+                            <Button size="sm" variant="outline" class="gap-2 border-primary text-primary hover:bg-primary hover:text-white">
+                                Kelola Jenis Penerimaan
+                            </Button>
+                        </Link>
+                    </CardHeader>
+                </Card>
+
+                <!-- Manajemen Master Sumber Dana -->
+                <Card class="border-border/80 shadow-sm">
+                    <CardHeader class="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Master Data Sumber Dana</CardTitle>
+                            <CardDescription class="text-xs text-muted-foreground mt-0.5">Kelola jenis-jenis sumber dana yang tersedia untuk RBA.</CardDescription>
+                        </div>
+                        <Button @click="openCreateFs" size="sm" class="gap-2">
+                            <PlusCircle class="w-4 h-4" /> Tambah Sumber Dana
+                        </Button>
+                    </CardHeader>
+                    <CardContent class="p-0">
+                        <div v-if="fundingSources.length === 0" class="p-6 text-center text-sm text-muted-foreground">
+                            Belum ada data sumber dana. Silakan tambah baru.
+                        </div>
+                        <div v-else class="divide-y divide-border">
+                            <div v-for="fs in fundingSources" :key="fs.id" class="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-sm">{{ fs.name }} <span v-if="fs.code" class="text-xs font-normal text-muted-foreground ml-2 border px-1.5 py-0.5 rounded">{{ fs.code }}</span></span>
+                                    <span class="text-xs text-muted-foreground mt-1">{{ fs.description || '-' }}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <Button variant="ghost" size="icon" class="text-muted-foreground hover:text-primary" @click="openEditFs(fs)">
+                                        <Pencil class="w-4 h-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive" @click="openDeleteFs(fs)">
+                                        <Trash2 class="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <!-- TAB 2: ATURAN JURNAL & JENIS PENGELUARAN -->
+            <div v-show="activeTab === 'expenditure_rules'" class="space-y-6">
+                <form @submit.prevent="saveRules">
+                    <Card class="border-border/80 shadow-sm">
+                        <CardHeader class="border-b border-border/80 pb-4">
+                            <CardTitle class="text-base font-bold text-secondary dark:text-foreground flex items-center gap-2">
+                                <BookOpen class="w-5 h-5 text-primary" />
+                                Aturan Jurnal & Jenis Pengeluaran
+                            </CardTitle>
+                            <CardDescription class="text-xs text-muted-foreground mt-0.5">
+                                Atur pemetaan akun jurnal otomatis dan perilaku anggaran untuk setiap jenis SPM/SPPD (UP, GU, TU, LS).
+                            </CardDescription>
+                        </CardHeader>
+                        
+                        <CardContent class="space-y-6">
+                            <!-- Banner Penjelasan Khusus UP & TU -->
+                            <div class="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-900 dark:text-blue-200 text-xs flex gap-3 items-start">
+                                <Info class="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                                <div class="space-y-1.5 leading-relaxed">
+                                    <p class="font-semibold text-sm text-blue-950 dark:text-blue-100">Prinsip Akuntansi Uang Persediaan (UP):</p>
+                                    <p>
+                                        Dokumen berjenis <strong>Uang Persediaan (UP)</strong> merupakan uang muka kerja operasional bendahara (mutasi kas internal dari Bank BLUD ke Kas Bendahara Pengeluaran).
+                                    </p>
+                                    <p>
+                                        Dengan menyetel <strong>"Hitung Sebagai Realisasi Belanja = TIDAK"</strong>, nominal UP <strong>tidak akan memotong pagu belanja RBA</strong> dan <strong>tidak menambah nominal belanja di dashboard</strong>. Saat dicairkan, sistem otomatis menjurnal: <em>Debit Kas di Bendahara Pengeluaran</em> dan <em>Kredit Kas di Bank BLUD</em>.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Daftar Kartu Pengaturan Per Tipe Pengeluaran -->
+                            <div class="space-y-4">
+                                <div v-for="(rule, key) in expRules" :key="key" class="p-4 rounded-xl border border-border/80 bg-card hover:bg-muted/10 transition-all space-y-4">
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                                        <div class="flex items-center gap-2.5">
+                                            <Badge :variant="rule.is_budgetary ? 'default' : 'secondary'" class="text-xs font-mono font-bold">
+                                                {{ rule.code }}
+                                            </Badge>
+                                            <div>
+                                                <h4 class="font-semibold text-sm text-secondary dark:text-foreground">{{ rule.name }}</h4>
+                                                <p class="text-xs text-muted-foreground">{{ rule.description }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-3 bg-muted/30 px-3 py-1.5 rounded-lg border border-border/50">
+                                            <span class="text-xs font-medium text-muted-foreground">Realisasi Belanja Riil:</span>
+                                            <div class="flex items-center gap-2">
+                                                <Switch 
+                                                    :id="'budgetary-' + key" 
+                                                    v-model="rule.is_budgetary" 
+                                                />
+                                                <Label :for="'budgetary-' + key" class="text-xs font-semibold cursor-pointer" :class="rule.is_budgetary ? 'text-primary' : 'text-muted-foreground'">
+                                                    {{ rule.is_budgetary ? 'Ya (Belanja RBA)' : 'Tidak (Non-Anggaran / UP)' }}
+                                                </Label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <!-- Akun Kredit (Kas Sumber) -->
+                                        <div class="space-y-1.5">
+                                            <Label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                                Akun Kas Sumber (Kredit) <span class="text-destructive">*</span>
+                                            </Label>
+                                            <Select v-model="rule.credit_account_id">
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Pilih Akun Kas Sumber..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem v-for="acc in cashAccounts" :key="'cr-' + key + '-' + acc.id" :value="acc.id.toString()">
+                                                        {{ acc.code }} - {{ acc.name }}
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <p class="text-[10px] text-muted-foreground">Kas yang berkurang saat dokumen dicairkan (misal Kas di BLUD / Rekening Giro Bank).</p>
+                                        </div>
+
+                                        <!-- Akun Debit (Lawan / Tujuan) -->
+                                        <div class="space-y-1.5">
+                                            <Label class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                                Akun Lawan / Tujuan (Debit)
+                                            </Label>
+                                            <div v-if="!rule.is_budgetary">
+                                                <Select v-model="rule.debit_account_id">
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Pilih Akun Debit Kas Bendahara..." />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem v-for="acc in cashAccounts" :key="'db-' + key + '-' + acc.id" :value="acc.id.toString()">
+                                                            {{ acc.code }} - {{ acc.name }}
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <p class="text-[10px] text-muted-foreground">Akun kas bendahara / uang muka yang bertambah saat dokumen dicairkan.</p>
+                                            </div>
+                                            <div v-else class="h-9 px-3 py-2 bg-muted/40 rounded-md border text-xs text-muted-foreground flex items-center justify-between">
+                                                <span class="font-medium text-foreground">Dinamis dari Rincian RBA</span>
+                                                <span class="text-[11px] text-muted-foreground">(Akun Belanja 5.x pada SPPD)</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                        
+                        <CardFooter class="flex justify-end space-x-2 bg-muted/20 border-t border-border/80 py-4">
+                            <Button type="submit" :disabled="rulesSubmitForm.processing" class="gap-2">
+                                <Save class="w-4 h-4" />
+                                {{ rulesSubmitForm.processing ? 'Menyimpan...' : 'Simpan Aturan Jurnal' }}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                </form>
+            </div>
+
+            <!-- TAB 3: MANAJEMEN RBA -->
+            <div v-if="canManageRevision" v-show="activeTab === 'rba'" class="space-y-6">
+                <!-- Manajemen Versi RBA -->
                 <Card class="border-border/80 shadow-sm">
                     <CardHeader class="border-b border-border/80 pb-4">
-                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Konfigurasi Modul Keuangan</CardTitle>
-                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Atur perilaku sistem terkait anggaran dan transaksi.</CardDescription>
+                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Manajemen Versi RBA</CardTitle>
+                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Kontrol tahapan aktif dan replikasi Kertas Kerja Perencanaan Anggaran.</CardDescription>
                     </CardHeader>
                     
                     <CardContent class="space-y-6">
-                        <div class="grid gap-3">
+                        <!-- Aktifkan Versi Tertentu -->
+                        <div class="p-4 border rounded-md bg-muted/10 space-y-4">
                             <div>
-                                <Label class="text-sm font-semibold text-foreground">Validasi Pagu Anggaran</Label>
-                                <p class="text-xs text-muted-foreground mt-1">{{ props.settings.budget_validation_type?.description || 'Tipe validasi pagu saat pengeluaran melebihi anggaran.' }}</p>
+                                <Label class="text-sm font-semibold text-foreground">Tahapan RBA Aktif Saat Ini</Label>
+                                <p class="text-xs text-muted-foreground mt-1">Pilih versi/tahapan RBA yang akan digunakan secara global oleh sistem pada tahun anggaran saat ini.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <Select v-model="activeVersionForm.version">
+                                    <SelectTrigger class="w-[300px]">
+                                        <SelectValue placeholder="Pilih Tahapan RBA" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            <SelectItem v-for="v in props.availableVersions" :key="v.version" :value="v.version.toString()">
+                                                {{ v.version_name }} (Versi {{ v.version }})
+                                            </SelectItem>
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                                <Button @click="saveActiveVersion" :disabled="activeVersionForm.processing || activeVersionForm.version === props.activeVersion.toString()">
+                                    Set Sebagai Aktif
+                                </Button>
+                            </div>
+                        </div>
+
+                        <!-- Daftar Riwayat Versi & Tombol Replikasi -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <Label class="text-sm font-semibold text-foreground">Riwayat Dokumen RBA</Label>
+                                <Button @click="isRevisionDialogOpen = true" variant="outline" size="sm" class="border-primary text-primary hover:bg-primary hover:text-white">
+                                    + Buat Replikasi
+                                </Button>
                             </div>
                             
-                            <RadioGroup v-model="form.settings[0].value" class="flex flex-col space-y-2 mt-2">
-                                <div class="flex items-center space-x-2 border rounded-md p-3" :class="form.settings[0].value === 'warning' ? 'border-primary bg-primary/5' : 'border-border'">
-                                    <RadioGroupItem id="warning" value="warning" />
-                                    <Label for="warning" class="flex flex-col cursor-pointer">
-                                        <span class="font-medium me-auto">Warning (Hanya Peringatan)</span>
-                                        <span class="text-xs text-muted-foreground">Mengizinkan transaksi dilanjutkan meskipun melebihi pagu anggaran, namun akan memunculkan peringatan.</span>
-                                    </Label>
+                            <div class="border rounded-md divide-y overflow-hidden">
+                                <div v-for="v in props.availableVersions" :key="v.version" class="flex items-center justify-between p-3 bg-card hover:bg-muted/50 transition-colors">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                                            V{{ v.version }}
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="font-medium text-sm">{{ v.version_name }}</span>
+                                            <span v-if="v.version === props.activeVersion" class="text-[10px] uppercase font-bold text-emerald-600">Terpilih Aktif</span>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        v-if="v.version !== 0" 
+                                        variant="ghost" 
+                                        size="icon" 
+                                        class="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                        @click="openDeleteDialog(v)"
+                                        title="Hapus Permanen">
+                                        <Trash2 class="w-4 h-4" />
+                                    </Button>
                                 </div>
-                                <div class="flex items-center space-x-2 border rounded-md p-3" :class="form.settings[0].value === 'block' ? 'border-destructive bg-destructive/5' : 'border-border'">
-                                    <RadioGroupItem id="block" value="block" />
-                                    <Label for="block" class="flex flex-col cursor-pointer">
-                                        <span class="font-medium me-auto text-destructive">Strict / Block (Cegah Transaksi)</span>
-                                        <span class="text-xs text-muted-foreground">Sistem akan memblokir secara paksa (error) jika input pengeluaran melebihi sisa pagu anggaran.</span>
-                                    </Label>
-                                </div>
-                            </RadioGroup>
+                            </div>
                         </div>
                     </CardContent>
-                    
-                    <CardFooter class="flex justify-end space-x-2 bg-muted/20 border-t border-border/80 py-4">
-                        <Button type="submit" :disabled="form.processing">
-                            {{ form.processing ? 'Menyimpan...' : 'Simpan Pengaturan' }}
-                        </Button>
-                    </CardFooter>
                 </Card>
-            </form>
 
-            <!-- Master Jenis Penerimaan (Link) -->
-            <Card class="border-border/80 shadow-sm mt-6">
-                <CardHeader class="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Master Jenis Penerimaan</CardTitle>
-                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Kelola jenis penerimaan (Pendapatan Daerah, Pajak, Retribusi, dll).</CardDescription>
-                    </div>
-                    <Link href="/receipt-types">
-                        <Button size="sm" variant="outline" class="gap-2 border-primary text-primary hover:bg-primary hover:text-white">
-                            Kelola Jenis Penerimaan
-                        </Button>
-                    </Link>
-                </CardHeader>
-            </Card>
-
-            <!-- Manajemen Master Sumber Dana -->
-            <Card class="border-border/80 shadow-sm mt-6">
-                <CardHeader class="border-b border-border/80 pb-4 flex flex-row items-center justify-between">
-                    <div>
-                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Master Data Sumber Dana</CardTitle>
-                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Kelola jenis-jenis sumber dana yang tersedia untuk RBA.</CardDescription>
-                    </div>
-                    <Button @click="openCreateFs" size="sm" class="gap-2">
-                        <PlusCircle class="w-4 h-4" /> Tambah Sumber Dana
-                    </Button>
-                </CardHeader>
-                <CardContent class="p-0">
-                    <div v-if="fundingSources.length === 0" class="p-6 text-center text-sm text-muted-foreground">
-                        Belum ada data sumber dana. Silakan tambah baru.
-                    </div>
-                    <div v-else class="divide-y divide-border">
-                        <div v-for="fs in fundingSources" :key="fs.id" class="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
-                            <div class="flex flex-col">
-                                <span class="font-semibold text-sm">{{ fs.name }} <span v-if="fs.code" class="text-xs font-normal text-muted-foreground ml-2 border px-1.5 py-0.5 rounded">{{ fs.code }}</span></span>
-                                <span class="text-xs text-muted-foreground mt-1">{{ fs.description || '-' }}</span>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" class="text-muted-foreground hover:text-primary" @click="openEditFs(fs)">
-                                    <Pencil class="w-4 h-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive" @click="openDeleteFs(fs)">
-                                    <Trash2 class="w-4 h-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <!-- Manajemen Versi RBA (Hanya jika punya akses) -->
-            <Card v-if="canManageRevision" class="border-border/80 shadow-sm mt-6">
-                <CardHeader class="border-b border-border/80 pb-4">
-                    <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Manajemen Versi RBA</CardTitle>
-                    <CardDescription class="text-xs text-muted-foreground mt-0.5">Kontrol tahapan aktif dan replikasi Kertas Kerja Perencanaan Anggaran.</CardDescription>
-                </CardHeader>
-                
-                <CardContent class="space-y-6">
-                    <!-- Aktifkan Versi Tertentu -->
-                    <div class="p-4 border rounded-md bg-muted/10 space-y-4">
-                        <div>
-                            <Label class="text-sm font-semibold text-foreground">Tahapan RBA Aktif Saat Ini</Label>
-                            <p class="text-xs text-muted-foreground mt-1">Pilih versi/tahapan RBA yang akan digunakan secara global oleh sistem pada tahun anggaran saat ini.</p>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <Select v-model="activeVersionForm.version">
-                                <SelectTrigger class="w-[300px]">
-                                    <SelectValue placeholder="Pilih Tahapan RBA" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectGroup>
-                                        <SelectItem v-for="v in props.availableVersions" :key="v.version" :value="v.version.toString()">
-                                            {{ v.version_name }} (Versi {{ v.version }})
-                                        </SelectItem>
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-                            <Button @click="saveActiveVersion" :disabled="activeVersionForm.processing || activeVersionForm.version === props.activeVersion.toString()">
-                                Set Sebagai Aktif
-                            </Button>
-                        </div>
-                    </div>
-
-                    <!-- Daftar Riwayat Versi & Tombol Replikasi -->
-                    <div>
-                        <div class="flex items-center justify-between mb-3">
-                            <Label class="text-sm font-semibold text-foreground">Riwayat Dokumen RBA</Label>
-                            <Button @click="isRevisionDialogOpen = true" variant="outline" size="sm" class="border-primary text-primary hover:bg-primary hover:text-white">
-                                + Buat Replikasi
-                            </Button>
-                        </div>
-                        
-                        <div class="border rounded-md divide-y overflow-hidden">
-                            <div v-for="v in props.availableVersions" :key="v.version" class="flex items-center justify-between p-3 bg-card hover:bg-muted/50 transition-colors">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
-                                        V{{ v.version }}
-                                    </div>
-                                    <div class="flex flex-col">
-                                        <span class="font-medium text-sm">{{ v.version_name }}</span>
-                                        <span v-if="v.version === props.activeVersion" class="text-[10px] uppercase font-bold text-emerald-600">Terpilih Aktif</span>
-                                    </div>
+                <!-- Panel Impor Massal Data RBA -->
+                <Card class="border-border/80 shadow-sm">
+                    <CardHeader class="border-b border-border/80 pb-4 bg-muted/10">
+                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground flex items-center gap-2">
+                            <UploadCloud class="w-5 h-5 text-primary" />
+                            Impor Massal Data RBA
+                        </CardTitle>
+                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Unggah file Excel (.xlsx) Kertas Kerja RBA untuk diparsing otomatis menjadi struktur pohon rincian.</CardDescription>
+                    </CardHeader>
+                    
+                    <CardContent>
+                        <form @submit.prevent="submitImport" class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="space-y-2">
+                                    <Label for="rba_file">File Kertas Kerja RBA (.xlsx) <span class="text-destructive">*</span></Label>
+                                    <Input id="rba_file" type="file" accept=".xlsx, .xls" @change="handleFileChange" class="cursor-pointer" required />
+                                    <p class="text-[10px] text-muted-foreground">Pastikan format sejajar dengan template ekspor.</p>
+                                    <p v-if="importForm.errors.file" class="text-[10px] text-destructive">{{ importForm.errors.file }}</p>
                                 </div>
-                                <Button 
-                                    v-if="v.version !== 0" 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    class="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                    @click="openDeleteDialog(v)"
-                                    title="Hapus Permanen">
-                                    <Trash2 class="w-4 h-4" />
+                                
+                                <div class="space-y-2">
+                                    <Label for="start_column">Huruf Kolom "Harga" <span class="text-destructive">*</span></Label>
+                                    <Input id="start_column" type="text" maxlength="2" class="uppercase" v-model="importForm.start_column" required />
+                                    <p class="text-[10px] text-muted-foreground">Misal: <strong>C</strong> untuk Induk, atau <strong>I</strong> untuk Pergeseran. Sistem akan otomatis membaca 5 kolom berurutan (Harga, Sat1, Vol1, Sat2, Vol2).</p>
+                                    <p v-if="importForm.errors.start_column" class="text-[10px] text-destructive">{{ importForm.errors.start_column }}</p>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <Label for="start_row">Mulai Baca Dari Baris Ke- <span class="text-destructive">*</span></Label>
+                                    <Input id="start_row" type="number" min="1" v-model="importForm.start_row" required />
+                                    <p class="text-[10px] text-muted-foreground">Abaikan baris kop surat & header tabel di atasnya.</p>
+                                    <p v-if="importForm.errors.start_row" class="text-[10px] text-destructive">{{ importForm.errors.start_row }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-md text-xs font-medium">
+                                <AlertTriangle class="w-4 h-4 shrink-0" />
+                                <p>Proses ini akan mereplace (menimpa) seluruh data rincian RBA pada tahun dan versi aktif saat ini (Versi {{ props.activeVersion }}). Pastikan Anda berada di tahapan versi yang tepat sebelum melakukan impor.</p>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <Button type="submit" variant="default" :disabled="importForm.processing || !importForm.file">
+                                    <span v-if="importForm.processing" class="flex items-center gap-2">
+                                        <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Memproses Ribuan Baris...
+                                    </span>
+                                    <span v-else class="flex items-center gap-2">
+                                        <UploadCloud class="w-4 h-4" />
+                                        Mulai Impor Data
+                                    </span>
                                 </Button>
                             </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                        </form>
+                    </CardContent>
+                </Card>
+            </div>
 
-            <!-- Panel Impor Massal Data RBA -->
-            <Card v-if="canManageRevision" class="border-border/80 shadow-sm mt-6">
-                <CardHeader class="border-b border-border/80 pb-4 bg-muted/10">
-                    <CardTitle class="text-base font-bold text-secondary dark:text-foreground flex items-center gap-2">
-                        <UploadCloud class="w-5 h-5 text-primary" />
-                        Impor Massal Data RBA
-                    </CardTitle>
-                    <CardDescription class="text-xs text-muted-foreground mt-0.5">Unggah file Excel (.xlsx) Kertas Kerja RBA untuk diparsing otomatis menjadi struktur pohon rincian.</CardDescription>
-                </CardHeader>
-                
-                <CardContent>
-                    <form @submit.prevent="submitImport" class="space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div class="space-y-2">
-                                <Label for="rba_file">File Kertas Kerja RBA (.xlsx) <span class="text-destructive">*</span></Label>
-                                <Input id="rba_file" type="file" accept=".xlsx, .xls" @change="handleFileChange" class="cursor-pointer" required />
-                                <p class="text-[10px] text-muted-foreground">Pastikan format sejajar dengan template ekspor.</p>
-                                <p v-if="importForm.errors.file" class="text-[10px] text-destructive">{{ importForm.errors.file }}</p>
+            <!-- TAB 4: DANGER ZONE -->
+            <div v-show="activeTab === 'danger'" class="space-y-6">
+                <Card class="border-destructive/30 shadow-sm">
+                    <CardHeader class="border-b border-destructive/20 pb-4 bg-destructive/5 rounded-t-xl">
+                        <CardTitle class="text-base font-bold text-destructive flex items-center gap-2">
+                            <AlertTriangle class="w-5 h-5" /> Danger Zone
+                        </CardTitle>
+                        <CardDescription class="text-xs text-destructive/80 mt-0.5">Aksi di area ini bersifat permanen dan tidak dapat dibatalkan.</CardDescription>
+                    </CardHeader>
+                    <CardContent class="p-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h4 class="font-semibold text-sm">Bersihkan Data Pengeluaran</h4>
+                                <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus data SPPD, Rincian, Pajak, OPD, dan SPD secara permanen berdasarkan rentang tanggal atau seluruhnya. Master data seperti vendor dan pegawai akan tetap dipertahankan.</p>
                             </div>
-                            
-                            <div class="space-y-2">
-                                <Label for="start_column">Huruf Kolom "Harga" <span class="text-destructive">*</span></Label>
-                                <Input id="start_column" type="text" maxlength="2" class="uppercase" v-model="importForm.start_column" required />
-                                <p class="text-[10px] text-muted-foreground">Misal: <strong>C</strong> untuk Induk, atau <strong>I</strong> untuk Pergeseran. Sistem akan otomatis membaca 5 kolom berurutan (Harga, Sat1, Vol1, Sat2, Vol2).</p>
-                                <p v-if="importForm.errors.start_column" class="text-[10px] text-destructive">{{ importForm.errors.start_column }}</p>
-                            </div>
-
-                            <div class="space-y-2">
-                                <Label for="start_row">Mulai Baca Dari Baris Ke- <span class="text-destructive">*</span></Label>
-                                <Input id="start_row" type="number" min="1" v-model="importForm.start_row" required />
-                                <p class="text-[10px] text-muted-foreground">Abaikan baris kop surat & header tabel di atasnya.</p>
-                                <p v-if="importForm.errors.start_row" class="text-[10px] text-destructive">{{ importForm.errors.start_row }}</p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-md text-xs font-medium">
-                            <AlertTriangle class="w-4 h-4 shrink-0" />
-                            <p>Proses ini akan mereplace (menimpa) seluruh data rincian RBA pada tahun dan versi aktif saat ini (Versi {{ props.activeVersion }}). Pastikan Anda berada di tahapan versi yang tepat sebelum melakukan impor.</p>
-                        </div>
-
-                        <div class="flex justify-end">
-                            <Button type="submit" variant="default" :disabled="importForm.processing || !importForm.file">
-                                <span v-if="importForm.processing" class="flex items-center gap-2">
-                                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                    Memproses Ribuan Baris...
-                                </span>
-                                <span v-else class="flex items-center gap-2">
-                                    <UploadCloud class="w-4 h-4" />
-                                    Mulai Impor Data
-                                </span>
+                            <Button variant="destructive" @click="openClearExpendituresDialog">
+                                Bersihkan Data
                             </Button>
                         </div>
-                    </form>
-                </CardContent>
-            </Card>
-
-            <!-- Danger Zone: Pengeluaran -->
-            <Card class="border-destructive/30 shadow-sm mt-6">
-                <CardHeader class="border-b border-destructive/20 pb-4 bg-destructive/5 rounded-t-xl">
-                    <CardTitle class="text-base font-bold text-destructive flex items-center gap-2">
-                        <AlertTriangle class="w-5 h-5" /> Danger Zone
-                    </CardTitle>
-                    <CardDescription class="text-xs text-destructive/80 mt-0.5">Aksi di area ini bersifat permanen dan tidak dapat dibatalkan.</CardDescription>
-                </CardHeader>
-                <CardContent class="p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h4 class="font-semibold text-sm">Bersihkan Data Pengeluaran</h4>
-                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus data SPPD, Rincian, Pajak, OPD, dan SPD secara permanen berdasarkan rentang tanggal atau seluruhnya. Master data seperti vendor dan pegawai akan tetap dipertahankan.</p>
+                        <div class="border-t border-destructive/10 my-4"></div>
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div>
+                                <h4 class="font-semibold text-sm">Bersihkan Data Penerimaan</h4>
+                                <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus data Tanda Bukti Penerimaan (TBP/STS) beserta rinciannya secara permanen berdasarkan rentang tanggal atau seluruhnya.</p>
+                            </div>
+                            <Button variant="destructive" @click="openClearReceiptsDialog">
+                                Bersihkan Data
+                            </Button>
                         </div>
-                        <Button variant="destructive" @click="openClearExpendituresDialog">
-                            Bersihkan Data
-                        </Button>
-                    </div>
-                    <div class="border-t border-destructive/10 my-4"></div>
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div>
-                            <h4 class="font-semibold text-sm">Bersihkan Data Penerimaan</h4>
-                            <p class="text-xs text-muted-foreground mt-1 max-w-xl">Hapus data Tanda Bukti Penerimaan (TBP/STS) beserta rinciannya secara permanen berdasarkan rentang tanggal atau seluruhnya.</p>
-                        </div>
-                        <Button variant="destructive" @click="openClearReceiptsDialog">
-                            Bersihkan Data
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
 
             <!-- Dialog Konfirmasi Replikasi -->
             <Dialog v-model:open="isRevisionDialogOpen">

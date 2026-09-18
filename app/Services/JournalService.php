@@ -207,8 +207,16 @@ class JournalService
     public function createFromExpenditure(\App\Models\Expenditure $expenditure)
     {
         $defaultKasId = \App\Models\Setting::where('key', 'default_expenditure_account')->value('value');
-        if (!$defaultKasId) {
-            throw new Exception("Akun Kas Pengeluaran Default belum diatur di Pengaturan Sistem.");
+        
+        // Ambil aturan jurnal pengeluaran jika ada
+        $rulesJson = \App\Models\Setting::where('key', 'expenditure_journal_rules')->value('value');
+        $rules = $rulesJson ? json_decode($rulesJson, true) : [];
+        $typeRule = $rules[$expenditure->type] ?? null;
+
+        // Tentukan akun kas sumber (Kredit)
+        $creditKasId = $typeRule['credit_account_id'] ?? $defaultKasId;
+        if (!$creditKasId) {
+            throw new Exception("Akun Kas Pengeluaran (Kredit) belum diatur di Pengaturan Sistem.");
         }
 
         $totalAmount = $expenditure->details()->sum('amount');
@@ -216,22 +224,32 @@ class JournalService
 
         $details = [];
         
-        // Debit: Akun-akun Belanja
-        foreach ($expenditure->details as $detail) {
-            if (!$detail->account_code_id) {
-                throw new Exception("Ada rincian pengeluaran yang belum memiliki pemetaan Akun Belanja.");
-            }
+        // Jika jenis pengeluaran memiliki debit_account_id khusus (misal UP atau TU untuk mutasi kas)
+        if (!empty($typeRule['debit_account_id'])) {
             $details[] = [
-                'account_code_id' => $detail->account_code_id,
-                'debit' => $detail->amount,
+                'account_code_id' => $typeRule['debit_account_id'],
+                'debit' => $totalAmount,
                 'credit' => 0,
-                'description' => $expenditure->description
+                'description' => ($typeRule['name'] ?? $expenditure->type) . ' - ' . $expenditure->document_number
             ];
+        } else {
+            // Debit: Akun-akun Belanja dari rincian SPPD
+            foreach ($expenditure->details as $detail) {
+                if (!$detail->account_code_id) {
+                    throw new Exception("Ada rincian pengeluaran yang belum memiliki pemetaan Akun Belanja.");
+                }
+                $details[] = [
+                    'account_code_id' => $detail->account_code_id,
+                    'debit' => $detail->amount,
+                    'credit' => 0,
+                    'description' => $expenditure->description
+                ];
+            }
         }
 
-        // Kredit: Kas Bendahara Pengeluaran
+        // Kredit: Kas Sumber Pengeluaran
         $details[] = [
-            'account_code_id' => $defaultKasId,
+            'account_code_id' => $creditKasId,
             'debit' => 0,
             'credit' => $totalAmount,
             'description' => 'Pengeluaran Kas - ' . $expenditure->document_number

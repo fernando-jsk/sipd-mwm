@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/Components/ui/table';
-import { Trash2, Plus, UploadCloud, ChevronRight, ChevronLeft, Save, Send } from '@lucide/vue';
+import { Trash2, Plus, UploadCloud, ChevronRight, ChevronLeft, Save, Send, Info } from '@lucide/vue';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 
 const props = defineProps({
@@ -29,6 +29,10 @@ const props = defineProps({
     users: Array,
     vendors: Array,
     accountCodes: Array,
+    expenditureRules: {
+        type: Object,
+        default: () => ({})
+    }
 });
 
 const isEdit = !!props.expenditure;
@@ -52,6 +56,25 @@ const form = useForm({
     attachment: null,
     details: props.expenditure?.details ? props.expenditure.details.map(d => ({ ...d, account_code_id: d.account_code_id.toString() })) : [],
     taxes: props.expenditure?.taxes || [],
+});
+
+// Otomatis atur akun debit dan metode bayar jika memilih UP
+watch(() => form.type, (newType) => {
+    if (newType === 'UP') {
+        if (!form.description) {
+            form.description = 'Penyediaan Uang Persediaan (UP) Awal Tahun Anggaran';
+        }
+        form.payment_method = 'ls_bendahara';
+        const upDebitAccId = props.expenditureRules?.UP?.debit_account_id;
+        if (upDebitAccId && form.details.length === 0) {
+            form.details.push({
+                account_code_id: upDebitAccId.toString(),
+                amount: ''
+            });
+        } else if (upDebitAccId && form.details.length === 1 && !form.details[0].account_code_id) {
+            form.details[0].account_code_id = upDebitAccId.toString();
+        }
+    }
 });
 
 // For keeping track of selected vendor to auto-fill bank
@@ -348,11 +371,17 @@ const submitForm = (status) => {
                         </Button>
                     </div>
 
+                    <!-- Banner Info jika tipe UP -->
+                    <div v-if="form.type === 'UP'" class="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-900 dark:text-blue-200 flex items-center gap-2">
+                        <Info class="w-4 h-4 shrink-0 text-blue-600" />
+                        <span><strong>Pengajuan Uang Persediaan (UP):</strong> Dana ini bersifat uang muka kerja operasional bendahara. Tidak memotong pagu belanja RBA dan tidak menambah realisasi belanja di dashboard.</span>
+                    </div>
+
                     <div class="overflow-x-auto bg-background rounded-lg border">
                         <Table>
                             <TableHeader>
                                 <TableRow class="bg-muted/50">
-                                    <TableHead class="w-[50%]">Akun Anggaran (RBA)</TableHead>
+                                    <TableHead class="w-[50%]">Akun Anggaran / Kas</TableHead>
                                     <TableHead class="w-[40%]">Nominal (Rp)</TableHead>
                                     <TableHead class="w-[10%] text-center">Aksi</TableHead>
                                 </TableRow>
@@ -364,11 +393,19 @@ const submitForm = (status) => {
                                             <SelectTrigger><SelectValue placeholder="Pilih Akun" /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem v-for="acc in accountCodes" :key="acc.id" :value="acc.id.toString()">
-                                                    {{ acc.code }} - {{ acc.name }}
+                                                    {{ acc.code }} - {{ acc.name }} {{ acc.is_non_budgetary ? '(Non-Anggaran / UP)' : '' }}
                                                 </SelectItem>
                                             </SelectContent>
                                         </Select>
-                                        <div v-if="item.account_code_id" class="mt-2 text-[11px] sm:text-xs p-2 sm:p-3 bg-muted/30 rounded-lg border flex flex-col gap-1.5 shadow-sm">
+                                        
+                                        <!-- Info Non-Anggaran untuk UP -->
+                                        <div v-if="item.account_code_id && (form.type === 'UP' || getAccountInfo(Number(item.account_code_id), 'is_non_budgetary'))" class="mt-2 text-[11px] p-2.5 bg-blue-500/10 text-blue-800 dark:text-blue-300 rounded-lg border border-blue-500/20 flex items-center gap-2">
+                                            <Info class="w-3.5 h-3.5 shrink-0 text-blue-600" />
+                                            <span>Akun Kas / Uang Muka Non-Anggaran (Tidak memotong pagu belanja RBA).</span>
+                                        </div>
+
+                                        <!-- Info Pagu RBA untuk Belanja Riil -->
+                                        <div v-else-if="item.account_code_id" class="mt-2 text-[11px] sm:text-xs p-2 sm:p-3 bg-muted/30 rounded-lg border flex flex-col gap-1.5 shadow-sm">
                                             <div class="flex justify-between items-center">
                                                 <span class="text-muted-foreground">Total Pagu:</span>
                                                 <span class="font-semibold font-mono">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}</span>

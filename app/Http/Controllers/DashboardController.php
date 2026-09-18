@@ -38,11 +38,27 @@ class DashboardController extends Controller
             $cashInData[$r->month - 1] = (float) $r->total;
         }
         
-        // Pengeluaran
+        // Ambil aturan tipe pengeluaran untuk memfilter hanya pengeluaran belanja riil (budgetary)
+        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
+        $rules = $rulesJson ? json_decode($rulesJson, true) : [];
+        $budgetaryTypes = [];
+        if (!empty($rules)) {
+            foreach ($rules as $type => $rule) {
+                if (!empty($rule['is_budgetary'])) {
+                    $budgetaryTypes[] = $type;
+                }
+            }
+        }
+        if (empty($budgetaryTypes)) {
+            $budgetaryTypes = ['GU', 'LS', 'LS_Pegawai', 'LS_Barang_Jasa_Modal'];
+        }
+
+        // Pengeluaran Belanja Riil (Tidak termasuk UP / Mutasi Kas)
         $expenditures = DB::table('expenditures')
             ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
             ->whereYear('expenditures.date', $activeYear)
             ->where('expenditures.status', 'disbursed')
+            ->whereIn('expenditures.type', $budgetaryTypes)
             ->select(DB::raw('MONTH(expenditures.date) as month'), DB::raw('SUM(expenditure_details.amount) as total'))
             ->groupBy(DB::raw('MONTH(expenditures.date)'))
             ->get();
@@ -69,6 +85,7 @@ class DashboardController extends Controller
         $totalOut = DB::table('expenditure_details')
             ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
             ->where('expenditures.status', 'disbursed')
+            ->whereIn('expenditures.type', $budgetaryTypes)
             ->sum('expenditure_details.amount');
             
         $endingBalance = (float) $totalIn - (float) $totalOut;
@@ -86,6 +103,7 @@ class DashboardController extends Controller
             ->join('account_codes', 'expenditure_details.account_code_id', '=', 'account_codes.id')
             ->whereYear('expenditures.date', $activeYear)
             ->where('expenditures.status', 'disbursed')
+            ->whereIn('expenditures.type', $budgetaryTypes)
             ->select('account_codes.name', DB::raw('SUM(expenditure_details.amount) as total'))
             ->groupBy('account_codes.name')
             ->orderByDesc('total')
