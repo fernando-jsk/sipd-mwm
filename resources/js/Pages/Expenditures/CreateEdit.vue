@@ -21,14 +21,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/Components/ui/table';
-import { Trash2, Plus, UploadCloud, ChevronRight, ChevronLeft, Save, Send } from '@lucide/vue';
+import { Trash2, Plus, UploadCloud, ChevronRight, ChevronLeft, Save, Send, Info, CheckCircle2, ArrowRightLeft } from '@lucide/vue';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
+import { Badge } from '@/Components/ui/badge';
+import { terbilang } from '@/lib/utils';
 
 const props = defineProps({
     expenditure: Object,
     users: Array,
     vendors: Array,
     accountCodes: Array,
+    expenditureRules: {
+        type: Object,
+        default: () => ({})
+    }
 });
 
 const isEdit = !!props.expenditure;
@@ -36,7 +42,7 @@ const isEdit = !!props.expenditure;
 const form = useForm({
     document_number: props.expenditure?.document_number || '',
     date: props.expenditure?.date ? new Date(props.expenditure.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    type: props.expenditure?.type || 'UP',
+    type: props.expenditure?.type || 'LS',
     description: props.expenditure?.description || '',
     treasurer_id: props.expenditure?.treasurer_id?.toString() || '',
     kpa_id: props.expenditure?.kpa_id?.toString() || '',
@@ -50,9 +56,59 @@ const form = useForm({
     contract_number: props.expenditure?.contract_number || '',
     status: props.expenditure?.status || 'draft',
     attachment: null,
-    details: props.expenditure?.details ? props.expenditure.details.map(d => ({ ...d, account_code_id: d.account_code_id.toString() })) : [],
+    details: props.expenditure?.details 
+        ? props.expenditure.details.map(d => ({ ...d, account_code_id: d.account_code_id.toString() })) 
+        : [{ account_code_id: '', amount: '' }],
     taxes: props.expenditure?.taxes || [],
 });
+
+// Otomatis atur akun debit, deskripsi kegiatan, dan metode bayar jika memilih UP
+const initUpForm = () => {
+    if (form.type === 'UP') {
+        if (!form.description) {
+            form.description = 'Penyediaan Uang Persediaan (UP) Awal Tahun Anggaran';
+        }
+        if (!form.activity_description) {
+            const year = form.date ? new Date(form.date).getFullYear() : new Date().getFullYear();
+            form.activity_description = `Penyediaan Uang Persediaan (UP) untuk keperluan operasional rutin BLUD Tahun Anggaran ${year}`;
+        }
+        form.payment_method = 'ls_bendahara';
+        form.taxes = [];
+        
+        // UP hanya memerlukan 1 baris gelondongan ke akun kas bendahara
+        const upDebitAccId = props.expenditureRules?.UP?.debit_account_id;
+        if (form.details.length === 0) {
+            form.details.push({
+                account_code_id: upDebitAccId ? upDebitAccId.toString() : '',
+                amount: ''
+            });
+        } else {
+            if (form.details.length > 1) {
+                form.details = [form.details[0]];
+            }
+            if (upDebitAccId && !form.details[0].account_code_id) {
+                form.details[0].account_code_id = upDebitAccId.toString();
+            }
+        }
+    }
+};
+
+watch(() => form.type, (newType, oldType) => {
+    if (newType === 'UP') {
+        initUpForm();
+    } else if (oldType === 'UP') {
+        // Jika beralih dari UP ke jenis belanja reguler
+        if (form.payment_method === 'ls_bendahara') {
+            form.payment_method = 'rekanan';
+        }
+        if (form.description === 'Penyediaan Uang Persediaan (UP) Awal Tahun Anggaran') {
+            form.description = '';
+        }
+        if (form.activity_description?.startsWith('Penyediaan Uang Persediaan (UP)')) {
+            form.activity_description = '';
+        }
+    }
+}, { immediate: true });
 
 // For keeping track of selected vendor to auto-fill bank
 watch(() => form.vendor_id, (newVendorId) => {
@@ -297,8 +353,32 @@ const submitForm = (status) => {
 
                     <!-- Section: Informasi Pembayaran / Vendor -->
                     <div>
-                        <h3 class="text-lg font-semibold text-secondary mb-4 border-b pb-2">Informasi Pembayaran (Vendor)</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <h3 class="text-lg font-semibold text-secondary mb-4 border-b pb-2">
+                            {{ form.type === 'UP' ? 'Tujuan Penyaluran Kas UP' : 'Informasi Pembayaran (Vendor)' }}
+                        </h3>
+                        
+                        <!-- Khusus UP: Penyaluran Kas ke Bendahara Pengeluaran -->
+                        <div v-if="form.type === 'UP'" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="space-y-2">
+                                    <Label for="payment_method">Cara Bayar</Label>
+                                    <div class="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/40 text-sm font-medium">
+                                        <Badge variant="secondary" class="bg-primary/10 text-primary font-semibold">LS Bendahara</Badge>
+                                        <span class="text-xs text-muted-foreground">(Penyaluran Kas Operasional)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-4 bg-muted/40 rounded-xl border flex items-start gap-3">
+                                <Info class="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                                <div class="text-xs text-muted-foreground space-y-1">
+                                    <p class="font-semibold text-secondary dark:text-foreground text-sm">Penyaluran Uang Muka Operasional (UP):</p>
+                                    <p>Pencairan Uang Persediaan (UP) dipindahbukukan langsung dari <strong>Kas BLUD di Bank</strong> ke <strong>Rekening Kas Operasional Bendahara Pengeluaran</strong> untuk membiayai operasional rutin BLUD.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Non-UP: Form Cara Bayar Biasa -->
+                        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="payment_method">Cara Bayar <span class="text-destructive">*</span></Label>
                                 <Select v-model="form.payment_method">
@@ -342,65 +422,109 @@ const submitForm = (status) => {
                 <!-- STEP 2: Rincian Anggaran -->
                 <div v-show="currentStep === 2" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                     <div class="flex items-center justify-between border-b pb-2">
-                        <h3 class="text-lg font-semibold text-secondary">Rincian Anggaran (Kode Rekening)</h3>
-                        <Button variant="outline" size="sm" @click="addDetailRow" type="button">
+                        <div>
+                            <h3 class="text-lg font-semibold text-secondary">
+                                {{ form.type === 'UP' ? 'Pencairan Kas Uang Persediaan (UP)' : 'Rincian Anggaran (Kode Rekening)' }}
+                            </h3>
+                            <p v-if="form.type === 'UP'" class="text-xs text-muted-foreground mt-0.5">
+                                Nilai nominal uang muka kerja operasional bendahara pengeluaran.
+                            </p>
+                        </div>
+                        <Button v-if="form.type !== 'UP'" variant="outline" size="sm" @click="addDetailRow" type="button">
                             <Plus class="w-4 h-4 mr-1" /> Tambah Baris
                         </Button>
                     </div>
 
-                    <div class="overflow-x-auto bg-background rounded-lg border">
+                    <!-- Banner Info jika tipe UP -->
+                    <div v-if="form.type === 'UP'" class="p-3.5 bg-blue-500/10 border border-blue-500/20 rounded-xl text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                        <Info class="w-4 h-4 shrink-0 text-blue-600 mt-0.5" />
+                        <div>
+                            <strong>Pengajuan Uang Persediaan (UP):</strong> Dana ini bersifat uang muka kerja operasional bendahara (non-anggaran). Tidak memotong pagu belanja RBA dan tidak menambah realisasi belanja di dashboard.
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto bg-background rounded-xl border">
                         <Table>
                             <TableHeader>
                                 <TableRow class="bg-muted/50">
-                                    <TableHead class="w-[50%]">Akun Anggaran (RBA)</TableHead>
-                                    <TableHead class="w-[40%]">Nominal (Rp)</TableHead>
-                                    <TableHead class="w-[10%] text-center">Aksi</TableHead>
+                                    <TableHead :class="form.type === 'UP' ? 'w-[55%]' : 'w-[50%]'">
+                                        {{ form.type === 'UP' ? 'Akun Kas Penerima UP' : 'Akun Anggaran / Kas' }}
+                                    </TableHead>
+                                    <TableHead :class="form.type === 'UP' ? 'w-[45%]' : 'w-[40%]'">Nominal (Rp)</TableHead>
+                                    <TableHead v-if="form.type !== 'UP'" class="w-[10%] text-center">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 <TableRow v-for="(item, index) in form.details" :key="index">
                                     <TableCell class="align-top">
-                                        <Select v-model="form.details[index].account_code_id">
-                                            <SelectTrigger><SelectValue placeholder="Pilih Akun" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem v-for="acc in accountCodes" :key="acc.id" :value="acc.id.toString()">
-                                                    {{ acc.code }} - {{ acc.name }}
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <div v-if="item.account_code_id" class="mt-2 text-[11px] sm:text-xs p-2 sm:p-3 bg-muted/30 rounded-lg border flex flex-col gap-1.5 shadow-sm">
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-muted-foreground">Total Pagu:</span>
-                                                <span class="font-semibold font-mono">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}</span>
+                                        <template v-if="form.type === 'UP'">
+                                            <div class="space-y-1.5">
+                                                <Select v-model="form.details[index].account_code_id">
+                                                    <SelectTrigger><SelectValue placeholder="Pilih Akun Kas UP" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem v-for="acc in accountCodes" :key="acc.id" :value="acc.id.toString()">
+                                                            {{ acc.code }} - {{ acc.name }} {{ acc.is_non_budgetary ? '(Kas UP)' : '' }}
+                                                        </SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <div class="flex items-center gap-1.5 text-[11px] text-blue-700 dark:text-blue-300 font-medium">
+                                                    <Badge variant="outline" class="text-[10px] bg-blue-500/10 text-blue-700 border-blue-500/30">Kas Operasional</Badge>
+                                                    <span>Akun kas debet sesuai aturan jurnal sistem (Non-Anggaran).</span>
+                                                </div>
                                             </div>
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-muted-foreground">Jml. Pengajuan:</span>
-                                                <span class="font-medium font-mono text-amber-600">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'submitted_amount')) }}</span>
+                                        </template>
+                                        <template v-else>
+                                            <Select v-model="form.details[index].account_code_id">
+                                                <SelectTrigger><SelectValue placeholder="Pilih Akun" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem v-for="acc in accountCodes" :key="acc.id" :value="acc.id.toString()">
+                                                        {{ acc.code }} - {{ acc.name }} {{ acc.is_non_budgetary ? '(Non-Anggaran / UP)' : '' }}
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            
+                                            <!-- Info Pagu RBA untuk Belanja Riil -->
+                                            <div v-if="item.account_code_id" class="mt-2 text-[11px] sm:text-xs p-2 sm:p-3 bg-muted/30 rounded-lg border flex flex-col gap-1.5 shadow-sm">
+                                                <div class="flex justify-between items-center">
+                                                    <span class="text-muted-foreground">Total Pagu:</span>
+                                                    <span class="font-semibold font-mono">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}</span>
+                                                </div>
+                                                <div class="flex justify-between items-center">
+                                                    <span class="text-muted-foreground">Jml. Pengajuan:</span>
+                                                    <span class="font-medium font-mono text-amber-600">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'submitted_amount')) }}</span>
+                                                </div>
+                                                <div class="flex justify-between items-center">
+                                                    <span class="text-muted-foreground">Jml. Cair (SPD):</span>
+                                                    <span class="font-medium font-mono text-emerald-600">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'disbursed_amount')) }}</span>
+                                                </div>
+                                                <div class="flex justify-between items-center border-t border-border/80 pt-1.5 mt-0.5">
+                                                    <span class="font-semibold text-foreground">Sisa Pagu:</span>
+                                                    <span class="font-bold font-mono text-primary">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'remaining_budget')) }}</span>
+                                                </div>
                                             </div>
-                                            <div class="flex justify-between items-center">
-                                                <span class="text-muted-foreground">Jml. Cair (SPD):</span>
-                                                <span class="font-medium font-mono text-emerald-600">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'disbursed_amount')) }}</span>
-                                            </div>
-                                            <div class="flex justify-between items-center border-t border-border/80 pt-1.5 mt-0.5">
-                                                <span class="font-semibold text-foreground">Sisa Pagu:</span>
-                                                <span class="font-bold font-mono text-primary">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'remaining_budget')) }}</span>
-                                            </div>
-                                        </div>
+                                        </template>
                                     </TableCell>
                                     <TableCell class="align-top">
-                                        <div class="relative">
-                                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
-                                            <Input type="number" step="0.01" v-model="form.details[index].amount" class="pl-8 font-mono" />
+                                        <div class="space-y-1.5">
+                                            <div class="relative">
+                                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold">Rp</span>
+                                                <Input type="number" step="0.01" v-model="form.details[index].amount" class="pl-9 font-mono text-base font-bold focus-visible:ring-primary" placeholder="0" />
+                                            </div>
+                                            <!-- Live Terbilang Text -->
+                                            <div v-if="form.details[index].amount && Number(form.details[index].amount) > 0" class="text-xs p-2 rounded-md bg-muted/40 border text-muted-foreground font-sans leading-snug">
+                                                <span class="font-semibold text-foreground">Terbilang:</span> 
+                                                <span class="italic text-primary font-medium ml-1">{{ terbilang(form.details[index].amount) }} Rupiah</span>
+                                            </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell class="text-center align-top pt-4">
+                                    <TableCell v-if="form.type !== 'UP'" class="text-center align-top pt-4">
                                         <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10" @click="removeDetailRow(index)" type="button">
                                             <Trash2 class="w-4 h-4" />
                                         </Button>
                                     </TableCell>
                                 </TableRow>
                                 <TableRow v-if="form.details.length === 0">
-                                    <TableCell colspan="3" class="text-center text-muted-foreground h-24">
+                                    <TableCell :colspan="form.type === 'UP' ? 2 : 3" class="text-center text-muted-foreground h-24">
                                         Belum ada rincian ditambahkan. Klik tombol "Tambah Baris".
                                     </TableCell>
                                 </TableRow>
@@ -408,7 +532,8 @@ const submitForm = (status) => {
                         </Table>
                     </div>
                     
-                    <div class="mt-8">
+                    <!-- Seksi Potongan Pajak: Khusus Non-UP -->
+                    <div v-if="form.type !== 'UP'" class="mt-8">
                         <div class="flex items-center justify-between mb-4 border-b pb-2">
                             <h3 class="text-lg font-semibold text-secondary">Potongan Pajak (Opsional)</h3>
                             <Button type="button" variant="outline" size="sm" @click="addTaxRow">
@@ -463,47 +588,89 @@ const submitForm = (status) => {
                             </Table>
                         </div>
                     </div>
+
+                    <!-- Kotak Info Bebas Pajak untuk UP -->
+                    <div v-else class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-start gap-3">
+                        <CheckCircle2 class="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                        <div class="text-xs text-muted-foreground space-y-1">
+                            <p class="font-semibold text-emerald-800 dark:text-emerald-300 text-sm">Bebas Potongan Pajak (Non-Pajak):</p>
+                            <p>Pencairan Uang Persediaan (UP) tidak dikenakan potongan pajak (PPN/PPh). Pemungutan dan penyetoran pajak akan dilakukan saat dana UP digunakan untuk belanja riil pada pengajuan pertanggungjawaban (SPJ / Ganti Uang / GU).</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- STEP 3: Upload & Submit -->
                 <div v-show="currentStep === 3" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <h3 class="text-lg font-semibold text-secondary mb-4 border-b pb-2">Ringkasan & Lampiran</h3>
+                    <h3 class="text-lg font-semibold text-secondary mb-4 border-b pb-2">
+                        {{ form.type === 'UP' ? 'Ringkasan Pencairan UP & Dokumen Pendukung' : 'Ringkasan & Lampiran' }}
+                    </h3>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <!-- Summary Card -->
                         <div class="bg-muted/30 rounded-xl p-6 border shadow-sm h-fit">
-                            <h4 class="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Total Pengajuan (Kotor)</h4>
-                            <div class="text-4xl font-bold font-mono text-primary mb-6">
+                            <h4 class="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                                {{ form.type === 'UP' ? 'Total Nilai Pencairan UP' : 'Total Pengajuan (Kotor)' }}
+                            </h4>
+                            <div class="text-3xl sm:text-4xl font-bold font-mono text-primary mb-2">
                                 {{ formatCurrency(totalAmount) }}
                             </div>
                             
-                            <div class="space-y-2 text-sm">
+                            <!-- Terbilang di ringkasan -->
+                            <div v-if="totalAmount > 0" class="text-xs italic text-muted-foreground mb-6 pb-4 border-b border-border/50">
+                                Terbilang: <strong class="text-foreground not-italic">{{ terbilang(totalAmount) }} Rupiah</strong>
+                            </div>
+                            
+                            <div class="space-y-2.5 text-sm">
                                 <div class="flex justify-between border-b pb-2 border-border/50">
-                                    <span class="text-muted-foreground">Jenis:</span>
-                                    <span class="font-medium">{{ form.type }}</span>
+                                    <span class="text-muted-foreground">Jenis Transaksi:</span>
+                                    <span class="font-semibold text-secondary dark:text-foreground">
+                                        {{ form.type === 'UP' ? 'Uang Persediaan (UP)' : form.type }}
+                                    </span>
                                 </div>
-                                <div class="flex justify-between border-b pb-2 border-border/50">
-                                    <span class="text-muted-foreground">Jumlah Akun:</span>
-                                    <span class="font-medium">{{ form.details.length }} Akun</span>
-                                </div>
-                                <div class="flex justify-between border-b pb-2 border-border/50">
-                                    <span class="text-muted-foreground">Potongan Pajak:</span>
-                                    <span class="font-medium text-destructive">{{ form.taxes.length > 0 ? '-' + formatCurrency(totalTax) : 'Rp 0' }}</span>
-                                </div>
-                                <div class="flex justify-between border-b pb-2 border-border/50">
-                                    <span class="text-muted-foreground">Total Bersih:</span>
-                                    <span class="font-bold text-emerald-600">{{ formatCurrency(totalAmount - totalTax) }}</span>
-                                </div>
-                                <div class="flex justify-between pb-2">
-                                    <span class="text-muted-foreground">Cara Bayar:</span>
-                                    <span class="font-medium capitalize">{{ form.payment_method.replace('_', ' ') }}</span>
-                                </div>
+
+                                <!-- Baris khusus UP -->
+                                <template v-if="form.type === 'UP'">
+                                    <div class="flex justify-between border-b pb-2 border-border/50">
+                                        <span class="text-muted-foreground">Sifat Dana:</span>
+                                        <Badge variant="outline" class="bg-blue-500/10 text-blue-700 border-blue-500/30 text-xs">Uang Muka Kerja (Non-Pagu)</Badge>
+                                    </div>
+                                    <div class="flex justify-between border-b pb-2 border-border/50">
+                                        <span class="text-muted-foreground">Mutasi Kas:</span>
+                                        <span class="font-medium text-xs text-right">Kas BLUD ➔ Kas Bendahara</span>
+                                    </div>
+                                    <div class="flex justify-between pb-1">
+                                        <span class="text-muted-foreground">Potongan Pajak:</span>
+                                        <span class="font-medium text-emerald-600">Bebas Pajak (Rp 0)</span>
+                                    </div>
+                                </template>
+
+                                <!-- Baris Non-UP -->
+                                <template v-else>
+                                    <div class="flex justify-between border-b pb-2 border-border/50">
+                                        <span class="text-muted-foreground">Jumlah Akun:</span>
+                                        <span class="font-medium">{{ form.details.length }} Akun</span>
+                                    </div>
+                                    <div class="flex justify-between border-b pb-2 border-border/50">
+                                        <span class="text-muted-foreground">Potongan Pajak:</span>
+                                        <span class="font-medium text-destructive">{{ form.taxes.length > 0 ? '-' + formatCurrency(totalTax) : 'Rp 0' }}</span>
+                                    </div>
+                                    <div class="flex justify-between border-b pb-2 border-border/50">
+                                        <span class="text-muted-foreground">Total Bersih:</span>
+                                        <span class="font-bold text-emerald-600">{{ formatCurrency(totalAmount - totalTax) }}</span>
+                                    </div>
+                                    <div class="flex justify-between pb-1">
+                                        <span class="text-muted-foreground">Cara Bayar:</span>
+                                        <span class="font-medium capitalize">{{ form.payment_method.replace('_', ' ') }}</span>
+                                    </div>
+                                </template>
                             </div>
                         </div>
 
                         <!-- Upload Card -->
                         <div>
-                            <Label class="text-base mb-2 block">Upload Dokumen Pendukung (Invoice/Kuitansi)</Label>
+                            <Label class="text-base mb-2 block">
+                                {{ form.type === 'UP' ? 'Upload Dokumen Pendukung (SK Plafon UP / Surat Permohonan)' : 'Upload Dokumen Pendukung (Invoice/Kuitansi)' }}
+                            </Label>
                             <div 
                                 class="border-2 border-dashed border-border hover:border-primary/50 transition-colors rounded-xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-background"
                                 @click="$refs.fileInput.click()"
@@ -524,7 +691,9 @@ const submitForm = (status) => {
                                     @change="handleFileUpload"
                                 />
                             </div>
-                            <p class="text-xs text-muted-foreground mt-2">Dokumen ini akan digunakan sebagai bukti fisik saat verifikasi.</p>
+                            <p class="text-xs text-muted-foreground mt-2">
+                                {{ form.type === 'UP' ? 'Lampirkan SK Penetapan Plafon UP atau Surat Permohonan Uang Persediaan dari Bendahara Pengeluaran.' : 'Dokumen ini akan digunakan sebagai bukti fisik saat verifikasi.' }}
+                            </p>
                         </div>
                     </div>
                 </div>

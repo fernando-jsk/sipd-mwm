@@ -89,11 +89,14 @@ class ExpenditureController extends Controller
     {
         $users = User::all(['id', 'name']);
         $vendors = Vendor::all(['id', 'name', 'bank_name', 'bank_account_number']);
+        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
+        $expenditureRules = $rulesJson ? json_decode($rulesJson, true) : [];
         
         return Inertia::render('Expenditures/CreateEdit', [
             'users' => $users,
             'vendors' => $vendors,
-            'accountCodes' => $this->getAccountCodesWithBudgetUsage($request)
+            'accountCodes' => $this->getAccountCodesWithBudgetUsage($request),
+            'expenditureRules' => $expenditureRules
         ]);
     }
 
@@ -125,7 +128,9 @@ class ExpenditureController extends Controller
             'taxes.*.amount' => 'required|numeric|min:0.01',
         ]);
 
-        $this->validateBudgetLimit($request, $validated['details']);
+        if ($this->isBudgetaryType($validated['type'])) {
+            $this->validateBudgetLimit($request, $validated['details']);
+        }
 
         if ($request->hasFile('attachment')) {
             $path = $request->file('attachment')->store('expenditures', 'public');
@@ -189,11 +194,15 @@ class ExpenditureController extends Controller
         $users = User::all(['id', 'name']);
         $vendors = Vendor::all(['id', 'name', 'bank_name', 'bank_account_number']);
         
+        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
+        $expenditureRules = $rulesJson ? json_decode($rulesJson, true) : [];
+        
         return Inertia::render('Expenditures/CreateEdit', [
             'expenditure' => $expenditure,
             'users' => $users,
             'vendors' => $vendors,
-            'accountCodes' => $this->getAccountCodesWithBudgetUsage($request, $expenditure->id)
+            'accountCodes' => $this->getAccountCodesWithBudgetUsage($request, $expenditure->id),
+            'expenditureRules' => $expenditureRules
         ]);
     }
 
@@ -229,7 +238,9 @@ class ExpenditureController extends Controller
             'taxes.*.amount' => 'required|numeric|min:0.01',
         ]);
 
-        $this->validateBudgetLimit($request, $validated['details'], $expenditure->id);
+        if ($this->isBudgetaryType($validated['type'])) {
+            $this->validateBudgetLimit($request, $validated['details'], $expenditure->id);
+        }
 
         if ($request->hasFile('attachment')) {
             if ($expenditure->attachment_path) {
@@ -621,7 +632,44 @@ class ExpenditureController extends Controller
             }
         }
 
+        // Tambahkan akun non-anggaran dari rules (misal Kas di Bendahara Pengeluaran untuk UP)
+        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
+        if ($rulesJson) {
+            $rules = json_decode($rulesJson, true);
+            foreach ($rules as $rule) {
+                if (!empty($rule['debit_account_id'])) {
+                    $acc = AccountCode::find($rule['debit_account_id']);
+                    if ($acc && !collect($accountCodes)->contains('id', $acc->id)) {
+                        $accountCodes[] = [
+                            'id' => $acc->id,
+                            'code' => $acc->code,
+                            'name' => $acc->name,
+                            'funding_source_id' => null,
+                            'total_budget' => 0,
+                            'submitted_amount' => 0,
+                            'disbursed_amount' => 0,
+                            'used_amount' => 0,
+                            'remaining_budget' => 0,
+                            'is_non_budgetary' => true
+                        ];
+                    }
+                }
+            }
+        }
+
         return collect($accountCodes)->sortBy('code')->values()->all();
+    }
+
+    private function isBudgetaryType(string $type): bool
+    {
+        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
+        if ($rulesJson) {
+            $rules = json_decode($rulesJson, true);
+            if (isset($rules[$type])) {
+                return (bool) ($rules[$type]['is_budgetary'] ?? true);
+            }
+        }
+        return !in_array($type, ['UP', 'TU']);
     }
 
     private function validateBudgetLimit(Request $request, array $details, $excludeExpenditureId = null)

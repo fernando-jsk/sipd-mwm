@@ -27,6 +27,7 @@ import { Textarea } from '@/Components/ui/textarea';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { ref, computed } from 'vue';
+import { terbilang } from '@/lib/utils';
 
 const props = defineProps({
     expenditure: Object,
@@ -133,6 +134,9 @@ const updateStatus = () => {
                     </Breadcrumb>
                     <h2 class="text-xl font-bold tracking-tight text-secondary dark:text-foreground flex items-center gap-3">
                         {{ expenditure.document_number }}
+                        <Badge v-if="expenditure.type === 'UP'" variant="outline" class="bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 text-xs">
+                            Uang Persediaan (UP)
+                        </Badge>
                         <Badge :variant="getStatusColor(expenditure.status)" class="text-xs uppercase tracking-wider" :class="expenditure.status === 'disbursed' ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-transparent' : ''">
                             {{ getStatusLabel(expenditure.status) }}
                         </Badge>
@@ -185,8 +189,13 @@ const updateStatus = () => {
                         </div>
                         <div class="space-y-3">
                             <div>
-                                <div class="text-muted-foreground text-xs uppercase tracking-wider mb-1">Jenis &amp; Metode Pembayaran</div>
-                                <div class="font-medium capitalize">{{ expenditure.type }} - {{ expenditure.payment_method.replace('_', ' ') }}</div>
+                                <div class="text-muted-foreground text-xs uppercase tracking-wider mb-1">Jenis Transaksi &amp; Sifat Dana</div>
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium">{{ expenditure.type === 'UP' ? 'Uang Persediaan (UP)' : expenditure.type }} - {{ expenditure.payment_method.replace('_', ' ') }}</span>
+                                    <Badge v-if="expenditure.type === 'UP'" variant="outline" class="text-[10px] bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30">
+                                        Non-Pagu / Uang Muka Kerja
+                                    </Badge>
+                                </div>
                             </div>
                             <div>
                                 <div class="text-muted-foreground text-xs uppercase tracking-wider mb-1">Bendahara Pengeluaran</div>
@@ -228,15 +237,20 @@ const updateStatus = () => {
                             </div>
                         </template>
                         <template v-else>
-                            <p class="text-muted-foreground italic">Detail pembayaran disesuaikan dengan daftar terlampir atau dibayar langsung kepada pegawai terkait.</p>
+                            <p class="text-muted-foreground italic">
+                                {{ expenditure.type === 'UP' ? 'Pencairan dana langsung ke rekening Kas Bendahara Pengeluaran sebagai pemegang Uang Persediaan.' : 'Detail pembayaran disesuaikan dengan daftar terlampir atau dibayar langsung kepada pegawai terkait.' }}
+                            </p>
                         </template>
                     </div>
                 </div>
 
-                <!-- Rincian Anggaran -->
+                <!-- Rincian Anggaran / UP Card -->
                 <div class="bg-card text-card-foreground border rounded-xl shadow-sm overflow-hidden">
-                    <div class="px-6 py-4 border-b bg-muted/10 font-semibold text-secondary">
-                        Rincian Penggunaan Anggaran
+                    <div class="px-6 py-4 border-b bg-muted/10 font-semibold text-secondary flex justify-between items-center">
+                        <span>{{ expenditure.type === 'UP' ? 'Rincian Pencairan Uang Persediaan (Non-Anggaran)' : 'Rincian Penggunaan Anggaran' }}</span>
+                        <Badge v-if="expenditure.type === 'UP'" variant="outline" class="text-xs font-normal text-muted-foreground bg-background">
+                            Mutasi Kas: Kas BLUD ➔ Kas Bendahara
+                        </Badge>
                     </div>
                     <div class="overflow-x-auto">
                         <Table>
@@ -250,14 +264,24 @@ const updateStatus = () => {
                             <TableBody>
                                 <TableRow v-for="detail in expenditure.details" :key="detail.id">
                                     <TableCell class="font-mono text-sm">{{ detail.account_code?.code }}</TableCell>
-                                    <TableCell class="font-medium">{{ detail.account_code?.name }}</TableCell>
+                                    <TableCell class="font-medium">
+                                        {{ detail.account_code?.name }}
+                                        <span v-if="expenditure.type === 'UP'" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-normal">(Kas Bendahara Pengeluaran)</span>
+                                    </TableCell>
                                     <TableCell class="text-right font-mono">{{ formatCurrency(detail.amount) }}</TableCell>
                                 </TableRow>
                             </TableBody>
                             <tfoot class="bg-muted/30">
                                 <tr>
-                                    <td colspan="2" class="p-4 text-right font-semibold text-muted-foreground">Total Pengajuan (Kotor):</td>
+                                    <td colspan="2" class="p-4 text-right font-semibold text-muted-foreground">
+                                        {{ expenditure.type === 'UP' ? 'Total Nilai Pencairan UP:' : 'Total Pengajuan (Kotor):' }}
+                                    </td>
                                     <td class="p-4 text-right font-bold text-primary font-mono text-lg">{{ formatCurrency(totalAmount) }}</td>
+                                </tr>
+                                <tr v-if="totalAmount > 0">
+                                    <td colspan="3" class="px-4 py-2.5 bg-muted/20 border-t border-border/50 text-xs text-muted-foreground italic">
+                                        Terbilang: <strong class="text-foreground not-italic font-medium">{{ terbilang(totalAmount) }} Rupiah</strong>
+                                    </td>
                                 </tr>
                                 <template v-if="expenditure.taxes && expenditure.taxes.length > 0">
                                     <tr>
@@ -271,6 +295,18 @@ const updateStatus = () => {
                                     <tr class="border-t">
                                         <td colspan="2" class="p-4 text-right font-semibold text-muted-foreground">Total Bersih (Netto):</td>
                                         <td class="p-4 text-right font-bold text-emerald-600 font-mono text-lg">{{ formatCurrency(totalAmount - expenditure.taxes.reduce((sum, item) => sum + Number(item.amount), 0)) }}</td>
+                                    </tr>
+                                    <tr v-if="totalAmount - expenditure.taxes.reduce((sum, item) => sum + Number(item.amount), 0) > 0">
+                                        <td colspan="3" class="px-4 py-2.5 bg-muted/20 border-t border-border/50 text-xs text-muted-foreground italic">
+                                            Terbilang Bersih: <strong class="text-foreground not-italic font-medium">{{ terbilang(totalAmount - expenditure.taxes.reduce((sum, item) => sum + Number(item.amount), 0)) }} Rupiah</strong>
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template v-else-if="expenditure.type === 'UP'">
+                                    <tr>
+                                        <td colspan="3" class="px-4 py-2.5 bg-emerald-500/10 border-t border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                                            ✓ Bebas Potongan Pajak (PPN/PPh). Pemungutan pajak dilakukan saat uang persediaan dibelanjakan oleh bendahara (SPJ / GU).
+                                        </td>
                                     </tr>
                                 </template>
                             </tfoot>

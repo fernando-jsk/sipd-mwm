@@ -47,11 +47,25 @@ class SettingController extends Controller
 
         $fundingSources = \App\Models\FundingSource::orderBy('name')->get();
 
+        // Ambil akun kas aktif (1.1%) untuk dropdown sumber kas dan kas bendahara
+        $cashAccounts = \App\Models\AccountCode::where('is_active', true)
+            ->where('code', 'like', '1.1%')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'level']);
+
+        // Ambil aturan jurnal pengeluaran (parsed JSON)
+        $expenditureRulesSetting = $settings->get('expenditure_journal_rules');
+        $expenditureRules = $expenditureRulesSetting && $expenditureRulesSetting->value 
+            ? json_decode($expenditureRulesSetting->value, true) 
+            : [];
+
         return Inertia::render('Settings/Index', [
             'settings' => $settings,
             'activeVersion' => $activeVersion,
             'availableVersions' => $availableVersions,
-            'fundingSources' => $fundingSources
+            'fundingSources' => $fundingSources,
+            'cashAccounts' => $cashAccounts,
+            'expenditureRules' => $expenditureRules
         ]);
     }
 
@@ -64,7 +78,10 @@ class SettingController extends Controller
         ]);
 
         foreach ($validated['settings'] as $settingData) {
-            Setting::where('key', $settingData['key'])->update(['value' => $settingData['value']]);
+            Setting::updateOrCreate(
+                ['key' => $settingData['key']],
+                ['value' => $settingData['value']]
+            );
         }
 
         activity('setting')
