@@ -1,4 +1,5 @@
 <script setup>
+import { onMounted, onUnmounted } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/Components/ui/card';
 import { Label } from '@/Components/ui/label';
@@ -15,6 +16,29 @@ const submit = () => {
         onFinish: () => form.reset('password'),
     });
 };
+
+// Deteksi jika tab login ditinggal lama saat tidak aktif di browser
+let lastActiveTime = Date.now();
+
+const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
+        const idleMinutes = (Date.now() - lastActiveTime) / 1000 / 60;
+        // Jika ditinggal lebih dari 45 menit dan form belum diisi, reload agar CSRF token tetap segar
+        if (idleMinutes > 45 && !form.username && !form.password && !form.processing) {
+            window.location.reload();
+        }
+    } else {
+        lastActiveTime = Date.now();
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+});
 </script>
 
 <template>
@@ -26,33 +50,57 @@ const submit = () => {
         <div class="absolute bottom-[-10%] left-[-10%] w-[35vw] h-[35vw] rounded-full bg-primary/5 blur-[70px] pointer-events-none"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[60vw] h-[60vw] bg-[radial-gradient(circle_at_center,_var(--color-primary)_0%,_transparent_60%)] opacity-3 pointer-events-none"></div>
         
-        <!-- Main Login Card -->
-        <Card class="w-full max-w-md z-10 shadow-2xl border border-border bg-card/75 backdrop-blur-md rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[0_20px_50px_rgba(230,78,71,0.1)]">
-            <!-- Top brand Accent Bar -->
-            <div class="h-1.5 w-full bg-gradient-to-r from-primary to-rose-400"></div>
+        <!-- Form membungkus Card secara penuh sesuai STYLE_GUIDE.md -->
+        <form @submit.prevent="submit" class="w-full max-w-md z-10">
+            <Card class="w-full shadow-2xl border border-border bg-card/75 backdrop-blur-md rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-[0_20px_50px_rgba(230,78,71,0.1)]">
+                <!-- Top brand Accent Bar -->
+                <div class="h-1.5 w-full bg-gradient-to-r from-primary to-rose-400"></div>
 
-            <CardHeader class="space-y-1 text-center pt-8 pb-6">
-                <!-- Logo Container with Shadow and Ring -->
-                <div class="mb-4 flex justify-center">
-                    <div class="p-3 bg-white dark:bg-zinc-900 rounded-full shadow-md border border-border/50 transition-all duration-300 hover:scale-105">
-                        <img src="/images/logo-mwm.png" alt="SIPD-MWM Logo" class="h-16 w-16 object-contain" />
+                <CardHeader class="space-y-1 text-center pt-8 pb-6">
+                    <!-- Logo Container with Shadow and Ring -->
+                    <div class="mb-4 flex justify-center">
+                        <div class="p-3 bg-white dark:bg-zinc-900 rounded-full shadow-md border border-border/50 transition-all duration-300 hover:scale-105">
+                            <img src="/images/logo-mwm.png" alt="SIPD-MWM Logo" class="h-16 w-16 object-contain" />
+                        </div>
                     </div>
-                </div>
-                
-                <CardTitle class="text-2xl font-bold tracking-tight text-foreground">
-                    SIPD MWM
-                </CardTitle>
-                <CardDescription class="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-1">
-                    RSUD Maria Walanda Maramis
-                </CardDescription>
-                <div class="h-px w-16 bg-border/80 mx-auto my-3"></div>
-                <p class="text-xs text-muted-foreground/80">
-                    Sistem Informasi Manajemen Keuangan
-                </p>
-            </CardHeader>
+                    
+                    <CardTitle class="text-2xl font-bold tracking-tight text-foreground">
+                        SIPD MWM
+                    </CardTitle>
+                    <CardDescription class="text-xs font-semibold text-muted-foreground uppercase tracking-widest mt-1">
+                        RSUD Maria Walanda Maramis
+                    </CardDescription>
+                    <div class="h-px w-16 bg-border/80 mx-auto my-3"></div>
+                    <p class="text-xs text-muted-foreground/80">
+                        Sistem Informasi Manajemen Keuangan
+                    </p>
+                </CardHeader>
 
-            <form @submit.prevent="submit">
                 <CardContent class="space-y-4 px-6 pb-6">
+                    <!-- Flash Error Notification (misal 419 session expired) -->
+                    <div 
+                        v-if="$page.props.flash?.error" 
+                        class="flex items-start gap-2.5 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium animate-in fade-in duration-200"
+                    >
+                        <svg class="w-4 h-4 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                        <span class="leading-relaxed">{{ $page.props.flash.error }}</span>
+                    </div>
+
+                    <!-- Flash Message Notification -->
+                    <div 
+                        v-if="$page.props.flash?.message" 
+                        class="flex items-start gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-medium animate-in fade-in duration-200"
+                    >
+                        <svg class="w-4 h-4 shrink-0 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 6 9 17l-5-5"/>
+                        </svg>
+                        <span class="leading-relaxed">{{ $page.props.flash.message }}</span>
+                    </div>
+
                     <!-- Username Field -->
                     <div class="grid gap-1.5">
                         <Label for="username" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -115,7 +163,8 @@ const submit = () => {
                         </span>
                     </div>
                 </CardFooter>
-            </form>
-        </Card>
+            </Card>
+        </form>
     </div>
 </template>
+
