@@ -42,7 +42,7 @@ const isEdit = !!props.expenditure;
 const form = useForm({
     document_number: props.expenditure?.document_number || '',
     date: props.expenditure?.date ? new Date(props.expenditure.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    type: props.expenditure?.type || 'UP',
+    type: props.expenditure?.type || 'LS',
     description: props.expenditure?.description || '',
     treasurer_id: props.expenditure?.treasurer_id?.toString() || '',
     kpa_id: props.expenditure?.kpa_id?.toString() || '',
@@ -56,7 +56,9 @@ const form = useForm({
     contract_number: props.expenditure?.contract_number || '',
     status: props.expenditure?.status || 'draft',
     attachment: null,
-    details: props.expenditure?.details ? props.expenditure.details.map(d => ({ ...d, account_code_id: d.account_code_id.toString() })) : [],
+    details: props.expenditure?.details 
+        ? props.expenditure.details.map(d => ({ ...d, account_code_id: d.account_code_id.toString() })) 
+        : [{ account_code_id: '', amount: '' }],
     taxes: props.expenditure?.taxes || [],
 });
 
@@ -91,9 +93,20 @@ const initUpForm = () => {
     }
 };
 
-watch(() => form.type, (newType) => {
+watch(() => form.type, (newType, oldType) => {
     if (newType === 'UP') {
         initUpForm();
+    } else if (oldType === 'UP') {
+        // Jika beralih dari UP ke jenis belanja reguler
+        if (form.payment_method === 'ls_bendahara') {
+            form.payment_method = 'rekanan';
+        }
+        if (form.description === 'Penyediaan Uang Persediaan (UP) Awal Tahun Anggaran') {
+            form.description = '';
+        }
+        if (form.activity_description?.startsWith('Penyediaan Uang Persediaan (UP)')) {
+            form.activity_description = '';
+        }
     }
 }, { immediate: true });
 
