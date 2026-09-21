@@ -688,7 +688,7 @@ const submitForm = (status) => {
                                 <div class="flex items-center gap-2">
                                     <h4 class="text-base font-bold text-secondary flex items-center gap-2">
                                         <Receipt class="w-5 h-5 text-primary" />
-                                        Kwitansi Belanja Kas UP yang di-GU-kan
+                                        Kwitansi Belanja Kas UP yang akan di-GU
                                     </h4>
                                     <Badge v-if="selectedReceiptObjects.length > 0" variant="secondary" class="bg-primary/10 text-primary font-semibold text-xs">
                                         {{ selectedReceiptObjects.length }} Kwitansi Terpilih
@@ -792,7 +792,7 @@ const submitForm = (status) => {
                             </div>
                             <p class="text-sm font-bold text-secondary dark:text-foreground">Belum ada kuitansi belanja yang dipilih</p>
                             <p class="text-xs text-muted-foreground mt-1 mb-4 max-w-md mx-auto">
-                                SPPD jenis GU memerlukan kuitansi belanja kas UP yang telah <strong>Cair</strong>. Klik tombol di bawah untuk memilih kuitansi yang akan di-GU-kan.
+                                SPPD jenis GU memerlukan kuitansi belanja kas UP yang telah <strong>Cair</strong>. Klik tombol di bawah untuk memilih kuitansi yang akan di-GU.
                             </p>
                             <Button 
                                 type="button" 
