@@ -53,17 +53,29 @@ class ExpenditureController extends Controller
     {
         // Khusus Direktur: Menampilkan SPPD yang diajukan (submitted) atau sudah diotorisasi OPD
         $query = Expenditure::with(['vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy'])
+            ->withSum('details', 'amount')
             ->whereIn('status', ['submitted', 'sppd_submitted', 'authorized', 'opd_authorized', 'disbursed', 'spd_disbursed', 'rejected']);
         
         $query = $this->applyFiltersAndSort($query, $request, 'document_number');
 
+        // Hitung total nominal terfilter
+        $cloned = (clone $query)->reorder();
+        $cloned->getQuery()->limit = null;
+        $cloned->getQuery()->offset = null;
+        $filteredExpenditureIds = $cloned->select('expenditures.id');
+        $totalAmount = (float) ExpenditureDetail::whereIn('expenditure_id', $filteredExpenditureIds)->sum('amount');
+
         $expenditures = $query->paginate(20)->withQueryString();
 
-        $filters = (object) array_merge(['sort' => 'doc_desc'], $request->only('search', 'search_by', 'status', 'sort'));
+        $filters = (object) array_merge(
+            ['sort' => 'doc_desc'],
+            $request->only('search', 'search_by', 'status', 'start_date', 'end_date', 'date', 'sort')
+        );
 
         return Inertia::render('Expenditures/OpdIndex', [
             'expenditures' => $expenditures,
-            'filters' => $filters
+            'filters' => $filters,
+            'totalAmount' => $totalAmount,
         ]);
     }
 
@@ -71,17 +83,29 @@ class ExpenditureController extends Controller
     {
         // Khusus Kabag Keuangan: Menampilkan OPD yang diotorisasi (authorized) atau sudah dicairkan SPD
         $query = Expenditure::with(['vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy'])
+            ->withSum('details', 'amount')
             ->whereIn('status', ['authorized', 'opd_authorized', 'disbursed', 'spd_disbursed']);
         
         $query = $this->applyFiltersAndSort($query, $request, 'document_number');
 
+        // Hitung total nominal terfilter
+        $cloned = (clone $query)->reorder();
+        $cloned->getQuery()->limit = null;
+        $cloned->getQuery()->offset = null;
+        $filteredExpenditureIds = $cloned->select('expenditures.id');
+        $totalAmount = (float) ExpenditureDetail::whereIn('expenditure_id', $filteredExpenditureIds)->sum('amount');
+
         $expenditures = $query->paginate(20)->withQueryString();
 
-        $filters = (object) array_merge(['sort' => 'doc_desc'], $request->only('search', 'search_by', 'status', 'sort'));
+        $filters = (object) array_merge(
+            ['sort' => 'doc_desc'],
+            $request->only('search', 'search_by', 'status', 'start_date', 'end_date', 'date', 'sort')
+        );
 
         return Inertia::render('Expenditures/SpdIndex', [
             'expenditures' => $expenditures,
-            'filters' => $filters
+            'filters' => $filters,
+            'totalAmount' => $totalAmount,
         ]);
     }
 
