@@ -6,6 +6,7 @@ use App\Models\AccountCode;
 use App\Models\RbaDocument;
 use App\Models\ReceiptDetail;
 use App\Models\ExpenditureDetail;
+use App\Models\ExpenditureReceipt;
 use Illuminate\Support\Facades\DB;
 
 class LraService
@@ -72,17 +73,47 @@ class LraService
             ->pluck('total', 'receipt_details.account_code_id')
             ->toArray();
 
-        // 4. Fetch Expenditure Realization
+        // 4. Fetch Expenditure Realization (Belanja Non-GU/LS + Belanja Kas UP Kuitansi Cair)
+        // a. Belanja dokumen expenditures (LS, LS Pegawai, dll., serta GU tanpa kuitansi tertaut untuk kompatibilitas)
         $expenditureQuery = ExpenditureDetail::join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
             ->whereYear('expenditures.date', $year)
-            ->where('expenditures.status', '!=', 'rejected');
+            ->where('expenditures.status', '!=', 'rejected')
+            ->where('expenditures.type', '!=', 'UP')
+            ->where(function ($q) {
+                $q->where('expenditures.type', '!=', 'GU')
+                  ->orWhereNotExists(function ($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('expenditure_receipts')
+                          ->whereColumn('expenditure_receipts.expenditure_id', 'expenditures.id');
+                  });
+            });
 
         $applyPeriodFilter($expenditureQuery, 'expenditures.date', $month);
 
-        $expenditures = $expenditureQuery->select('expenditure_details.account_code_id', DB::raw('SUM(expenditure_details.amount) as total'))
+        $lsExpenditures = $expenditureQuery->select('expenditure_details.account_code_id', DB::raw('SUM(expenditure_details.amount) as total'))
             ->groupBy('expenditure_details.account_code_id')
             ->pluck('total', 'expenditure_details.account_code_id')
             ->toArray();
+
+        // b. Belanja kas UP dari kuitansi (status paid/Cair, in_gu/Proses GU, completed/Sudah GU) langsung diakui pada tanggal kuitansi
+        $receiptQuery = ExpenditureReceipt::whereYear('date', $year)
+            ->whereIn('status', ['paid', 'in_gu', 'completed']);
+
+        $applyPeriodFilter($receiptQuery, 'date', $month);
+
+        $upExpenditures = $receiptQuery->select('account_code_id', DB::raw('SUM(amount) as total'))
+            ->groupBy('account_code_id')
+            ->pluck('total', 'account_code_id')
+            ->toArray();
+
+        // Gabungkan realisasi belanja per akun rekening
+        $expenditures = [];
+        foreach ($accounts as $id => $account) {
+            $total = (float) ($lsExpenditures[$id] ?? 0) + (float) ($upExpenditures[$id] ?? 0);
+            if ($total > 0) {
+                $expenditures[$id] = $total;
+            }
+        }
 
         // 5. Initialize flat map
         $map = [];

@@ -170,6 +170,15 @@ const handleLinkClick = () => {
             </div>
             <Link
                 v-if="can('manage sppd')"
+                href="/expenditure-receipts"
+                @click="handleLinkClick"
+                class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                :class="{ 'bg-muted text-foreground font-semibold': $page.url.startsWith('/expenditure-receipts') }"
+            >
+                Kwitansi Belanja UP
+            </Link>
+            <Link
+                v-if="can('manage sppd')"
                 href="/expenditures/sppd"
                 @click="handleLinkClick"
                 class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"

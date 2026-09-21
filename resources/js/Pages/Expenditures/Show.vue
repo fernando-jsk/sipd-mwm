@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/Components/ui/table';
-import { Download, FileText, CheckCircle, XCircle, Send, ArrowRight, UserCheck, ShieldCheck, Printer } from '@lucide/vue';
+import { Download, FileText, CheckCircle, XCircle, Send, ArrowRight, UserCheck, ShieldCheck, Printer, Receipt, ExternalLink, Image as ImageIcon, FileSearch } from '@lucide/vue';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +46,14 @@ const formatCurrency = (value) => {
 
 const totalAmount = computed(() => {
     return props.expenditure.details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+});
+
+const totalReceiptsAmount = computed(() => {
+    return (props.expenditure.receipts || []).reduce((sum, r) => sum + Number(r.amount || 0), 0);
+});
+
+const totalReceiptsTax = computed(() => {
+    return (props.expenditure.receipts || []).reduce((sum, r) => sum + Number(r.tax_amount || 0), 0);
 });
 
 const getStatusColor = (status) => {
@@ -241,6 +249,96 @@ const updateStatus = () => {
                                 {{ expenditure.type === 'UP' ? 'Pencairan dana langsung ke rekening Kas Bendahara Pengeluaran sebagai pemegang Uang Persediaan.' : 'Detail pembayaran disesuaikan dengan daftar terlampir atau dibayar langsung kepada pegawai terkait.' }}
                             </p>
                         </template>
+                    </div>
+                </div>
+
+                <!-- Khusus GU: Seksi Kwitansi Belanja Kas UP Terlampir (SPJ) -->
+                <div v-if="expenditure.type === 'GU'" class="bg-card text-card-foreground border-2 border-primary/20 rounded-xl shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b bg-muted/10 font-semibold text-secondary flex justify-between items-center">
+                        <span class="flex items-center gap-2">
+                            <Receipt class="w-5 h-5 text-primary" />
+                            Daftar Kwitansi Belanja Kas UP Terlampir (SPJ)
+                        </span>
+                        <Badge variant="outline" class="text-xs font-semibold bg-primary/10 text-primary border-primary/30">
+                            {{ expenditure.receipts?.length || 0 }} Berkas Kwitansi
+                        </Badge>
+                    </div>
+
+                    <div v-if="expenditure.receipts && expenditure.receipts.length > 0" class="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow class="bg-muted/30">
+                                    <TableHead>No. Kwitansi</TableHead>
+                                    <TableHead>Tanggal</TableHead>
+                                    <TableHead>Rekening Belanja</TableHead>
+                                    <TableHead>Penerima / Toko</TableHead>
+                                    <TableHead class="text-right">Bruto (Rp)</TableHead>
+                                    <TableHead class="text-right">Pajak (Rp)</TableHead>
+                                    <TableHead class="text-center w-24">Bukti / Nota</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                <TableRow v-for="r in expenditure.receipts" :key="r.id" class="text-xs">
+                                    <TableCell class="font-mono font-medium">
+                                        <a :href="`/expenditure-receipts/${r.id}/print`" target="_blank" class="text-primary hover:underline flex items-center gap-1">
+                                            {{ r.receipt_number }}
+                                            <ExternalLink class="w-3 h-3 inline opacity-70" />
+                                        </a>
+                                    </TableCell>
+                                    <TableCell class="text-muted-foreground whitespace-nowrap">{{ r.date }}</TableCell>
+                                    <TableCell>
+                                        <div class="font-medium text-foreground">{{ r.account_code?.code }}</div>
+                                        <div class="text-[11px] text-muted-foreground line-clamp-1">{{ r.account_code?.name }}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div class="font-medium">{{ r.recipient_name }}</div>
+                                        <div class="text-[11px] text-muted-foreground line-clamp-1">{{ r.description }}</div>
+                                    </TableCell>
+                                    <TableCell class="text-right font-mono font-bold">{{ formatCurrency(r.amount) }}</TableCell>
+                                    <TableCell class="text-right font-mono text-muted-foreground">
+                                        <div>{{ formatCurrency(r.tax_amount || 0) }}</div>
+                                        <div v-if="r.tax_type && r.tax_type !== 'none'" class="text-[10px] text-destructive">
+                                            {{ r.tax_type }} <span v-if="r.billing_code">({{ r.billing_code }})</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell class="text-center">
+                                        <a 
+                                            v-if="r.attachment_path" 
+                                            :href="`/storage/${r.attachment_path}`" 
+                                            target="_blank"
+                                            class="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted hover:bg-muted/80 text-[11px] font-medium transition-colors"
+                                        >
+                                            <ImageIcon class="w-3 h-3 text-primary" />
+                                            Nota
+                                        </a>
+                                        <span v-else class="text-muted-foreground text-[11px]">-</span>
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                            <tfoot class="bg-muted/30 text-xs border-t">
+                                <tr>
+                                    <td colspan="4" class="p-3 text-right font-semibold text-muted-foreground">
+                                        Total Belanja Bruto:
+                                    </td>
+                                    <td class="p-3 text-right font-bold text-foreground font-mono">{{ formatCurrency(totalReceiptsAmount) }}</td>
+                                    <td class="p-3 text-right font-bold text-destructive font-mono">{{ formatCurrency(totalReceiptsTax) }}</td>
+                                    <td></td>
+                                </tr>
+                                <tr class="border-t">
+                                    <td colspan="4" class="p-3 text-right font-bold text-secondary">
+                                        Netto Penggantian Kas UP:
+                                    </td>
+                                    <td colspan="2" class="p-3 text-right font-bold text-primary font-mono text-sm">
+                                        {{ formatCurrency(Math.max(0, totalReceiptsAmount - totalReceiptsTax)) }}
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </Table>
+                    </div>
+                    <div v-else class="p-6 text-center text-muted-foreground text-sm">
+                        <Receipt class="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+                        <p>Dokumen SPPD-GU ini belum menautkan kuitansi kas UP secara spesifik.</p>
                     </div>
                 </div>
 

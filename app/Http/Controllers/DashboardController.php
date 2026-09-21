@@ -53,18 +53,33 @@ class DashboardController extends Controller
             $budgetaryTypes = ['GU', 'LS', 'LS_Pegawai', 'LS_Barang_Jasa_Modal'];
         }
 
-        // Pengeluaran Belanja Riil (Tidak termasuk UP / Mutasi Kas)
+        // Filter tipe pengeluaran non-GU dan non-UP agar tidak double-counting dengan kuitansi UP
+        $budgetaryNonGuTypes = array_values(array_filter($budgetaryTypes, fn($t) => $t !== 'GU' && $t !== 'UP'));
+
+        // Pengeluaran Belanja Riil Non-GU (LS, dll.) dari dokumen yang sudah dicairkan
         $expenditures = DB::table('expenditures')
             ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
             ->whereYear('expenditures.date', $activeYear)
             ->where('expenditures.status', 'disbursed')
-            ->whereIn('expenditures.type', $budgetaryTypes)
+            ->whereIn('expenditures.type', $budgetaryNonGuTypes)
             ->select(DB::raw('MONTH(expenditures.date) as month'), DB::raw('SUM(expenditure_details.amount) as total'))
             ->groupBy(DB::raw('MONTH(expenditures.date)'))
             ->get();
             
         foreach ($expenditures as $r) {
-            $cashOutData[$r->month - 1] = (float) $r->total;
+            $cashOutData[$r->month - 1] += (float) $r->total;
+        }
+
+        // Belanja kas UP dari kuitansi (status paid/Cair, in_gu/Proses GU, completed/Sudah GU) per bulan transaksi kuitansi
+        $receiptExpenditures = DB::table('expenditure_receipts')
+            ->whereYear('date', $activeYear)
+            ->whereIn('status', ['paid', 'in_gu', 'completed'])
+            ->select(DB::raw('MONTH(date) as month'), DB::raw('SUM(amount) as total'))
+            ->groupBy(DB::raw('MONTH(date)'))
+            ->get();
+
+        foreach ($receiptExpenditures as $r) {
+            $cashOutData[$r->month - 1] += (float) $r->total;
         }
         
         // --- 2. Filtered Cash In & Out ---
@@ -82,12 +97,17 @@ class DashboardController extends Controller
             ->where('receipts.status', 'submitted')
             ->sum('receipt_details.amount');
             
-        $totalOut = DB::table('expenditure_details')
+        $totalOutNonGu = DB::table('expenditure_details')
             ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
             ->where('expenditures.status', 'disbursed')
-            ->whereIn('expenditures.type', $budgetaryTypes)
+            ->whereIn('expenditures.type', $budgetaryNonGuTypes)
             ->sum('expenditure_details.amount');
+
+        $totalOutReceipts = DB::table('expenditure_receipts')
+            ->whereIn('status', ['paid', 'in_gu', 'completed'])
+            ->sum('amount');
             
+        $totalOut = (float) $totalOutNonGu + (float) $totalOutReceipts;
         $endingBalance = (float) $totalIn - (float) $totalOut;
 
         // --- 4. Batas Aman (Minimum Safe Balance) ---
@@ -97,24 +117,43 @@ class DashboardController extends Controller
         // --- 5. Breakdown Pengeluaran (Filtered) ---
         $breakdownLabels = [];
         $breakdownValues = [];
+        $breakdownMap = [];
         
-        $breakdownQuery = DB::table('expenditures')
+        $expenditureBreakdown = DB::table('expenditures')
             ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
             ->join('account_codes', 'expenditure_details.account_code_id', '=', 'account_codes.id')
             ->whereYear('expenditures.date', $activeYear)
             ->where('expenditures.status', 'disbursed')
-            ->whereIn('expenditures.type', $budgetaryTypes)
+            ->whereIn('expenditures.type', $budgetaryNonGuTypes)
+            ->whereMonth('expenditures.date', '>=', $startMonth)
+            ->whereMonth('expenditures.date', '<=', $endMonth)
             ->select('account_codes.name', DB::raw('SUM(expenditure_details.amount) as total'))
             ->groupBy('account_codes.name')
-            ->orderByDesc('total')
-            ->whereMonth('expenditures.date', '>=', $startMonth)
-            ->whereMonth('expenditures.date', '<=', $endMonth);
+            ->get();
 
-        $currentMonthExpenditures = $breakdownQuery->get();
+        foreach ($expenditureBreakdown as $b) {
+            $breakdownMap[$b->name] = ($breakdownMap[$b->name] ?? 0) + (float) $b->total;
+        }
 
-        foreach ($currentMonthExpenditures as $exp) {
-            $breakdownLabels[] = $exp->name;
-            $breakdownValues[] = (float) $exp->total;
+        $receiptBreakdown = DB::table('expenditure_receipts')
+            ->join('account_codes', 'expenditure_receipts.account_code_id', '=', 'account_codes.id')
+            ->whereYear('expenditure_receipts.date', $activeYear)
+            ->whereIn('expenditure_receipts.status', ['paid', 'in_gu', 'completed'])
+            ->whereMonth('expenditure_receipts.date', '>=', $startMonth)
+            ->whereMonth('expenditure_receipts.date', '<=', $endMonth)
+            ->select('account_codes.name', DB::raw('SUM(expenditure_receipts.amount) as total'))
+            ->groupBy('account_codes.name')
+            ->get();
+
+        foreach ($receiptBreakdown as $b) {
+            $breakdownMap[$b->name] = ($breakdownMap[$b->name] ?? 0) + (float) $b->total;
+        }
+
+        arsort($breakdownMap);
+
+        foreach (array_slice($breakdownMap, 0, 10, true) as $name => $val) {
+            $breakdownLabels[] = $name;
+            $breakdownValues[] = (float) $val;
         }
 
         // --- 5b. Breakdown Penerimaan (Filtered by Active Year & Month Range) ---

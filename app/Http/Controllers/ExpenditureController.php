@@ -9,6 +9,7 @@ use App\Models\Vendor;
 use App\Models\User;
 use App\Models\Setting;
 use App\Models\RbaDocument;
+use App\Models\ExpenditureReceipt;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -115,12 +116,19 @@ class ExpenditureController extends Controller
         $vendors = Vendor::all(['id', 'name', 'bank_name', 'bank_account_number']);
         $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
         $expenditureRules = $rulesJson ? json_decode($rulesJson, true) : [];
+
+        $availableReceipts = ExpenditureReceipt::with('accountCode')
+            ->where('status', 'paid')
+            ->whereNull('expenditure_id')
+            ->orderBy('date', 'desc')
+            ->get();
         
         return Inertia::render('Expenditures/CreateEdit', [
             'users' => $users,
             'vendors' => $vendors,
             'accountCodes' => $this->getAccountCodesWithBudgetUsage($request),
-            'expenditureRules' => $expenditureRules
+            'expenditureRules' => $expenditureRules,
+            'availableReceipts' => $availableReceipts,
         ]);
     }
 
@@ -150,6 +158,8 @@ class ExpenditureController extends Controller
             'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
             'taxes.*.billing_code' => 'nullable|string',
             'taxes.*.amount' => 'required|numeric|min:0.01',
+            'receipt_ids' => 'nullable|array',
+            'receipt_ids.*' => 'exists:expenditure_receipts,id',
         ]);
 
         if ($this->isBudgetaryType($validated['type'])) {
@@ -184,6 +194,14 @@ class ExpenditureController extends Controller
                 }
             }
 
+            // Tautkan kuitansi belanja kas UP terpilih jika jenis pengeluaran GU
+            if ($validated['type'] === 'GU' && !empty($request->receipt_ids)) {
+                ExpenditureReceipt::whereIn('id', $request->receipt_ids)->update([
+                    'expenditure_id' => $expenditure->id,
+                    'status' => 'in_gu'
+                ]);
+            }
+
             DB::commit();
             return redirect()->route('expenditures.sppd')->with('message', 'Dokumen SPPD berhasil dibuat.');
         } catch (\Exception $e) {
@@ -194,7 +212,7 @@ class ExpenditureController extends Controller
 
     public function show(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes', 'receipts.accountCode']);
         
         $activities = \Spatie\Activitylog\Models\Activity::where('subject_type', Expenditure::class)
             ->where('subject_id', $expenditure->id)
@@ -213,20 +231,31 @@ class ExpenditureController extends Controller
             return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen Draft atau Ditolak yang dapat diedit.');
         }
 
-        $expenditure->load('details', 'taxes');
+        $expenditure->load(['details', 'taxes', 'receipts.accountCode']);
         
         $users = User::all(['id', 'name']);
         $vendors = Vendor::all(['id', 'name', 'bank_name', 'bank_account_number']);
         
         $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
         $expenditureRules = $rulesJson ? json_decode($rulesJson, true) : [];
+
+        $availableReceipts = ExpenditureReceipt::with('accountCode')
+            ->where(function($q) use ($expenditure) {
+                $q->where(function($sub) {
+                    $sub->where('status', 'paid')->whereNull('expenditure_id');
+                })->orWhere('expenditure_id', $expenditure->id);
+            })
+            ->orderBy('date', 'desc')
+            ->get();
         
         return Inertia::render('Expenditures/CreateEdit', [
             'expenditure' => $expenditure,
             'users' => $users,
             'vendors' => $vendors,
             'accountCodes' => $this->getAccountCodesWithBudgetUsage($request, $expenditure->id),
-            'expenditureRules' => $expenditureRules
+            'expenditureRules' => $expenditureRules,
+            'availableReceipts' => $availableReceipts,
+            'linkedReceiptIds' => $expenditure->receipts->pluck('id')->toArray(),
         ]);
     }
 
@@ -260,6 +289,8 @@ class ExpenditureController extends Controller
             'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
             'taxes.*.billing_code' => 'nullable|string',
             'taxes.*.amount' => 'required|numeric|min:0.01',
+            'receipt_ids' => 'nullable|array',
+            'receipt_ids.*' => 'exists:expenditure_receipts,id',
         ]);
 
         if ($this->isBudgetaryType($validated['type'])) {
@@ -300,6 +331,23 @@ class ExpenditureController extends Controller
                 }
             }
 
+            // Sinkronisasi kuitansi belanja kas UP jika jenis pengeluaran GU
+            if ($expenditure->type === 'GU') {
+                $selectedReceiptIds = $request->input('receipt_ids', []);
+                // Lepaskan kuitansi yang tidak lagi dipilih
+                $expenditure->receipts()->whereNotIn('id', $selectedReceiptIds)->update([
+                    'expenditure_id' => null,
+                    'status' => 'paid'
+                ]);
+                // Tautkan kuitansi yang baru dipilih
+                if (!empty($selectedReceiptIds)) {
+                    ExpenditureReceipt::whereIn('id', $selectedReceiptIds)->update([
+                        'expenditure_id' => $expenditure->id,
+                        'status' => 'in_gu'
+                    ]);
+                }
+            }
+
             DB::commit();
             return redirect()->route('expenditures.sppd')->with('message', 'Dokumen SPPD berhasil diperbarui.');
         } catch (\Exception $e) {
@@ -316,6 +364,14 @@ class ExpenditureController extends Controller
 
         if ($expenditure->attachment_path) {
             \Storage::disk('public')->delete($expenditure->attachment_path);
+        }
+
+        // Lepaskan kuitansi terkait jika tipe GU
+        if ($expenditure->type === 'GU') {
+            $expenditure->receipts()->update([
+                'expenditure_id' => null,
+                'status' => 'paid'
+            ]);
         }
 
         // Delete children individually to trigger model events
@@ -361,12 +417,25 @@ class ExpenditureController extends Controller
             $updateData['spd_number'] = $validated['spd_number'];
             $updateData['spd_date'] = now();
             $updateData['spd_disbursed_by'] = auth()->id();
+
+            // Ubah status kuitansi terkait menjadi 'completed' (Sudah GU)
+            if ($expenditure->type === 'GU') {
+                $expenditure->receipts()->update(['status' => 'completed']);
+            }
         }
 
         // 4. Penolakan
         if ($validated['status'] === 'rejected') {
             $updateData['status'] = 'rejected';
             $updateData['rejection_note'] = $validated['rejection_note'];
+
+            // Kembalikan kuitansi terkait ke 'paid' (Cair) agar bisa dipakai lagi
+            if ($expenditure->type === 'GU') {
+                $expenditure->receipts()->update([
+                    'expenditure_id' => null,
+                    'status' => 'paid'
+                ]);
+            }
         }
 
         $expenditure->update($updateData);

@@ -113,8 +113,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/receipts/{receipt}/print', [\App\Http\Controllers\ReceiptController::class, 'print'])->name('receipts.print');
 
     // =========================================================
-    // Modul Bendahara / Pengeluaran (SPPD -> OPD -> SPD)
+    // Modul Bendahara / Pengeluaran (Kwitansi UP -> SPPD -> OPD -> SPD)
     // =========================================================
+    Route::get('/expenditure-receipts/{expenditureReceipt}/print', [\App\Http\Controllers\ExpenditureReceiptController::class, 'print'])->name('expenditure-receipts.print');
+    Route::resource('expenditure-receipts', \App\Http\Controllers\ExpenditureReceiptController::class);
+
     Route::post('/expenditures/import', [\App\Http\Controllers\ExpenditureImportController::class, 'import'])->name('expenditures.import');
     Route::get('/expenditures/sppd', [\App\Http\Controllers\ExpenditureController::class, 'sppdIndex'])->name('expenditures.sppd');
     Route::get('/expenditures/opd', [\App\Http\Controllers\ExpenditureController::class, 'opdIndex'])->name('expenditures.opd');
