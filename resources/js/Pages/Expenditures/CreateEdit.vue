@@ -569,84 +569,65 @@ const submitForm = (status) => {
                             {{ form.type === 'UP' ? 'Tujuan Penyaluran Kas UP' : 'Informasi Pembayaran (Vendor)' }}
                         </h3>
                         
-                        <!-- Khusus UP: Penyaluran Kas ke Bendahara Pengeluaran -->
-                        <div v-if="form.type === 'UP'" class="space-y-4">
+                        <div class="space-y-4">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="space-y-2">
-                                    <Label for="payment_method">Cara Bayar</Label>
-                                    <div class="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/40 text-sm font-medium">
-                                        <Badge variant="secondary" class="bg-primary/10 text-primary font-semibold">LS Bendahara</Badge>
-                                        <span class="text-xs text-muted-foreground">(Penyaluran Kas Operasional)</span>
-                                    </div>
+                                    <Label for="payment_method">Cara Bayar <span class="text-destructive">*</span></Label>
+                                    <Select v-model="form.payment_method" :disabled="form.type === 'UP' || form.type === 'GU'">
+                                        <SelectTrigger :disabled="form.type === 'UP' || form.type === 'GU'">
+                                            <SelectValue placeholder="Pilih Cara Bayar" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="rekanan">Ke Rekanan (Pihak Ketiga)</SelectItem>
+                                            <SelectItem value="pegawai">Ke Pegawai</SelectItem>
+                                            <SelectItem value="ls_bendahara">LS Bendahara</SelectItem>
+                                            <SelectItem value="terlampir">Daftar Terlampir</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
+                                
+                                <template v-if="form.payment_method === 'rekanan'">
+                                    <div class="space-y-2">
+                                        <Label for="vendor_id">Nama Rekanan</Label>
+                                        <Select v-model="form.vendor_id">
+                                            <SelectTrigger><SelectValue placeholder="Pilih Rekanan" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem v-for="vendor in vendors" :key="vendor.id" :value="vendor.id.toString()">{{ vendor.name }}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="bank_name">Bank Penerima</Label>
+                                        <Input id="bank_name" v-model="form.bank_name" placeholder="Otomatis terisi..." />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="bank_account_number">No. Rekening</Label>
+                                        <Input id="bank_account_number" v-model="form.bank_account_number" placeholder="Otomatis terisi..." />
+                                    </div>
+                                    <div class="space-y-2">
+                                        <Label for="contract_number">No. Kontrak (SPK)</Label>
+                                        <Input id="contract_number" v-model="form.contract_number" placeholder="Contoh: 027/SPK/..." />
+                                    </div>
+                                </template>
                             </div>
-                            <div class="p-4 bg-muted/40 rounded-xl border flex items-start gap-3">
+
+                            <!-- Banner Khusus UP: Penyaluran Kas ke Bendahara Pengeluaran -->
+                            <div v-if="form.type === 'UP'" class="p-4 bg-muted/40 rounded-xl border flex items-start gap-3">
                                 <Info class="w-5 h-5 text-primary shrink-0 mt-0.5" />
                                 <div class="text-xs text-muted-foreground space-y-1">
                                     <p class="font-semibold text-secondary dark:text-foreground text-sm">Penyaluran Uang Muka Operasional (UP):</p>
                                     <p>Pencairan Uang Persediaan (UP) dipindahbukukan langsung dari <strong>Kas BLUD di Bank</strong> ke <strong>Rekening Kas Operasional Bendahara Pengeluaran</strong> untuk membiayai operasional rutin BLUD.</p>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Khusus GU: Penggantian Kas Uang Persediaan ke Bendahara -->
-                        <div v-else-if="form.type === 'GU'" class="space-y-4">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="space-y-2">
-                                    <Label for="payment_method">Cara Bayar</Label>
-                                    <div class="flex items-center gap-2 h-10 px-3 rounded-md border bg-muted/40 text-sm font-medium">
-                                        <Badge variant="secondary" class="bg-amber-500/10 text-amber-700 dark:text-amber-400 font-semibold border-amber-500/30">LS Bendahara</Badge>
-                                        <span class="text-xs text-muted-foreground">(Penggantian Kas UP Operasional)</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
+                            <!-- Banner Khusus GU: Penggantian Kas Uang Persediaan ke Bendahara -->
+                            <div v-else-if="form.type === 'GU'" class="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3">
                                 <Info class="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                                 <div class="text-xs text-amber-900 dark:text-amber-200 space-y-1">
                                     <p class="font-semibold text-sm">Mekanisme Penggantian Uang Persediaan (GU):</p>
                                     <p>Pencairan SPPD-GU masuk ke <strong>Rekening Kas Bendahara Pengeluaran</strong> untuk memulihkan saldo kas operasional atas kuitansi-kuitansi belanja kas UP yang telah berstatus <strong>Cair</strong>.</p>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Non-UP / Non-GU: Form Cara Bayar Biasa -->
-                        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <Label for="payment_method">Cara Bayar <span class="text-destructive">*</span></Label>
-                                <Select v-model="form.payment_method">
-                                    <SelectTrigger><SelectValue placeholder="Pilih Cara Bayar" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="rekanan">Ke Rekanan (Pihak Ketiga)</SelectItem>
-                                        <SelectItem value="pegawai">Ke Pegawai</SelectItem>
-                                        <SelectItem value="ls_bendahara">LS Bendahara</SelectItem>
-                                        <SelectItem value="terlampir">Daftar Terlampir</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            
-                            <template v-if="form.payment_method === 'rekanan'">
-                                <div class="space-y-2">
-                                    <Label for="vendor_id">Nama Rekanan</Label>
-                                    <Select v-model="form.vendor_id">
-                                        <SelectTrigger><SelectValue placeholder="Pilih Rekanan" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem v-for="vendor in vendors" :key="vendor.id" :value="vendor.id.toString()">{{ vendor.name }}</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div class="space-y-2">
-                                    <Label for="bank_name">Bank Penerima</Label>
-                                    <Input id="bank_name" v-model="form.bank_name" placeholder="Otomatis terisi..." />
-                                </div>
-                                <div class="space-y-2">
-                                    <Label for="bank_account_number">No. Rekening</Label>
-                                    <Input id="bank_account_number" v-model="form.bank_account_number" placeholder="Otomatis terisi..." />
-                                </div>
-                                <div class="space-y-2">
-                                    <Label for="contract_number">No. Kontrak (SPK)</Label>
-                                    <Input id="contract_number" v-model="form.contract_number" placeholder="Contoh: 027/SPK/..." />
-                                </div>
-                            </template>
                         </div>
                     </div>
                 </div>
