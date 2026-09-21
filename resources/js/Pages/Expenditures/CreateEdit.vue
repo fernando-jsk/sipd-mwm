@@ -128,6 +128,12 @@ const initGuForm = () => {
         if (!form.activity_description) {
             form.activity_description = `Penggantian Uang Persediaan (GU) atas belanja operasional rutin kas UP BLUD`;
         }
+        if (selectedReceiptIds.value.length === 0) {
+            form.details = [];
+            form.taxes = [];
+        } else {
+            syncReceiptsToForm();
+        }
     }
 };
 
@@ -242,6 +248,8 @@ const syncReceiptsToForm = () => {
     
     if (receipts.length === 0) {
         form.receipt_ids = [];
+        form.details = [];
+        form.taxes = [];
         return;
     }
 
@@ -266,9 +274,6 @@ const syncReceiptsToForm = () => {
         account_code_id: accId,
         amount: amt
     }));
-    if (form.details.length === 0) {
-        form.details = [{ account_code_id: '', amount: '' }];
-    }
 
     form.taxes = taxList;
     form.receipt_ids = [...selectedReceiptIds.value];
@@ -307,6 +312,9 @@ watch(() => form.type, (newType, oldType) => {
         if (form.activity_description?.startsWith('Penyediaan Uang Persediaan') || form.activity_description?.startsWith('Penggantian Uang Persediaan')) {
             form.activity_description = '';
         }
+        if (form.details.length === 0) {
+            form.details = [{ account_code_id: '', amount: '' }];
+        }
     }
 }, { immediate: true });
 
@@ -324,6 +332,10 @@ watch(() => form.vendor_id, (newVendorId) => {
 const currentStep = ref(1);
 
 const nextStep = () => {
+    if (currentStep.value === 2 && form.type === 'GU' && selectedReceiptObjects.value.length === 0) {
+        alert('Silakan pilih minimal 1 (satu) kuitansi belanja kas UP sebelum melanjutkan.');
+        return;
+    }
     if (currentStep.value < 3) currentStep.value++;
 };
 
@@ -653,12 +665,9 @@ const submitForm = (status) => {
                                 Rekapitulasi belanja kuitansi kas UP yang akan diganti ke kas bendahara pengeluaran.
                             </p>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <Button v-if="form.type === 'GU'" variant="default" size="sm" @click="openReceiptModal" type="button" class="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-sm">
-                                <Receipt class="w-4 h-4 mr-1.5" />
-                                {{ selectedReceiptIds.length > 0 ? 'Kelola Kwitansi (' + selectedReceiptIds.length + ')' : 'Pilih Kwitansi Belanja' }}
-                            </Button>
-                            <Button v-if="form.type !== 'UP'" variant="outline" size="sm" @click="addDetailRow" type="button">
+                        <!-- Tombol Tambah Baris hanya untuk belanja reguler non-UP dan non-GU -->
+                        <div v-if="form.type !== 'UP' && form.type !== 'GU'" class="flex items-center gap-2">
+                            <Button variant="outline" size="sm" @click="addDetailRow" type="button">
                                 <Plus class="w-4 h-4 mr-1" /> Tambah Baris
                             </Button>
                         </div>
@@ -676,26 +685,34 @@ const submitForm = (status) => {
                     <div v-if="form.type === 'GU'" class="bg-card border-2 border-primary/20 rounded-xl p-5 shadow-sm space-y-4">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
                             <div>
-                                <h4 class="text-base font-bold text-secondary flex items-center gap-2">
-                                    <Receipt class="w-5 h-5 text-primary" />
-                                    Kwitansi Belanja Kas UP yang di-GU-kan
-                                </h4>
+                                <div class="flex items-center gap-2">
+                                    <h4 class="text-base font-bold text-secondary flex items-center gap-2">
+                                        <Receipt class="w-5 h-5 text-primary" />
+                                        Kwitansi Belanja Kas UP yang di-GU-kan
+                                    </h4>
+                                    <Badge v-if="selectedReceiptObjects.length > 0" variant="secondary" class="bg-primary/10 text-primary font-semibold text-xs">
+                                        {{ selectedReceiptObjects.length }} Kwitansi Terpilih
+                                    </Badge>
+                                </div>
                                 <p class="text-xs text-muted-foreground mt-0.5">
                                     Pilih kuitansi belanja kas UP yang telah berstatus <strong>Cair</strong> untuk direkap ke dalam SPPD-GU ini.
                                 </p>
                             </div>
+                            <!-- Tombol Ubah/Kelola Kwitansi: HANYA tampil di pojok kanan atas jika SUDAH ADA kuitansi terpilih -->
                             <Button 
+                                v-if="selectedReceiptObjects.length > 0"
                                 type="button" 
+                                variant="outline"
                                 size="sm" 
                                 @click="openReceiptModal"
-                                class="bg-primary hover:bg-primary/90 text-primary-foreground shrink-0 shadow-sm"
+                                class="border-input hover:bg-accent text-foreground shrink-0 shadow-sm font-medium"
                             >
-                                <Plus class="w-4 h-4 mr-1.5" />
-                                {{ selectedReceiptIds.length > 0 ? 'Kelola / Ubah Kwitansi (' + selectedReceiptIds.length + ')' : '+ Pilih Kwitansi Belanja' }}
+                                <Filter class="w-4 h-4 mr-1.5 text-primary" />
+                                Ubah / Kelola Kwitansi ({{ selectedReceiptObjects.length }})
                             </Button>
                         </div>
 
-                        <!-- Summary Cards jika ada kuitansi dipilih -->
+                        <!-- State 1: Summary Cards & Tabel jika ada kuitansi dipilih -->
                         <div v-if="selectedReceiptObjects.length > 0" class="space-y-4">
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div class="p-3 bg-muted/40 rounded-lg border">
@@ -720,7 +737,7 @@ const submitForm = (status) => {
                             <div class="border rounded-lg overflow-hidden">
                                 <div class="px-4 py-2 bg-muted/40 border-b flex items-center justify-between">
                                     <span class="text-xs font-semibold text-secondary">Rincian Kwitansi Terlampir ({{ selectedReceiptObjects.length }}):</span>
-                                    <span class="text-[11px] text-muted-foreground">Klik tanda silang (x) untuk membatalkan kuitansi</span>
+                                    <span class="text-[11px] text-muted-foreground">Klik tanda silang (x) untuk melepas kuitansi</span>
                                 </div>
                                 <div class="max-h-56 overflow-y-auto">
                                     <Table>
@@ -768,18 +785,93 @@ const submitForm = (status) => {
                             </div>
                         </div>
 
-                        <!-- Empty state jika belum ada kuitansi dipilih -->
-                        <div v-else class="text-center py-6 border border-dashed rounded-lg bg-muted/10">
-                            <Receipt class="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
-                            <p class="text-sm font-medium text-foreground">Belum ada kuitansi belanja yang dipilih</p>
-                            <p class="text-xs text-muted-foreground mt-0.5 mb-3">Pilih kuitansi belanja operasional kas UP yang telah Cair untuk direkap ke SPPD-GU ini.</p>
-                            <Button type="button" size="sm" variant="outline" @click="openReceiptModal">
-                                <Plus class="w-4 h-4 mr-1.5" /> Pilih Kwitansi Belanja Sekarang
+                        <!-- State 2: Empty state jika belum ada kuitansi dipilih (HANYA ADA 1 TOMBOL UTAMA) -->
+                        <div v-else class="text-center py-8 px-4 border-2 border-dashed border-primary/30 rounded-xl bg-primary/[0.02]">
+                            <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3">
+                                <Receipt class="w-6 h-6" />
+                            </div>
+                            <p class="text-sm font-bold text-secondary dark:text-foreground">Belum ada kuitansi belanja yang dipilih</p>
+                            <p class="text-xs text-muted-foreground mt-1 mb-4 max-w-md mx-auto">
+                                SPPD jenis GU memerlukan kuitansi belanja kas UP yang telah <strong>Cair</strong>. Klik tombol di bawah untuk memilih kuitansi yang akan di-GU-kan.
+                            </p>
+                            <Button 
+                                type="button" 
+                                size="default" 
+                                @click="openReceiptModal" 
+                                class="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm px-6"
+                            >
+                                <Plus class="w-4 h-4 mr-1.5" /> Pilih Kwitansi Belanja
                             </Button>
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto bg-background rounded-xl border">
+                    <!-- Seksi Rincian Kode Rekening Belanja -->
+                    <!-- KASUS A: Khusus GU jika belum ada kuitansi dipilih -->
+                    <div v-if="form.type === 'GU' && selectedReceiptObjects.length === 0" class="p-6 border-2 border-dashed rounded-xl text-center bg-muted/20 text-muted-foreground">
+                        <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-muted text-muted-foreground mb-2">
+                            <Info class="w-4 h-4 text-muted-foreground" />
+                        </div>
+                        <p class="text-xs font-semibold text-secondary dark:text-foreground">Rincian Anggaran Masih Kosong</p>
+                        <p class="text-[11px] text-muted-foreground mt-0.5 max-w-sm mx-auto">
+                            Rincian rekening belanja 5.x akan otomatis terisi dan terakumulasi setelah Anda memilih kuitansi belanja di atas.
+                        </p>
+                    </div>
+
+                    <!-- KASUS B: Khusus GU jika sudah ada kuitansi dipilih (Terkunci & Otomatis) -->
+                    <div v-else-if="form.type === 'GU'" class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-sm font-bold text-secondary">Rekapitulasi Kode Rekening Belanja</h4>
+                                <Badge variant="outline" class="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                                    Otomatis dari Kwitansi
+                                </Badge>
+                            </div>
+                            <span class="text-xs text-muted-foreground">{{ form.details.length }} rekening terakumulasi</span>
+                        </div>
+
+                        <div class="overflow-x-auto bg-background rounded-xl border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow class="bg-muted/50">
+                                        <TableHead class="w-[60%]">Akun Anggaran Belanja</TableHead>
+                                        <TableHead class="w-[40%] text-right">Nominal (Rp)</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    <TableRow v-for="(item, index) in form.details" :key="'gu-det-'+index">
+                                        <TableCell class="align-top">
+                                            <div class="font-medium text-sm text-secondary">
+                                                {{ accountCodes.find(a => a.id.toString() === item.account_code_id?.toString())?.code }} - 
+                                                {{ accountCodes.find(a => a.id.toString() === item.account_code_id?.toString())?.name }}
+                                            </div>
+                                            <!-- Info Pagu RBA -->
+                                            <div v-if="item.account_code_id" class="mt-2 text-[11px] sm:text-xs p-2 sm:p-2.5 bg-muted/30 rounded-lg border flex flex-col gap-1">
+                                                <div class="flex justify-between items-center">
+                                                    <span class="text-muted-foreground">Total Pagu:</span>
+                                                    <span class="font-semibold font-mono">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}</span>
+                                                </div>
+                                                <div class="flex justify-between items-center border-t border-border/80 pt-1 mt-0.5">
+                                                    <span class="font-semibold text-foreground">Sisa Pagu:</span>
+                                                    <span class="font-bold font-mono text-primary">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'remaining_budget')) }}</span>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell class="align-top text-right">
+                                            <div class="font-mono text-base font-bold text-foreground">
+                                                {{ formatCurrency(item.amount) }}
+                                            </div>
+                                            <div class="text-xs mt-1 text-muted-foreground italic">
+                                                {{ terbilang(item.amount) }} Rupiah
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </div>
+
+                    <!-- KASUS C: Belanja Reguler / UP (Input Manual) -->
+                    <div v-else class="overflow-x-auto bg-background rounded-xl border">
                         <Table>
                             <TableHeader>
                                 <TableRow class="bg-muted/50">
@@ -871,55 +963,83 @@ const submitForm = (status) => {
                     <!-- Seksi Potongan Pajak: Khusus Non-UP -->
                     <div v-if="form.type !== 'UP'" class="mt-8">
                         <div class="flex items-center justify-between mb-4 border-b pb-2">
-                            <h3 class="text-lg font-semibold text-secondary">Potongan Pajak (Opsional)</h3>
-                            <Button type="button" variant="outline" size="sm" @click="addTaxRow">
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-lg font-semibold text-secondary">Potongan Pajak</h3>
+                                <Badge v-if="form.type === 'GU'" variant="outline" class="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">
+                                    Otomatis dari Kwitansi
+                                </Badge>
+                                <span v-else class="text-xs text-muted-foreground">(Opsional)</span>
+                            </div>
+                            <Button v-if="form.type !== 'GU'" type="button" variant="outline" size="sm" @click="addTaxRow">
                                 <Plus class="w-4 h-4 mr-1" /> Tambah Pajak
                             </Button>
                         </div>
-                        <div class="overflow-x-auto border rounded-xl">
+
+                        <!-- Jika GU dan belum ada kuitansi -->
+                        <div v-if="form.type === 'GU' && selectedReceiptObjects.length === 0" class="p-4 border border-dashed rounded-xl text-center text-xs text-muted-foreground bg-muted/10">
+                            Potongan pajak akan otomatis direkap setelah kuitansi belanja dipilih di atas.
+                        </div>
+
+                        <!-- Jika GU dan kuitansi tidak memiliki pajak -->
+                        <div v-else-if="form.type === 'GU' && form.taxes.length === 0" class="p-4 bg-muted/30 border rounded-xl flex items-center gap-3 text-xs text-muted-foreground">
+                            <CheckCircle2 class="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span>Tidak ada potongan pajak pada berkas kuitansi yang dipilih.</span>
+                        </div>
+
+                        <!-- Tabel Pajak untuk GU (read-only) atau non-GU (editable) -->
+                        <div v-else class="overflow-x-auto border rounded-xl">
                             <Table>
                                 <TableHeader>
                                     <TableRow class="bg-muted/30">
                                         <TableHead class="w-1/3">Jenis Pajak</TableHead>
                                         <TableHead class="w-1/3">Kode Billing</TableHead>
-                                        <TableHead>Nominal</TableHead>
-                                        <TableHead class="w-[50px]"></TableHead>
+                                        <TableHead :class="form.type === 'GU' ? 'text-right' : ''">Nominal</TableHead>
+                                        <TableHead v-if="form.type !== 'GU'" class="w-[50px]"></TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow v-for="(item, index) in form.taxes" :key="'tax-'+index">
-                                        <TableCell class="align-top">
-                                            <Select v-model="form.taxes[index].tax_type">
-                                                <SelectTrigger><SelectValue placeholder="Pilih Jenis" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="PPN">PPN</SelectItem>
-                                                    <SelectItem value="PPh 21">PPh 21</SelectItem>
-                                                    <SelectItem value="PPh 22">PPh 22</SelectItem>
-                                                    <SelectItem value="PPh 23">PPh 23</SelectItem>
-                                                    <SelectItem value="PPh Final">PPh Final</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                        <TableCell class="align-top">
-                                            <Input v-model="form.taxes[index].billing_code" placeholder="Opsional" class="font-mono" />
-                                        </TableCell>
-                                        <TableCell class="align-top">
-                                            <div class="relative">
-                                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
-                                                <Input type="number" step="0.01" v-model="form.taxes[index].amount" class="pl-8 font-mono" />
-                                            </div>
-                                        </TableCell>
-                                        <TableCell class="text-center align-top pt-4">
-                                            <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10" @click="removeTaxRow(index)" type="button">
-                                                <Trash2 class="w-4 h-4" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow v-if="form.taxes.length === 0">
-                                        <TableCell colspan="4" class="text-center text-muted-foreground h-16">
-                                            Tidak ada potongan pajak. Klik "Tambah Pajak" jika ada.
-                                        </TableCell>
-                                    </TableRow>
+                                    <template v-if="form.type === 'GU'">
+                                        <TableRow v-for="(item, index) in form.taxes" :key="'tax-'+index">
+                                            <TableCell class="font-medium text-sm">{{ item.tax_type }}</TableCell>
+                                            <TableCell class="font-mono text-xs text-muted-foreground">{{ item.billing_code || '-' }}</TableCell>
+                                            <TableCell class="text-right font-mono font-bold">{{ formatCurrency(item.amount) }}</TableCell>
+                                        </TableRow>
+                                    </template>
+                                    <template v-else>
+                                        <TableRow v-for="(item, index) in form.taxes" :key="'tax-'+index">
+                                            <TableCell class="align-top">
+                                                <Select v-model="form.taxes[index].tax_type">
+                                                    <SelectTrigger><SelectValue placeholder="Pilih Jenis" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="PPN">PPN</SelectItem>
+                                                        <SelectItem value="PPh 21">PPh 21</SelectItem>
+                                                        <SelectItem value="PPh 22">PPh 22</SelectItem>
+                                                        <SelectItem value="PPh 23">PPh 23</SelectItem>
+                                                        <SelectItem value="PPh Final">PPh Final</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                            <TableCell class="align-top">
+                                                <Input v-model="form.taxes[index].billing_code" placeholder="Opsional" class="font-mono" />
+                                            </TableCell>
+                                            <TableCell class="align-top">
+                                                <div class="relative">
+                                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">Rp</span>
+                                                    <Input type="number" step="0.01" v-model="form.taxes[index].amount" class="pl-8 font-mono" />
+                                                </div>
+                                            </TableCell>
+                                            <TableCell class="text-center align-top pt-4">
+                                                <Button variant="ghost" size="icon" class="h-8 w-8 text-destructive hover:bg-destructive/10" @click="removeTaxRow(index)" type="button">
+                                                    <Trash2 class="w-4 h-4" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow v-if="form.taxes.length === 0">
+                                            <TableCell colspan="4" class="text-center text-muted-foreground h-16">
+                                                Tidak ada potongan pajak. Klik "Tambah Pajak" jika ada.
+                                            </TableCell>
+                                        </TableRow>
+                                    </template>
                                 </TableBody>
                             </Table>
                         </div>
@@ -1048,7 +1168,12 @@ const submitForm = (status) => {
                 
                 <div class="flex gap-2">
                     <template v-if="currentStep < 3">
-                        <Button type="button" @click="nextStep" class="bg-secondary hover:bg-secondary/90 text-white">
+                        <Button 
+                            type="button" 
+                            @click="nextStep" 
+                            :disabled="currentStep === 2 && form.type === 'GU' && selectedReceiptObjects.length === 0"
+                            class="bg-secondary hover:bg-secondary/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
                             Lanjut <ChevronRight class="w-4 h-4 ml-2" />
                         </Button>
                     </template>
