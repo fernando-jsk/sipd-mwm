@@ -59,6 +59,11 @@ class Expenditure extends Model
         return $this->hasMany(ExpenditureTax::class);
     }
 
+    public function receipts()
+    {
+        return $this->hasMany(ExpenditureReceipt::class);
+    }
+
     public function treasurer()
     {
         return $this->belongsTo(User::class, 'treasurer_id');

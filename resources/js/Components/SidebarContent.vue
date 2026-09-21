@@ -170,12 +170,21 @@ const handleLinkClick = () => {
             </div>
             <Link
                 v-if="can('manage sppd')"
+                href="/expenditure-receipts"
+                @click="handleLinkClick"
+                class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                :class="{ 'bg-muted text-foreground font-semibold': $page.url.startsWith('/expenditure-receipts') }"
+            >
+                1. Kwitansi Belanja UP
+            </Link>
+            <Link
+                v-if="can('manage sppd')"
                 href="/expenditures/sppd"
                 @click="handleLinkClick"
                 class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                 :class="{ 'bg-muted text-foreground font-semibold': $page.url.startsWith('/expenditures/sppd') || $page.url === '/expenditures' }"
             >
-                1. Pengajuan SPPD
+                2. Pengajuan SPPD
             </Link>
             <Link
                 v-if="can('authorize opd')"
@@ -184,7 +193,7 @@ const handleLinkClick = () => {
                 class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                 :class="{ 'bg-muted text-foreground font-semibold': $page.url.startsWith('/expenditures/opd') }"
             >
-                2. Otorisasi Direktur
+                3. Otorisasi Direktur
             </Link>
             <Link
                 v-if="can('disburse spd')"
@@ -193,7 +202,7 @@ const handleLinkClick = () => {
                 class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                 :class="{ 'bg-muted text-foreground font-semibold': $page.url.startsWith('/expenditures/spd') }"
             >
-                3. Verifikasi Pencairan Dana
+                4. Verifikasi Pencairan Dana
             </Link>
 
             <!-- Akuntansi -->
