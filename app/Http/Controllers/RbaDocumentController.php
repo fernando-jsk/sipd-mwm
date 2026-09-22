@@ -5,11 +5,19 @@ namespace App\Http\Controllers;
 use App\Models\AccountCode;
 use App\Models\RbaDocument;
 use App\Models\Setting;
+use App\Services\BudgetRealizationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class RbaDocumentController extends Controller
 {
+    protected BudgetRealizationService $budgetRealizationService;
+
+    public function __construct(BudgetRealizationService $budgetRealizationService)
+    {
+        $this->budgetRealizationService = $budgetRealizationService;
+    }
+
     public function index(Request $request)
     {
         $budgetYear = $request->session()->get('active_budget_year', date('Y'));
@@ -68,27 +76,10 @@ class RbaDocumentController extends Controller
                 ->orderBy('code')
                 ->get(['id', 'code', 'name', 'parent_id', 'level', 'description']);
 
-            // Ambil data realisasi hanya untuk akun yang dibutuhkan
-            $realizations = [];
-            if ($isPendapatan) {
-                $realizations = \Illuminate\Support\Facades\DB::table('receipt_details')
-                    ->join('receipts', 'receipt_details.receipt_id', '=', 'receipts.id')
-                    ->where('receipts.status', 'submitted')
-                    ->whereYear('receipts.date', $budgetYear)
-                    ->whereIn('receipt_details.account_code_id', $neededAccountIds)
-                    ->select('receipt_details.account_code_id', \Illuminate\Support\Facades\DB::raw('SUM(receipt_details.amount) as total'))
-                    ->groupBy('receipt_details.account_code_id')
-                    ->pluck('total', 'account_code_id')->toArray();
-            } else {
-                $realizations = \Illuminate\Support\Facades\DB::table('expenditure_details')
-                    ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
-                    ->where('expenditures.status', 'disbursed')
-                    ->whereYear('expenditures.date', $budgetYear)
-                    ->whereIn('expenditure_details.account_code_id', $neededAccountIds)
-                    ->select('expenditure_details.account_code_id', \Illuminate\Support\Facades\DB::raw('SUM(expenditure_details.amount) as total'))
-                    ->groupBy('expenditure_details.account_code_id')
-                    ->pluck('total', 'account_code_id')->toArray();
-            }
+            // Ambil data realisasi dari Single Source of Truth (SSOT)
+            $realizations = $isPendapatan
+                ? $this->budgetRealizationService->getRevenueRealizationByAccount($budgetYear, null, $neededAccountIds)
+                : $this->budgetRealizationService->getExpenditureRealizationByAccount($budgetYear, null, $neededAccountIds);
 
             $map = [];
             $roots = [];

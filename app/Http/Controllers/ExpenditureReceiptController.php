@@ -163,8 +163,8 @@ class ExpenditureReceiptController extends Controller
 
     public function update(Request $request, ExpenditureReceipt $expenditureReceipt)
     {
-        if ($expenditureReceipt->status === 'completed' || $expenditureReceipt->expenditure_id !== null) {
-            return redirect()->back()->with('error', 'Kwitansi yang sudah masuk dalam dokumen SPP-GU tidak dapat diedit secara langsung.');
+        if ($expenditureReceipt->status === 'completed' || $expenditureReceipt->status === 'in_gu' || $expenditureReceipt->expenditure_id !== null) {
+            return redirect()->back()->with('error', 'Kwitansi yang sedang dalam proses GU atau sudah GU tidak dapat diedit.');
         }
 
         $validated = $request->validate([
@@ -199,8 +199,8 @@ class ExpenditureReceiptController extends Controller
 
     public function destroy(ExpenditureReceipt $expenditureReceipt)
     {
-        if ($expenditureReceipt->status === 'completed' || $expenditureReceipt->expenditure_id !== null) {
-            return redirect()->back()->with('error', 'Kwitansi yang sudah masuk dalam dokumen SPP-GU tidak dapat dihapus.');
+        if ($expenditureReceipt->status === 'completed' || $expenditureReceipt->status === 'in_gu' || $expenditureReceipt->expenditure_id !== null) {
+            return redirect()->back()->with('error', 'Kwitansi yang sedang dalam proses GU atau sudah GU tidak dapat dihapus.');
         }
 
         if ($expenditureReceipt->attachment_path) {

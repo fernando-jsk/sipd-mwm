@@ -3,12 +3,16 @@
 namespace App\Services;
 
 use App\Models\AccountCode;
-use App\Models\ReceiptDetail;
-use App\Models\ExpenditureDetail;
-use Illuminate\Support\Facades\DB;
+use App\Services\BudgetRealizationService;
 
 class LakService
 {
+    protected BudgetRealizationService $budgetRealizationService;
+
+    public function __construct(BudgetRealizationService $budgetRealizationService)
+    {
+        $this->budgetRealizationService = $budgetRealizationService;
+    }
     /**
      * Get aggregated LAK Data.
      *
@@ -25,42 +29,11 @@ class LakService
             ->keyBy('id')
             ->toArray();
 
-        $applyPeriodFilter = function ($query, $dateColumn, $period) {
-            if (!$period || $period === 'all') return;
-            switch ($period) {
-                case 'q1': $query->whereMonth($dateColumn, '>=', 1)->whereMonth($dateColumn, '<=', 3); break;
-                case 'q2': $query->whereMonth($dateColumn, '>=', 4)->whereMonth($dateColumn, '<=', 6); break;
-                case 'q3': $query->whereMonth($dateColumn, '>=', 7)->whereMonth($dateColumn, '<=', 9); break;
-                case 'q4': $query->whereMonth($dateColumn, '>=', 10)->whereMonth($dateColumn, '<=', 12); break;
-                case 's1': $query->whereMonth($dateColumn, '>=', 1)->whereMonth($dateColumn, '<=', 6); break;
-                case 's2': $query->whereMonth($dateColumn, '>=', 7)->whereMonth($dateColumn, '<=', 12); break;
-                default: $query->whereMonth($dateColumn, $period); break;
-            }
-        };
+        // 2. Fetch Cash Inflows (Receipts) from SSOT
+        $inflows = $this->budgetRealizationService->getRevenueRealizationByAccount($year, $period);
 
-        // 2. Fetch Cash Inflows (Receipts)
-        $receiptQuery = ReceiptDetail::join('receipts', 'receipt_details.receipt_id', '=', 'receipts.id')
-            ->whereYear('receipts.date', $year)
-            ->where('receipts.status', '!=', 'rejected');
-            
-        $applyPeriodFilter($receiptQuery, 'receipts.date', $period);
-
-        $inflows = $receiptQuery->select('receipt_details.account_code_id', DB::raw('SUM(receipt_details.amount) as total'))
-            ->groupBy('receipt_details.account_code_id')
-            ->pluck('total', 'receipt_details.account_code_id')
-            ->toArray();
-
-        // 3. Fetch Cash Outflows (Expenditures)
-        $expenditureQuery = ExpenditureDetail::join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
-            ->whereYear('expenditures.date', $year)
-            ->where('expenditures.status', '!=', 'rejected');
-
-        $applyPeriodFilter($expenditureQuery, 'expenditures.date', $period);
-
-        $outflows = $expenditureQuery->select('expenditure_details.account_code_id', DB::raw('SUM(expenditure_details.amount) as total'))
-            ->groupBy('expenditure_details.account_code_id')
-            ->pluck('total', 'expenditure_details.account_code_id')
-            ->toArray();
+        // 3. Fetch Cash Outflows (Expenditures) from SSOT
+        $outflows = $this->budgetRealizationService->getExpenditureRealizationByAccount($year, $period);
 
         // 4. Group data into LAK Categories
         // Categories:

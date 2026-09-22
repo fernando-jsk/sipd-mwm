@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Setting;
 use App\Models\RbaDocument;
 use App\Models\ExpenditureReceipt;
+use App\Services\BudgetRealizationService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +19,13 @@ use Spatie\Activitylog\Facades\LogBatch;
 
 class ExpenditureController extends Controller
 {
+    protected BudgetRealizationService $budgetRealizationService;
+
+    public function __construct(BudgetRealizationService $budgetRealizationService)
+    {
+        $this->budgetRealizationService = $budgetRealizationService;
+    }
+
     public function index(Request $request)
     {
         return $this->sppdIndex($request);
@@ -676,32 +684,8 @@ class ExpenditureController extends Controller
                 ->get();
         }
             
-        // Hitung pemakaian pagu
-        $usageQuery = DB::table('expenditure_details')
-            ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
-            ->whereYear('expenditures.date', $budgetYear)
-            ->where('expenditures.status', '!=', 'rejected');
-
-        if ($excludeExpenditureId) {
-            $usageQuery->where('expenditures.id', '!=', $excludeExpenditureId);
-        }
-
-        $usageResults = $usageQuery->select('expenditure_details.account_code_id', 'expenditures.status', DB::raw('SUM(expenditure_details.amount) as total'))
-            ->groupBy('expenditure_details.account_code_id', 'expenditures.status')
-            ->get();
-
-        $budgetUsage = [];
-        foreach ($usageResults as $usage) {
-            $accId = $usage->account_code_id;
-            if (!isset($budgetUsage[$accId])) {
-                $budgetUsage[$accId] = ['submitted' => 0, 'disbursed' => 0];
-            }
-            if (in_array($usage->status, ['disbursed', 'spd_disbursed'])) {
-                $budgetUsage[$accId]['disbursed'] += $usage->total;
-            } else {
-                $budgetUsage[$accId]['submitted'] += $usage->total;
-            }
-        }
+        // Hitung pemakaian pagu dari Single Source of Truth (SSOT)
+        $budgetUsage = $this->budgetRealizationService->getBudgetUsageByAccount($budgetYear, $excludeExpenditureId);
 
         $accountCodes = [];
         foreach ($rbaDocs as $doc) {
@@ -803,16 +787,8 @@ class ExpenditureController extends Controller
                 ]);
             }
 
-            $usedAmountQuery = ExpenditureDetail::where('account_code_id', $accId)
-                ->whereHas('expenditure', function($q) use ($budgetYear, $excludeExpenditureId) {
-                    $q->whereYear('date', $budgetYear)
-                      ->where('status', '!=', 'rejected');
-                    if ($excludeExpenditureId) {
-                        $q->where('id', '!=', $excludeExpenditureId);
-                    }
-                });
-                
-            $usedAmount = $usedAmountQuery->sum('amount');
+            // Hitung pemakaian pagu dari Single Source of Truth (SSOT)
+            $usedAmount = $this->budgetRealizationService->getUsedBudgetForAccount($accId, $budgetYear, $excludeExpenditureId);
 
             if (($usedAmount + $amount) > $rbaDoc->total_budget) {
                 if ($validationMode === 'strict') {

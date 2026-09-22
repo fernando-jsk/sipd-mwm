@@ -6,9 +6,17 @@ use Inertia\Inertia;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\Setting;
+use App\Services\BudgetRealizationService;
 
 class DashboardController extends Controller
 {
+    protected BudgetRealizationService $budgetRealizationService;
+
+    public function __construct(BudgetRealizationService $budgetRealizationService)
+    {
+        $this->budgetRealizationService = $budgetRealizationService;
+    }
+
     public function index(\Illuminate\Http\Request $request)
     {
         $activeYear = session('active_budget_year', date('Y'));
@@ -38,48 +46,10 @@ class DashboardController extends Controller
             $cashInData[$r->month - 1] = (float) $r->total;
         }
         
-        // Ambil aturan tipe pengeluaran untuk memfilter hanya pengeluaran belanja riil (budgetary)
-        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
-        $rules = $rulesJson ? json_decode($rulesJson, true) : [];
-        $budgetaryTypes = [];
-        if (!empty($rules)) {
-            foreach ($rules as $type => $rule) {
-                if (!empty($rule['is_budgetary'])) {
-                    $budgetaryTypes[] = $type;
-                }
-            }
-        }
-        if (empty($budgetaryTypes)) {
-            $budgetaryTypes = ['GU', 'LS', 'LS_Pegawai', 'LS_Barang_Jasa_Modal'];
-        }
-
-        // Filter tipe pengeluaran non-GU dan non-UP agar tidak double-counting dengan kuitansi UP
-        $budgetaryNonGuTypes = array_values(array_filter($budgetaryTypes, fn($t) => $t !== 'GU' && $t !== 'UP'));
-
-        // Pengeluaran Belanja Riil Non-GU (LS, dll.) dari dokumen yang sudah dicairkan
-        $expenditures = DB::table('expenditures')
-            ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
-            ->whereYear('expenditures.date', $activeYear)
-            ->where('expenditures.status', 'disbursed')
-            ->whereIn('expenditures.type', $budgetaryNonGuTypes)
-            ->select(DB::raw('MONTH(expenditures.date) as month'), DB::raw('SUM(expenditure_details.amount) as total'))
-            ->groupBy(DB::raw('MONTH(expenditures.date)'))
-            ->get();
-            
-        foreach ($expenditures as $r) {
-            $cashOutData[$r->month - 1] += (float) $r->total;
-        }
-
-        // Belanja kas UP dari kuitansi (status paid/Cair, in_gu/Proses GU, completed/Sudah GU) per bulan transaksi kuitansi
-        $receiptExpenditures = DB::table('expenditure_receipts')
-            ->whereYear('date', $activeYear)
-            ->whereIn('status', ['paid', 'in_gu', 'completed'])
-            ->select(DB::raw('MONTH(date) as month'), DB::raw('SUM(amount) as total'))
-            ->groupBy(DB::raw('MONTH(date)'))
-            ->get();
-
-        foreach ($receiptExpenditures as $r) {
-            $cashOutData[$r->month - 1] += (float) $r->total;
+        // Pengeluaran Belanja Riil per bulan dari SSOT
+        $monthlyCashOut = $this->budgetRealizationService->getMonthlyCashOut($activeYear);
+        for ($m = 1; $m <= 12; $m++) {
+            $cashOutData[$m - 1] = $monthlyCashOut[$m] ?? 0.0;
         }
         
         // --- 2. Filtered Cash In & Out ---
@@ -91,70 +61,19 @@ class DashboardController extends Controller
         }
         $netCashFlow = $currentMonthIn - $currentMonthOut;
 
-        // --- 3. Saldo Akhir (Total All Time) ---
-        $totalIn = DB::table('receipt_details')
-            ->join('receipts', 'receipt_details.receipt_id', '=', 'receipts.id')
-            ->where('receipts.status', 'submitted')
-            ->sum('receipt_details.amount');
-            
-        $totalOutNonGu = DB::table('expenditure_details')
-            ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
-            ->where('expenditures.status', 'disbursed')
-            ->whereIn('expenditures.type', $budgetaryNonGuTypes)
-            ->sum('expenditure_details.amount');
-
-        $totalOutReceipts = DB::table('expenditure_receipts')
-            ->whereIn('status', ['paid', 'in_gu', 'completed'])
-            ->sum('amount');
-            
-        $totalOut = (float) $totalOutNonGu + (float) $totalOutReceipts;
+        // --- 3. Saldo Akhir (Total All Time) dari SSOT ---
+        $totalIn = $this->budgetRealizationService->getTotalAllTimeRevenues();
+        $totalOut = $this->budgetRealizationService->getTotalAllTimeExpenditures();
         $endingBalance = (float) $totalIn - (float) $totalOut;
 
         // --- 4. Batas Aman (Minimum Safe Balance) ---
         $safeBalanceSetting = Setting::where('key', 'minimum_safe_balance')->first();
         $minimumSafeBalance = $safeBalanceSetting ? (float) $safeBalanceSetting->value : 500000000;
 
-        // --- 5. Breakdown Pengeluaran (Filtered) ---
-        $breakdownLabels = [];
-        $breakdownValues = [];
-        $breakdownMap = [];
-        
-        $expenditureBreakdown = DB::table('expenditures')
-            ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
-            ->join('account_codes', 'expenditure_details.account_code_id', '=', 'account_codes.id')
-            ->whereYear('expenditures.date', $activeYear)
-            ->where('expenditures.status', 'disbursed')
-            ->whereIn('expenditures.type', $budgetaryNonGuTypes)
-            ->whereMonth('expenditures.date', '>=', $startMonth)
-            ->whereMonth('expenditures.date', '<=', $endMonth)
-            ->select('account_codes.name', DB::raw('SUM(expenditure_details.amount) as total'))
-            ->groupBy('account_codes.name')
-            ->get();
-
-        foreach ($expenditureBreakdown as $b) {
-            $breakdownMap[$b->name] = ($breakdownMap[$b->name] ?? 0) + (float) $b->total;
-        }
-
-        $receiptBreakdown = DB::table('expenditure_receipts')
-            ->join('account_codes', 'expenditure_receipts.account_code_id', '=', 'account_codes.id')
-            ->whereYear('expenditure_receipts.date', $activeYear)
-            ->whereIn('expenditure_receipts.status', ['paid', 'in_gu', 'completed'])
-            ->whereMonth('expenditure_receipts.date', '>=', $startMonth)
-            ->whereMonth('expenditure_receipts.date', '<=', $endMonth)
-            ->select('account_codes.name', DB::raw('SUM(expenditure_receipts.amount) as total'))
-            ->groupBy('account_codes.name')
-            ->get();
-
-        foreach ($receiptBreakdown as $b) {
-            $breakdownMap[$b->name] = ($breakdownMap[$b->name] ?? 0) + (float) $b->total;
-        }
-
-        arsort($breakdownMap);
-
-        foreach (array_slice($breakdownMap, 0, 10, true) as $name => $val) {
-            $breakdownLabels[] = $name;
-            $breakdownValues[] = (float) $val;
-        }
+        // --- 5. Breakdown Pengeluaran (Filtered) dari SSOT ---
+        $expBreakdown = $this->budgetRealizationService->getExpenditureBreakdown($activeYear, $startMonth, $endMonth, 10);
+        $breakdownLabels = $expBreakdown['labels'];
+        $breakdownValues = $expBreakdown['values'];
 
         // --- 5b. Breakdown Penerimaan (Filtered by Active Year & Month Range) ---
         $receiptBreakdownParent = DB::table('receipts')

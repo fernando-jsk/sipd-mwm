@@ -161,8 +161,12 @@ const openCreateModal = () => {
     isModalOpen.value = true;
 };
 
+const isReceiptLocked = (receipt) => {
+    return receipt.status === 'completed' || receipt.status === 'in_gu' || Boolean(receipt.expenditure_id);
+};
+
 const openEditModal = (receipt) => {
-    if (receipt.status === 'completed' || receipt.expenditure_id) {
+    if (isReceiptLocked(receipt)) {
         return;
     }
     editingReceipt.value = receipt;
@@ -219,6 +223,9 @@ const submitForm = () => {
 };
 
 const deleteReceipt = (receipt) => {
+    if (isReceiptLocked(receipt)) {
+        return;
+    }
     if (confirm(`Apakah Anda yakin ingin menghapus kwitansi ${receipt.receipt_number}?`)) {
         router.delete(`/expenditure-receipts/${receipt.id}`, {
             preserveScroll: true
@@ -535,29 +542,37 @@ const getStatusBadge = (receipt) => {
                                         </Button>
                                     </a>
 
-                                    <!-- Edit (Hanya jika belum locked di completed / in_gu) -->
-                                    <Button
-                                        v-if="receipt.status !== 'completed' && !receipt.expenditure_id"
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7 text-secondary hover:bg-muted"
-                                        @click="openEditModal(receipt)"
-                                        title="Edit Kuitansi"
+                                    <!-- Edit (Disabled jika sedang proses GU atau sudah GU) -->
+                                    <span 
+                                        :title="isReceiptLocked(receipt) ? `Kwitansi berstatus ${getStatusBadge(receipt).label} tidak dapat diedit` : 'Edit Kuitansi'"
+                                        :class="isReceiptLocked(receipt) ? 'cursor-not-allowed inline-flex' : 'inline-flex'"
                                     >
-                                        <Edit class="w-3.5 h-3.5" />
-                                    </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-7 w-7 text-secondary hover:bg-muted"
+                                            :disabled="isReceiptLocked(receipt)"
+                                            @click="openEditModal(receipt)"
+                                        >
+                                            <Edit class="w-3.5 h-3.5" />
+                                        </Button>
+                                    </span>
 
-                                    <!-- Hapus (Hanya jika belum locked di completed / in_gu) -->
-                                    <Button
-                                        v-if="receipt.status !== 'completed' && !receipt.expenditure_id"
-                                        variant="ghost"
-                                        size="icon"
-                                        class="h-7 w-7 text-destructive hover:bg-destructive/10"
-                                        @click="deleteReceipt(receipt)"
-                                        title="Hapus Kuitansi"
+                                    <!-- Hapus (Disabled jika sedang proses GU atau sudah GU) -->
+                                    <span 
+                                        :title="isReceiptLocked(receipt) ? `Kwitansi berstatus ${getStatusBadge(receipt).label} tidak dapat dihapus` : 'Hapus Kuitansi'"
+                                        :class="isReceiptLocked(receipt) ? 'cursor-not-allowed inline-flex' : 'inline-flex'"
                                     >
-                                        <Trash2 class="w-3.5 h-3.5" />
-                                    </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            class="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                            :disabled="isReceiptLocked(receipt)"
+                                            @click="deleteReceipt(receipt)"
+                                        >
+                                            <Trash2 class="w-3.5 h-3.5" />
+                                        </Button>
+                                    </span>
                                 </div>
                             </TableCell>
                         </TableRow>

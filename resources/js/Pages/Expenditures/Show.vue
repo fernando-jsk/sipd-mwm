@@ -285,7 +285,7 @@ const updateStatus = () => {
                                             <ExternalLink class="w-3 h-3 inline opacity-70" />
                                         </a>
                                     </TableCell>
-                                    <TableCell class="text-muted-foreground whitespace-nowrap">{{ r.date }}</TableCell>
+                                    <TableCell class="text-muted-foreground whitespace-nowrap">{{ r.date ? format(new Date(r.date), 'dd MMM yyyy', { locale: id }) : '-' }}</TableCell>
                                     <TableCell>
                                         <div class="font-medium text-foreground">{{ r.account_code?.code }}</div>
                                         <div class="text-[11px] text-muted-foreground line-clamp-1">{{ r.account_code?.name }}</div>
