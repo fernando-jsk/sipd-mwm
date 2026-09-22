@@ -7,6 +7,53 @@ use Illuminate\Support\Facades\DB;
 class BudgetRealizationService
 {
     /**
+     * Cache memori untuk aturan jenis pengeluaran non-anggaran.
+     */
+    protected ?array $nonBudgetaryTypesCache = null;
+
+    /**
+     * Ambil daftar jenis pengeluaran non-anggaran (misal UP, TU) dari Pengaturan Sistem.
+     * Mengacu pada setting 'expenditure_journal_rules' (is_budgetary = false).
+     *
+     * @return array
+     */
+    public function getNonBudgetaryTypes(): array
+    {
+        if ($this->nonBudgetaryTypesCache !== null) {
+            return $this->nonBudgetaryTypesCache;
+        }
+
+        $rulesJson = \App\Models\Setting::where('key', 'expenditure_journal_rules')->value('value');
+        if ($rulesJson) {
+            $rules = json_decode($rulesJson, true);
+            $nonBudgetary = [];
+            if (is_array($rules)) {
+                foreach ($rules as $type => $rule) {
+                    if (isset($rule['is_budgetary']) && !$rule['is_budgetary']) {
+                        $nonBudgetary[] = $type;
+                    }
+                }
+            }
+            if (!empty($nonBudgetary)) {
+                return $this->nonBudgetaryTypesCache = $nonBudgetary;
+            }
+        }
+
+        return $this->nonBudgetaryTypesCache = ['UP', 'TU'];
+    }
+
+    /**
+     * Cek apakah jenis pengeluaran termasuk belanja riil / anggaran (budgetary).
+     *
+     * @param string $type
+     * @return bool
+     */
+    public function isBudgetaryType(string $type): bool
+    {
+        return !in_array($type, $this->getNonBudgetaryTypes());
+    }
+
+    /**
      * Terapkan filter periode (bulan, triwulan, atau semester) pada query.
      *
      * @param \Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder $query
@@ -61,7 +108,7 @@ class BudgetRealizationService
         $expQuery = DB::table('expenditure_details')
             ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
             ->whereYear('expenditures.date', $year)
-            ->where('expenditures.type', '!=', 'UP')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
             ->where(function ($q) {
                 $q->where('expenditures.type', '!=', 'GU')
                   ->orWhereNotExists(function ($sub) {
@@ -163,7 +210,7 @@ class BudgetRealizationService
             ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
             ->whereYear('expenditures.date', $budgetYear)
             ->where('expenditures.status', '!=', 'rejected')
-            ->where('expenditures.type', '!=', 'UP')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
             ->where(function ($q) {
                 $q->where('expenditures.type', '!=', 'GU')
                   ->orWhereNotExists(function ($sub) {
@@ -240,7 +287,7 @@ class BudgetRealizationService
             ->where('expenditure_details.account_code_id', $accountCodeId)
             ->whereYear('expenditures.date', $budgetYear)
             ->where('expenditures.status', '!=', 'rejected')
-            ->where('expenditures.type', '!=', 'UP')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
             ->where(function ($sub) {
                 $sub->where('expenditures.type', '!=', 'GU')
                     ->orWhereNotExists(function ($ex) {
@@ -288,7 +335,7 @@ class BudgetRealizationService
             ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
             ->whereYear('expenditures.date', $year)
             ->where('expenditures.status', 'disbursed')
-            ->where('expenditures.type', '!=', 'UP')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
             ->where(function ($q) {
                 $q->where('expenditures.type', '!=', 'GU')
                   ->orWhereNotExists(function ($sub) {
@@ -339,7 +386,7 @@ class BudgetRealizationService
             ->join('account_codes', 'expenditure_details.account_code_id', '=', 'account_codes.id')
             ->whereYear('expenditures.date', $year)
             ->where('expenditures.status', 'disbursed')
-            ->where('expenditures.type', '!=', 'UP')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
             ->where(function ($q) {
                 $q->where('expenditures.type', '!=', 'GU')
                   ->orWhereNotExists(function ($sub) {
@@ -398,7 +445,7 @@ class BudgetRealizationService
         $docOut = DB::table('expenditure_details')
             ->join('expenditures', 'expenditure_details.expenditure_id', '=', 'expenditures.id')
             ->where('expenditures.status', 'disbursed')
-            ->where('expenditures.type', '!=', 'UP')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
             ->where(function ($q) {
                 $q->where('expenditures.type', '!=', 'GU')
                   ->orWhereNotExists(function ($sub) {

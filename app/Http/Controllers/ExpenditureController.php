@@ -739,14 +739,7 @@ class ExpenditureController extends Controller
 
     private function isBudgetaryType(string $type): bool
     {
-        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
-        if ($rulesJson) {
-            $rules = json_decode($rulesJson, true);
-            if (isset($rules[$type])) {
-                return (bool) ($rules[$type]['is_budgetary'] ?? true);
-            }
-        }
-        return !in_array($type, ['UP', 'TU']);
+        return $this->budgetRealizationService->isBudgetaryType($type);
     }
 
     private function validateBudgetLimit(Request $request, array $details, $excludeExpenditureId = null)
