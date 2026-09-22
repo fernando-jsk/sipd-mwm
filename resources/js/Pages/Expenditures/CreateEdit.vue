@@ -36,6 +36,8 @@ import {
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Badge } from '@/Components/ui/badge';
 import { terbilang } from '@/lib/utils';
+import { format } from 'date-fns';
+import { id } from 'date-fns/locale';
 
 const props = defineProps({
     expenditure: Object,
@@ -381,6 +383,17 @@ const totalTax = computed(() => {
 
 const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
+};
+
+const formatDate = (value) => {
+    if (!value) return '-';
+    try {
+        const d = new Date(value);
+        if (isNaN(d.getTime())) return value;
+        return format(d, 'dd MMM yyyy', { locale: id });
+    } catch {
+        return value;
+    }
 };
 
 const fileInput = ref(null);
@@ -736,7 +749,7 @@ const submitForm = (status) => {
                                         <TableBody>
                                             <TableRow v-for="rc in selectedReceiptObjects" :key="'sel-'+rc.id" class="text-xs">
                                                 <TableCell class="font-mono font-medium">{{ rc.receipt_number }}</TableCell>
-                                                <TableCell class="text-muted-foreground">{{ rc.date }}</TableCell>
+                                                <TableCell class="text-muted-foreground whitespace-nowrap">{{ formatDate(rc.date) }}</TableCell>
                                                 <TableCell>
                                                     <span class="font-medium">{{ rc.account_code?.code }}</span>
                                                     <span class="text-muted-foreground ml-1 hidden sm:inline">- {{ rc.account_code?.name }}</span>
@@ -1275,7 +1288,7 @@ const submitForm = (status) => {
                                         />
                                     </TableCell>
                                     <TableCell class="font-mono font-medium text-xs">{{ r.receipt_number }}</TableCell>
-                                    <TableCell class="text-xs text-muted-foreground">{{ r.date }}</TableCell>
+                                    <TableCell class="text-xs text-muted-foreground whitespace-nowrap">{{ formatDate(r.date) }}</TableCell>
                                     <TableCell class="text-xs">
                                         <div class="font-medium text-foreground">{{ r.account_code?.code }}</div>
                                         <div class="text-[11px] text-muted-foreground line-clamp-1">{{ r.account_code?.name }}</div>
