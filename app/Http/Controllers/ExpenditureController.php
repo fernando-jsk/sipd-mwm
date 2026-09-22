@@ -222,7 +222,8 @@ class ExpenditureController extends Controller
     {
         $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes', 'receipts.accountCode']);
         
-        $activities = \Spatie\Activitylog\Models\Activity::where('subject_type', Expenditure::class)
+        $activities = \Spatie\Activitylog\Models\Activity::with('causer')
+            ->where('subject_type', Expenditure::class)
             ->where('subject_id', $expenditure->id)
             ->orderBy('created_at', 'desc')
             ->get();
@@ -366,8 +367,8 @@ class ExpenditureController extends Controller
 
     public function destroy(Expenditure $expenditure)
     {
-        if ($expenditure->status !== 'draft') {
-            return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen Draft yang dapat dihapus.');
+        if ($expenditure->status !== 'draft' && $expenditure->status !== 'rejected') {
+            return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen Draft atau Ditolak yang dapat dihapus.');
         }
 
         if ($expenditure->attachment_path) {

@@ -215,13 +215,13 @@ const terbilang = (angka) => {
                 <div class="w-64 flex flex-col items-center">
                     <p class="mb-0.5">Mengetahui,</p>
                     <p class="font-bold mb-10">Pejabat Teknis Kegiatan</p>
-                    <p class="font-bold underline uppercase">{{ expenditure.ptk?.name || '( .................................... )' }}</p>
+                    <p class="font-bold underline">{{ expenditure.ptk?.name || '( .................................... )' }}</p>
                     <p>NIP. {{ expenditure.ptk?.nip || '-' }}</p>
                 </div>
                 <div class="w-64 flex flex-col items-center">
                     <p class="mb-0.5">Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
                     <p class="font-bold mb-10">Bendahara Pengeluaran BLUD</p>
-                    <p class="font-bold underline uppercase">{{ expenditure.treasurer?.name || '( .................................... )' }}</p>
+                    <p class="font-bold underline">{{ expenditure.treasurer?.name || '( .................................... )' }}</p>
                     <p>NIP. {{ expenditure.treasurer?.nip || '-' }}</p>
                 </div>
             </div>

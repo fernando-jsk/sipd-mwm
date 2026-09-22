@@ -161,7 +161,7 @@ const netAmount = Math.max(0, grossAmount - taxAmount);
                             <p>Pejabat Teknis Kegiatan (PTK/PPTK)</p>
                         </div>
                         <div>
-                            <p class="font-bold underline uppercase">{{ pptk?.name || '........................................' }}</p>
+                            <p class="font-bold underline">{{ pptk?.name || '........................................' }}</p>
                             <p class="font-mono text-[11px]">NIP. {{ pptk?.nip || '........................................' }}</p>
                         </div>
                     </div>
@@ -173,7 +173,7 @@ const netAmount = Math.max(0, grossAmount - taxAmount);
                             <p>Bendahara Pengeluaran</p>
                         </div>
                         <div>
-                            <p class="font-bold underline uppercase">{{ treasurer?.name || '........................................' }}</p>
+                            <p class="font-bold underline">{{ treasurer?.name || '........................................' }}</p>
                             <p class="font-mono text-[11px]">NIP. {{ treasurer?.nip || '........................................' }}</p>
                         </div>
                     </div>
@@ -185,7 +185,7 @@ const netAmount = Math.max(0, grossAmount - taxAmount);
                             <p class="text-[11px] text-gray-600">(Penerima / Toko)</p>
                         </div>
                         <div>
-                            <p class="font-bold underline uppercase">{{ receipt.recipient_name || '........................................' }}</p>
+                            <p class="font-bold underline">{{ receipt.recipient_name || '........................................' }}</p>
                             <p class="text-[11px] text-gray-500">Tanda Tangan &amp; Cap</p>
                         </div>
                     </div>

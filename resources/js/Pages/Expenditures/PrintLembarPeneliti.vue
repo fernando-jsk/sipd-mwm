@@ -165,13 +165,13 @@ const checklistItems = [
             <div class="flex justify-between text-[9.5px] mt-2 px-6 print:break-inside-avoid">
                 <div class="w-64 flex flex-col items-center">
                     <p class="font-bold mb-8">PPTK</p>
-                    <p class="font-bold underline uppercase">{{ expenditure.ptk?.name || 'STEVY ROTIKAN, Amd.Farm' }}</p>
+                    <p class="font-bold underline">{{ expenditure.ptk?.name || 'Stevy Rotikan, Amd.Farm' }}</p>
                     <p>NIP. {{ expenditure.ptk?.nip || '197909122008021001' }}</p>
                 </div>
                 <div class="w-64 flex flex-col items-center">
                     <p class="mb-0.5">Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
                     <p class="font-bold mb-8">VERIFIKASI</p>
-                    <p class="font-bold underline uppercase">( .................................................... )</p>
+                    <p class="font-bold underline">( .................................................... )</p>
                     <p class="text-transparent">.</p>
                 </div>
             </div>
