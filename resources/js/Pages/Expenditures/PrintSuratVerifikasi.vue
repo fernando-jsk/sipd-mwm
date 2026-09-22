@@ -64,7 +64,7 @@ const goBack = () => {
                     <div class="flex">
                         <div class="w-32 font-semibold">Nama</div>
                         <div class="w-4">:</div>
-                        <div class="flex-1 font-semibold uppercase">{{ ppk?.name || 'MONALISA F.SUMAMPOUW,SST,M.Kes' }}</div>
+                        <div class="flex-1 font-semibold">{{ ppk?.name || 'Monalisa F. Sumampouw, SST, M.Kes' }}</div>
                     </div>
                     <div class="flex">
                         <div class="w-32 font-semibold">NIP</div>
@@ -96,7 +96,7 @@ const goBack = () => {
                     <p>Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
                     <p class="font-bold">PPK RSUD BLUD</p>
                     <div class="h-20"></div>
-                    <p class="font-bold underline uppercase">{{ ppk?.name || 'MONALISA F.SUMAMPOUW,SST,M.Kes' }}</p>
+                    <p class="font-bold underline">{{ ppk?.name || 'Monalisa F. Sumampouw, SST, M.Kes' }}</p>
                     <p>NIP. {{ ppk?.nip || '-' }}</p>
                 </div>
             </div>

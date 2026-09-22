@@ -102,7 +102,7 @@ const totalTaxes = props.expenditure.taxes?.reduce((sum, item) => sum + Number(i
                 <div class="w-64">
                     <p class="mb-1">Airmadidi, {{ expenditure.opd_date ? format(new Date(expenditure.opd_date), 'dd MMMM yyyy', { locale: id }) : '......................' }}</p>
                     <p class="font-bold mb-16">Direktur,</p>
-                    <p class="font-bold underline uppercase">{{ expenditure.opd_authorized_by?.name || expenditure.kpa?.name || '( .................................... )' }}</p>
+                    <p class="font-bold underline">{{ expenditure.opd_authorized_by?.name || expenditure.kpa?.name || '( .................................... )' }}</p>
                     <p>NIP. {{ expenditure.opd_authorized_by?.nip || expenditure.kpa?.nip || '-' }}</p>
                 </div>
             </div>

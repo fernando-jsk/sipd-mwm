@@ -262,7 +262,7 @@ const terbilang = (angka) => {
                         <p class="font-bold">KUASA PENGGUNA ANGGARAN</p>
                     </div>
                     <div class="mt-12">
-                        <p class="font-bold underline uppercase">{{ expenditure.kpa?.name || 'dr. ALAIN VINCENT BEYAH' }}</p>
+                        <p class="font-bold underline">{{ expenditure.kpa?.name || 'dr. Alain Vincent Beyah' }}</p>
                         <p>NIP. {{ expenditure.kpa?.nip || '198201292009031001' }}</p>
                     </div>
                 </div>

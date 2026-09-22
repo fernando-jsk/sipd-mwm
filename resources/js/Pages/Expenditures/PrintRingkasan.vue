@@ -174,13 +174,13 @@ const formatCurrency = (val) => {
             <div class="flex justify-between text-[10px] mt-4 px-6 print:break-inside-avoid">
                 <div class="w-64 flex flex-col items-center">
                     <p class="font-bold mb-10">PEJABAT PELAKSANA TEKNIS KEGIATAN</p>
-                    <p class="font-bold underline uppercase">{{ expenditure.ptk?.name || 'STEVY ROTIKAN, Amd.Farm' }}</p>
+                    <p class="font-bold underline">{{ expenditure.ptk?.name || 'Stevy Rotikan, Amd.Farm' }}</p>
                     <p>NIP. {{ expenditure.ptk?.nip || '197909122008021001' }}</p>
                 </div>
                 <div class="w-64 flex flex-col items-center">
                     <p class="mb-0.5">Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
                     <p class="font-bold mb-10">BENDAHARA PENGELUARAN</p>
-                    <p class="font-bold underline uppercase">{{ expenditure.treasurer?.name || 'SASKIA PARASO, SKM' }}</p>
+                    <p class="font-bold underline">{{ expenditure.treasurer?.name || 'Saskia Paraso, SKM' }}</p>
                     <p>NIP. {{ expenditure.treasurer?.nip || '199810142022032012' }}</p>
                 </div>
             </div>

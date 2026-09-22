@@ -111,7 +111,7 @@ const terbilang = (angka) => {
                         <p class="font-bold">BLUD RSUD M. W. Maramis</p>
                         <p class="font-bold">Kabupaten Minahasa Utara</p>
                         <div class="h-16"></div>
-                        <p class="font-bold underline uppercase">{{ expenditure.kpa?.name || 'dr. ALAIN VINCENT BEYAH' }}</p>
+                        <p class="font-bold underline">{{ expenditure.kpa?.name || 'dr. Alain Vincent Beyah' }}</p>
                         <p>NIP. {{ expenditure.kpa?.nip || '198201292009031001' }}</p>
                     </div>
                 </div>
@@ -159,7 +159,7 @@ const terbilang = (angka) => {
                         <p class="font-bold">Pejabat Pelaksana Teknis Kegiatan</p>
                         <p class="font-bold">(PPTK)</p>
                         <div class="h-16"></div>
-                        <p class="font-bold underline uppercase">{{ expenditure.ptk?.name || 'STEVY ROTIKAN, Amd.Farm' }}</p>
+                        <p class="font-bold underline">{{ expenditure.ptk?.name || 'Stevy Rotikan, Amd.Farm' }}</p>
                         <p>NIP. {{ expenditure.ptk?.nip || '197909122008021001' }}</p>
                     </div>
                 </div>

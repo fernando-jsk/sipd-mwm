@@ -168,7 +168,7 @@ const terbilang = (angka) => {
                     <p>Mengetahui,</p>
                     <p class="font-bold">Direktur RSUD M.W.Maramis</p>
                     <div class="h-16"></div>
-                    <p class="font-bold underline uppercase">{{ expenditure.kpa?.name || 'dr. ALAIN VINCENT BEYAH' }}</p>
+                    <p class="font-bold underline">{{ expenditure.kpa?.name || 'dr. Alain Vincent Beyah' }}</p>
                     <p>NIP. {{ expenditure.kpa?.nip || '198201292009031001' }}</p>
                 </div>
 
@@ -176,7 +176,7 @@ const terbilang = (angka) => {
                     <p>Airmadidi, {{ expenditure.date ? format(new Date(expenditure.date), 'dd MMMM yyyy', { locale: id }) : '-' }}</p>
                     <p class="font-bold">Yang Menerima</p>
                     <div class="h-16"></div>
-                    <p class="font-bold underline uppercase">{{ expenditure.vendor?.director_name || expenditure.vendor?.name || 'DEWI SARTIKA GOSAL, Amd.Kep' }}</p>
+                    <p class="font-bold underline">{{ expenditure.vendor?.director_name || expenditure.vendor?.name || 'Dewi Sartika Gosal, Amd.Kep' }}</p>
                 </div>
             </div>
 
@@ -192,13 +192,13 @@ const terbilang = (angka) => {
                 <div class="grid grid-cols-4 min-h-[110px]">
                     <!-- Col 1: Bendahara -->
                     <div class="p-1.5 border-r border-black flex flex-col justify-end text-center">
-                        <p class="font-bold underline uppercase">{{ expenditure.treasurer?.name || 'SASKIA PARASO, SKM' }}</p>
+                        <p class="font-bold underline">{{ expenditure.treasurer?.name || 'Saskia Paraso, SKM' }}</p>
                         <p>NIP. {{ expenditure.treasurer?.nip || '199810142022032012' }}</p>
                     </div>
 
                     <!-- Col 2: PPTK -->
                     <div class="p-1.5 border-r border-black flex flex-col justify-end text-center">
-                        <p class="font-bold underline uppercase">{{ expenditure.ptk?.name || 'STEVY ROTIKAN, Amd.Farm' }}</p>
+                        <p class="font-bold underline">{{ expenditure.ptk?.name || 'Stevy Rotikan, Amd.Farm' }}</p>
                         <p>NIP. {{ expenditure.ptk?.nip || '197909122008021001' }}</p>
                     </div>
 

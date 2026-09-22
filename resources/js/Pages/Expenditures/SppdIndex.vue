@@ -43,6 +43,7 @@ const importForm = useForm({
     file: null,
     treasurer_id: '',
     kpa_id: '',
+    ppk_id: '',
     status: 'draft',
     end_row: '',
 });
@@ -452,6 +453,17 @@ const getStatusLabel = (status) => {
                             </SelectContent>
                         </Select>
                         <p v-if="importForm.errors.kpa_id" class="text-sm text-destructive">{{ importForm.errors.kpa_id }}</p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <Label>PPK / Kabag Keuangan (Pencair SPD)</Label>
+                        <Select v-model="importForm.ppk_id">
+                            <SelectTrigger><SelectValue placeholder="Pilih PPK / Kabag Keuangan..." /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem v-for="user in users" :key="user.id" :value="user.id.toString()">{{ user.name }}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="importForm.errors.ppk_id" class="text-sm text-destructive">{{ importForm.errors.ppk_id }}</p>
                     </div>
 
                     <div class="space-y-2">

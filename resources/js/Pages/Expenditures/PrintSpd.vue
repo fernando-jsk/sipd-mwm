@@ -107,7 +107,7 @@ const totalTaxes = props.expenditure.taxes?.reduce((sum, item) => sum + Number(i
                 <div class="w-64">
                     <p class="mb-1">Airmadidi, {{ expenditure.spd_date ? format(new Date(expenditure.spd_date), 'dd MMMM yyyy', { locale: id }) : '......................' }}</p>
                     <p class="font-bold mb-16">Kepala Bagian Keuangan,</p>
-                    <p class="font-bold underline uppercase">{{ expenditure.spd_disbursed_by?.name || 'Monalisa F. Sumampouw,SST, M.Kes' }}</p>
+                    <p class="font-bold underline">{{ expenditure.spd_disbursed_by?.name || 'Monalisa F. Sumampouw, SST, M.Kes' }}</p>
                     <p>NIP. {{ expenditure.spd_disbursed_by?.nip || '-' }}</p>
                 </div>
             </div>

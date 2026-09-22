@@ -23,6 +23,7 @@ class ExpenditureImportController extends Controller
             'file' => 'required|file|mimes:xlsx,xls,csv',
             'treasurer_id' => 'required|exists:users,id',
             'kpa_id' => 'required|exists:users,id',
+            'ppk_id' => 'nullable|exists:users,id',
             'status' => 'required|in:draft,submitted,authorized,disbursed',
             'end_row' => 'nullable|integer|min:2',
         ]);
@@ -162,7 +163,8 @@ class ExpenditureImportController extends Controller
                 if ($status === 'disbursed') {
                     $spdNumber = $noSpp;
                     $spdDate = $tanggalSpp;
-                    $spdDisbursedBy = $request->treasurer_id;
+                    $defaultKabag = User::role('kabag-keuangan')->first();
+                    $spdDisbursedBy = $request->ppk_id ?? $defaultKabag?->id ?? $request->treasurer_id;
                 }
 
                 // 5. Insert Expenditure (SPPD)
