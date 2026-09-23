@@ -9,7 +9,8 @@ import {
     DropdownMenuTrigger,
     DropdownMenuSeparator,
 } from '@/Components/ui/dropdown-menu';
-import { ChevronRight, ChevronDown, MoreVertical, Plus, Edit, Trash2 } from 'lucide-vue-next';
+import { ChevronRight, ChevronDown, MoreVertical, Plus, Edit, Trash2, FolderInput } from 'lucide-vue-next';
+import { Checkbox } from '@/Components/ui/checkbox';
 
 const props = defineProps({
     row: {
@@ -20,13 +21,18 @@ const props = defineProps({
         type: Number,
         default: 0,
     },
+    selectedIds: {
+        type: Array,
+        default: () => [],
+    },
 });
 
-const emit = defineEmits(['addHeader', 'addItem', 'edit', 'delete']);
+const emit = defineEmits(['addHeader', 'addItem', 'edit', 'delete', 'changeParent', 'toggleSelect']);
 
 const isExpanded = ref(false);
 
 const hasChildren = computed(() => props.row.children && props.row.children.length > 0);
+const isSelected = computed(() => props.selectedIds.includes(props.row.id));
 
 const toggleExpand = () => {
     if (hasChildren.value) {
@@ -68,7 +74,16 @@ const paddingLeft = computed(() => {
 
 <template>
     <!-- Render Current Row -->
-    <TableRow :class="[row.type === 'header' ? 'bg-muted/30 font-medium' : '']">
+    <TableRow :class="[row.type === 'header' ? 'bg-muted/30 font-medium' : '', isSelected ? 'bg-primary/5' : '']">
+        <!-- Checkbox Seleksi -->
+        <TableCell class="w-[40px] px-3 text-center align-top py-3.5">
+            <Checkbox
+                :id="`check-row-${row.id}`"
+                :model-value="isSelected"
+                @update:model-value="$emit('toggleSelect', row.id)"
+            />
+        </TableCell>
+
         <!-- Uraian -->
         <TableCell :style="paddingLeft" class="align-top py-3 max-w-[500px]">
             <div class="flex items-start gap-1">
@@ -134,6 +149,11 @@ const paddingLeft = computed(() => {
                         <Edit class="mr-2 h-4 w-4" />
                         <span>Edit</span>
                     </DropdownMenuItem>
+
+                    <DropdownMenuItem @click="$emit('changeParent', row)">
+                        <FolderInput class="mr-2 h-4 w-4" />
+                        <span>Pindah Induk</span>
+                    </DropdownMenuItem>
                     
                     <DropdownMenuItem @click="$emit('delete', row)" class="text-destructive focus:text-destructive">
                         <Trash2 class="mr-2 h-4 w-4" />
@@ -151,10 +171,13 @@ const paddingLeft = computed(() => {
             :key="child.id"
             :row="child"
             :level="level + 1"
+            :selected-ids="selectedIds"
+            @toggleSelect="$emit('toggleSelect', $event)"
             @addHeader="$emit('addHeader', $event)"
             @addItem="$emit('addItem', $event)"
             @edit="$emit('edit', $event)"
             @delete="$emit('delete', $event)"
+            @changeParent="$emit('changeParent', $event)"
         />
     </template>
 </template>

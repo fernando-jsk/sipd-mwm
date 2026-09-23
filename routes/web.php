@@ -100,6 +100,8 @@ Route::middleware('auth')->group(function () {
         Route::put('/rba/documents/{rbaDocument}', [RbaDocumentController::class, 'update'])->name('rba.documents.update');
         Route::delete('/rba/documents/{rbaDocument}', [RbaDocumentController::class, 'destroy'])->name('rba.documents.destroy');
         Route::post('/rba/{rbaDocument}/details', [RbaDetailController::class, 'store'])->name('rba.store');
+        Route::post('/rba/{rbaDocument}/details/bulk-change-parent', [RbaDetailController::class, 'bulkChangeParent'])->name('rba.bulk-change-parent');
+        Route::post('/rba/{rbaDocument}/details/bulk-destroy', [RbaDetailController::class, 'bulkDestroy'])->name('rba.bulk-destroy');
         Route::put('/rba/details/{rbaDetail}', [RbaDetailController::class, 'update'])->name('rba.update');
         Route::delete('/rba/details/{rbaDetail}', [RbaDetailController::class, 'destroy'])->name('rba.destroy');
     });
