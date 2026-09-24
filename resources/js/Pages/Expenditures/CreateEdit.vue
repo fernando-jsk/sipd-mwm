@@ -63,7 +63,7 @@ const isEdit = !!props.expenditure;
 const form = useForm({
     document_number: props.expenditure?.document_number || '',
     date: props.expenditure?.date ? new Date(props.expenditure.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-    type: props.expenditure?.type || 'LS',
+    type: props.expenditure?.type || 'LS_Barang_Jasa_Modal',
     description: props.expenditure?.description || '',
     treasurer_id: props.expenditure?.treasurer_id?.toString() || '',
     kpa_id: props.expenditure?.kpa_id?.toString() || '',
@@ -298,6 +298,14 @@ const applyReceiptSelection = () => {
     isReceiptModalOpen.value = false;
 };
 
+const filteredAccountCodes = computed(() => {
+    if (!props.accountCodes) return [];
+    if (form.type === 'UP') {
+        return props.accountCodes.filter(acc => acc.is_non_budgetary);
+    }
+    return props.accountCodes.filter(acc => !acc.is_non_budgetary);
+});
+
 watch(() => form.type, (newType, oldType) => {
     if (newType === 'UP') {
         initUpForm();
@@ -317,6 +325,22 @@ watch(() => form.type, (newType, oldType) => {
         if (form.details.length === 0) {
             form.details = [{ account_code_id: '', amount: '' }];
         }
+    }
+
+    // Reset account_code_id jika tipe rekening tidak kompatibel dengan jenis pengeluaran
+    if (oldType) {
+        form.details.forEach(d => {
+            if (d.account_code_id) {
+                const acc = props.accountCodes?.find(a => a.id.toString() === d.account_code_id.toString());
+                if (acc) {
+                    if (newType === 'UP' && !acc.is_non_budgetary) {
+                        d.account_code_id = '';
+                    } else if (newType !== 'UP' && acc.is_non_budgetary) {
+                        d.account_code_id = '';
+                    }
+                }
+            }
+        });
     }
 }, { immediate: true });
 
@@ -884,7 +908,7 @@ const submitForm = (status) => {
                                                 <Select v-model="form.details[index].account_code_id">
                                                     <SelectTrigger><SelectValue placeholder="Pilih Akun Kas UP" /></SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem v-for="acc in accountCodes" :key="acc.id" :value="acc.id.toString()">
+                                                        <SelectItem v-for="acc in filteredAccountCodes" :key="acc.id" :value="acc.id.toString()">
                                                             {{ acc.code }} - {{ acc.name }} {{ acc.is_non_budgetary ? '(Kas UP)' : '' }}
                                                         </SelectItem>
                                                     </SelectContent>
@@ -899,8 +923,8 @@ const submitForm = (status) => {
                                             <Select v-model="form.details[index].account_code_id">
                                                 <SelectTrigger><SelectValue placeholder="Pilih Akun" /></SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem v-for="acc in accountCodes" :key="acc.id" :value="acc.id.toString()">
-                                                        {{ acc.code }} - {{ acc.name }} {{ acc.is_non_budgetary ? '(Non-Anggaran / UP)' : '' }}
+                                                    <SelectItem v-for="acc in filteredAccountCodes" :key="acc.id" :value="acc.id.toString()">
+                                                        {{ acc.code }} - {{ acc.name }}
                                                     </SelectItem>
                                                 </SelectContent>
                                             </Select>
