@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('account-codes', AccountCodeController::class)->except(['show']);
         Route::resource('receipt-types', \App\Http\Controllers\ReceiptTypeController::class)->except(['show', 'create', 'edit']);
         Route::resource('settings', SettingController::class)->only(['index', 'store']);
+        Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
         Route::resource('vendors', VendorController::class)->only(['index', 'show']);
     });
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 
@@ -28,6 +29,11 @@ class Vendor extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function expenditures(): HasMany
+    {
+        return $this->hasMany(Expenditure::class);
     }
 
     public function getActivitylogOptions(): LogOptions
