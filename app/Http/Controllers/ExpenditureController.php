@@ -669,12 +669,15 @@ class ExpenditureController extends Controller
     private function getAccountCodesWithBudgetUsage(Request $request, $excludeExpenditureId = null)
     {
         $budgetYear = $request->session()->get('active_budget_year', date('Y'));
-        $activeVersion = Setting::where('key', 'rba_active_version')->value('value') ?? 0;
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? Setting::where('key', 'rba_active_version')->value('value') ?? 0);
 
         $rbaDocs = RbaDocument::with('accountCode')
             ->where('budget_year', $budgetYear)
             ->where('version', $activeVersion)
             ->where('rba_type', 'rinci')
+            ->whereHas('accountCode', function ($q) {
+                $q->where('code', 'like', '5%');
+            })
             ->get();
 
         if ($rbaDocs->isEmpty()) {
@@ -682,6 +685,9 @@ class ExpenditureController extends Controller
                 ->where('budget_year', $budgetYear)
                 ->where('version', $activeVersion)
                 ->where('rba_type', 'gelondongan')
+                ->whereHas('accountCode', function ($q) {
+                    $q->where('code', 'like', '5%');
+                })
                 ->get();
         }
             
@@ -705,7 +711,8 @@ class ExpenditureController extends Controller
                     'submitted_amount' => $submitted,
                     'disbursed_amount' => $disbursed,
                     'used_amount' => $usedAmount,
-                    'remaining_budget' => $doc->total_budget - $usedAmount
+                    'remaining_budget' => $doc->total_budget - $usedAmount,
+                    'is_non_budgetary' => false
                 ];
             }
         }
@@ -746,7 +753,7 @@ class ExpenditureController extends Controller
     private function validateBudgetLimit(Request $request, array $details, $excludeExpenditureId = null)
     {
         $budgetYear = $request->session()->get('active_budget_year', date('Y'));
-        $activeVersion = Setting::where('key', 'rba_active_version')->value('value') ?? 0;
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? Setting::where('key', 'rba_active_version')->value('value') ?? 0);
         
         $validationMode = Setting::where('key', 'budget_validation_mode')->value('value') ?? 'warning';
 
