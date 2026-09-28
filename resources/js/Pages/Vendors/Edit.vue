@@ -78,18 +78,30 @@ const submit = () => {
             <form @submit.prevent="submit">
                 <Card class="border-border/80 shadow-sm">
                     <CardHeader class="border-b border-border/80 pb-4">
-                        <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Informasi Rekanan</CardTitle>
-                        <CardDescription class="text-xs text-muted-foreground mt-0.5">Perbarui profil rekanan untuk keperluan dokumen tagihan, SPK, dan pajak.</CardDescription>
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                            <div>
+                                <CardTitle class="text-base font-bold text-secondary dark:text-foreground">Informasi Rekanan</CardTitle>
+                                <CardDescription class="text-xs text-muted-foreground mt-0.5">Perbarui profil rekanan untuk keperluan dokumen tagihan, SPK, dan pajak.</CardDescription>
+                            </div>
+                            <div class="text-[11px] text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-md border border-border/60 self-start sm:self-auto">
+                                <span class="text-destructive font-bold">*</span> Wajib diisi
+                            </div>
+                        </div>
                     </CardHeader>
                     
                     <CardContent class="space-y-6">
                         
                         <!-- Profil Dasar -->
                         <div class="space-y-4">
-                            <h3 class="text-sm font-semibold border-b pb-2">Profil Dasar</h3>
+                            <div class="border-b pb-2">
+                                <h3 class="text-sm font-semibold text-secondary dark:text-foreground">Profil Utama</h3>
+                            </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="grid gap-1.5">
-                                    <Label for="name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.name}">Nama Rekanan / Perusahaan</Label>
+                                    <Label for="name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1" :class="{'text-destructive': form.errors.name}">
+                                        <span>Nama Rekanan / Perusahaan</span>
+                                        <span class="text-destructive font-bold">*</span>
+                                    </Label>
                                     <Input 
                                         id="name" 
                                         v-model="form.name" 
@@ -100,7 +112,10 @@ const submit = () => {
                                 </div>
                                 
                                 <div class="grid gap-1.5">
-                                    <Label for="type" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.type}">Bentuk Usaha</Label>
+                                    <Label for="type" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1" :class="{'text-destructive': form.errors.type}">
+                                        <span>Bentuk Usaha</span>
+                                        <span class="text-destructive font-bold">*</span>
+                                    </Label>
                                     <Select v-model="form.type">
                                         <SelectTrigger :class="{'border-destructive focus-visible:ring-destructive/20': form.errors.type}">
                                             <SelectValue placeholder="Pilih Bentuk Usaha" />
@@ -117,7 +132,9 @@ const submit = () => {
                                 </div>
 
                                 <div class="grid gap-1.5 md:col-span-2">
-                                    <Label for="director_name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.director_name}">Nama Direktur / Pimpinan</Label>
+                                    <Label for="director_name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.director_name}">
+                                        Nama Direktur / Pimpinan
+                                    </Label>
                                     <Input 
                                         id="director_name" 
                                         v-model="form.director_name" 
@@ -130,10 +147,14 @@ const submit = () => {
 
                         <!-- Kontak & Pajak -->
                         <div class="space-y-4">
-                            <h3 class="text-sm font-semibold border-b pb-2">Kontak & Pajak</h3>
+                            <div class="border-b pb-2">
+                                <h3 class="text-sm font-semibold text-secondary dark:text-foreground">Kontak & Perpajakan</h3>
+                            </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="grid gap-1.5">
-                                    <Label for="phone" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.phone}">Nomor Telepon</Label>
+                                    <Label for="phone" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.phone}">
+                                        Nomor Telepon
+                                    </Label>
                                     <Input 
                                         id="phone" 
                                         v-model="form.phone" 
@@ -143,7 +164,9 @@ const submit = () => {
                                 </div>
 
                                 <div class="grid gap-1.5">
-                                    <Label for="npwp" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.npwp}">NPWP</Label>
+                                    <Label for="npwp" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.npwp}">
+                                        NPWP Rekanan
+                                    </Label>
                                     <Input 
                                         id="npwp" 
                                         v-model="form.npwp" 
@@ -153,7 +176,9 @@ const submit = () => {
                                 </div>
 
                                 <div class="grid gap-1.5 md:col-span-2">
-                                    <Label for="address" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.address}">Alamat Lengkap</Label>
+                                    <Label for="address" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.address}">
+                                        Alamat Lengkap
+                                    </Label>
                                     <Textarea 
                                         id="address" 
                                         v-model="form.address" 
@@ -167,10 +192,14 @@ const submit = () => {
 
                         <!-- Data Rekening Bank -->
                         <div class="space-y-4">
-                            <h3 class="text-sm font-semibold border-b pb-2">Informasi Rekening Bank</h3>
+                            <div class="border-b pb-2">
+                                <h3 class="text-sm font-semibold text-secondary dark:text-foreground">Informasi Rekening Bank</h3>
+                            </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div class="grid gap-1.5">
-                                    <Label for="bank_name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.bank_name}">Nama Bank</Label>
+                                    <Label for="bank_name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.bank_name}">
+                                        Nama Bank
+                                    </Label>
                                     <Input 
                                         id="bank_name" 
                                         v-model="form.bank_name" 
@@ -180,7 +209,9 @@ const submit = () => {
                                 </div>
 
                                 <div class="grid gap-1.5">
-                                    <Label for="bank_account_number" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.bank_account_number}">Nomor Rekening</Label>
+                                    <Label for="bank_account_number" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.bank_account_number}">
+                                        Nomor Rekening
+                                    </Label>
                                     <Input 
                                         id="bank_account_number" 
                                         v-model="form.bank_account_number" 
@@ -190,7 +221,9 @@ const submit = () => {
                                 </div>
 
                                 <div class="grid gap-1.5 md:col-span-2">
-                                    <Label for="bank_account_name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.bank_account_name}">Nama Pemilik Rekening</Label>
+                                    <Label for="bank_account_name" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider" :class="{'text-destructive': form.errors.bank_account_name}">
+                                        Nama Pemilik Rekening
+                                    </Label>
                                     <Input 
                                         id="bank_account_name" 
                                         v-model="form.bank_account_name" 
