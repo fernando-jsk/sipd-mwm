@@ -23,7 +23,7 @@ import {
 } from '@/Components/ui/table';
 import { 
     Trash2, Plus, UploadCloud, ChevronRight, ChevronLeft, Save, Send, Info, CheckCircle2, ArrowRightLeft,
-    Receipt, CheckSquare, Square, Search, Filter, X, ExternalLink, Calendar, AlertCircle
+    Receipt, CheckSquare, Square, Search, Filter, X, ExternalLink, Calendar, AlertCircle, Check
 } from '@lucide/vue';
 import {
   Dialog,
@@ -356,6 +356,58 @@ watch(() => form.vendor_id, (newVendorId) => {
 });
 
 const currentStep = ref(1);
+const maxStepReached = ref(isEdit ? 3 : 1);
+
+watch(currentStep, (newStep) => {
+    if (newStep > maxStepReached.value) {
+        maxStepReached.value = newStep;
+    }
+});
+
+const isStep1BasicValid = computed(() => {
+    return !!(form.document_number && form.date && form.type);
+});
+
+const canGoToStep = (targetStep) => {
+    if (targetStep === currentStep.value) return true;
+    if (isEdit) return true;
+    // Selalu boleh kembali ke langkah sebelumnya
+    if (targetStep < currentStep.value) return true;
+    // Boleh ke langkah yang sudah pernah dicapai
+    if (targetStep <= maxStepReached.value) return true;
+    // Boleh ke Step 2 jika Step 1 minimal terisi dokumen, tanggal, & jenis
+    if (targetStep === 2) {
+        return isStep1BasicValid.value;
+    }
+    // Boleh ke Step 3 jika Step 1 valid dan sudah pernah melewati Step 2
+    if (targetStep === 3) {
+        if (form.type === 'GU' && selectedReceiptObjects.value.length === 0) {
+            return false;
+        }
+        return isStep1BasicValid.value && maxStepReached.value >= 2;
+    }
+    return false;
+};
+
+const getStepTooltip = (step) => {
+    if (step === currentStep.value) return 'Langkah saat ini';
+    if (step < currentStep.value || (isEdit && step !== currentStep.value)) return `Beralih ke Langkah ${step}`;
+    if (canGoToStep(step)) return `Beralih ke Langkah ${step}`;
+    return `Lengkapi langkah sebelumnya terlebih dahulu`;
+};
+
+const goToStep = (targetStep) => {
+    if (targetStep === currentStep.value) return;
+
+    if (currentStep.value === 2 && targetStep > 2 && form.type === 'GU' && selectedReceiptObjects.value.length === 0) {
+        alert('Silakan pilih minimal 1 (satu) kuitansi belanja kas UP sebelum melanjutkan.');
+        return;
+    }
+
+    if (canGoToStep(targetStep)) {
+        currentStep.value = targetStep;
+    }
+};
 
 const nextStep = () => {
     if (currentStep.value === 2 && form.type === 'GU' && selectedReceiptObjects.value.length === 0) {
@@ -491,23 +543,51 @@ const submitForm = (status) => {
 
         <!-- Progress Wizard -->
         <div class="mb-6">
-            <div class="flex items-center justify-between w-full max-w-2xl mx-auto relative">
+            <div class="flex items-center justify-between w-full max-w-2xl mx-auto relative px-2">
                 <!-- Lines -->
-                <div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-muted -z-10 rounded-full"></div>
-                <div class="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-primary -z-10 rounded-full transition-all duration-300" :style="{ width: ((currentStep - 1) / 2) * 100 + '%' }"></div>
+                <div class="absolute left-4 right-4 top-[22px] -translate-y-1/2 h-1 bg-muted z-0 rounded-full"></div>
+                <div 
+                    class="absolute left-4 top-[22px] -translate-y-1/2 h-1 bg-primary z-0 rounded-full transition-all duration-300" 
+                    :style="{ width: ((currentStep - 1) / 2) * 100 + '%' }"
+                ></div>
                 
                 <!-- Steps -->
-                <div v-for="step in 3" :key="step" class="flex flex-col items-center gap-2 bg-background px-2">
+                <button
+                    v-for="step in 3"
+                    :key="step"
+                    type="button"
+                    @click="goToStep(step)"
+                    :disabled="!canGoToStep(step)"
+                    :title="getStepTooltip(step)"
+                    :class="[
+                        'relative z-10 flex flex-col items-center gap-1.5 bg-background px-3 pt-1 pb-1.5 rounded-xl transition-all duration-200 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                        canGoToStep(step) ? 'cursor-pointer hover:opacity-95' : 'cursor-not-allowed opacity-60'
+                    ]"
+                >
                     <div :class="[
-                        'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors duration-300',
-                        currentStep >= step ? 'bg-primary border-primary text-primary-foreground' : 'bg-background border-muted text-muted-foreground'
+                        'w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-300',
+                        currentStep === step 
+                            ? 'bg-primary border-primary text-primary-foreground ring-4 ring-primary/20 shadow-md scale-110' 
+                            : (currentStep > step 
+                                ? 'bg-primary border-primary text-primary-foreground group-hover:ring-4 group-hover:ring-primary/20 group-hover:scale-105' 
+                                : (canGoToStep(step)
+                                    ? 'bg-background border-primary/40 text-foreground group-hover:border-primary group-hover:ring-2 group-hover:ring-primary/20 group-hover:scale-105'
+                                    : 'bg-muted/40 border-muted text-muted-foreground/60'))
                     ]">
-                        {{ step }}
+                        <Check v-if="currentStep > step" class="w-4 h-4 stroke-[3]" />
+                        <span v-else>{{ step }}</span>
                     </div>
-                    <span :class="['text-xs font-medium', currentStep >= step ? 'text-foreground' : 'text-muted-foreground']">
+                    <span :class="[
+                        'text-xs transition-colors duration-200 select-none',
+                        currentStep === step 
+                            ? 'font-bold text-foreground' 
+                            : (currentStep > step 
+                                ? 'font-medium text-foreground/80 group-hover:text-foreground' 
+                                : 'font-normal text-muted-foreground')
+                    ]">
                         {{ step === 1 ? 'Informasi Umum' : (step === 2 ? 'Rincian Anggaran' : 'Upload & Submit') }}
                     </span>
-                </div>
+                </button>
             </div>
         </div>
 
