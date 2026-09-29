@@ -398,7 +398,7 @@ const getStatusBadge = (receipt) => {
 
         <!-- 2. FILTER SECTION -->
         <Card class="border border-border/80 shadow-sm mb-6">
-            <CardContent class="pt-6">
+            <CardContent>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <!-- Search -->
                     <div class="space-y-1.5">
