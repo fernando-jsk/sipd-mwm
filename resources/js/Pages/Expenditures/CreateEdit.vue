@@ -23,7 +23,8 @@ import {
 } from '@/Components/ui/table';
 import { 
     Trash2, Plus, UploadCloud, ChevronRight, ChevronLeft, Save, Send, Info, CheckCircle2, ArrowRightLeft,
-    Receipt, CheckSquare, Square, Search, Filter, X, ExternalLink, Calendar, AlertCircle, Check
+    Receipt, CheckSquare, Square, Search, Filter, X, ExternalLink, Calendar, AlertCircle, Check, Folder,
+    CornerDownRight, Pencil
 } from '@lucide/vue';
 import {
   Dialog,
@@ -38,6 +39,7 @@ import { Badge } from '@/Components/ui/badge';
 import { terbilang } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import RbaDetailPickerDialog from '@/Components/RbaDetailPickerDialog.vue';
 
 const props = defineProps({
     expenditure: Object,
@@ -78,8 +80,14 @@ const form = useForm({
     status: props.expenditure?.status || 'draft',
     attachment: null,
     details: props.expenditure?.details 
-        ? props.expenditure.details.map(d => ({ ...d, account_code_id: d.account_code_id.toString() })) 
-        : [{ account_code_id: '', amount: '' }],
+        ? props.expenditure.details.map(d => ({ 
+            ...d, 
+            account_code_id: d.account_code_id.toString(),
+            rba_detail_id: d.rba_detail_id || null,
+            rba_detail_uraian: d.rba_detail?.uraian || '',
+            rba_detail_breadcrumb: ''
+          })) 
+        : [{ account_code_id: '', rba_detail_id: null, rba_detail_uraian: '', rba_detail_breadcrumb: '', amount: '' }],
     taxes: props.expenditure?.taxes || [],
     receipt_ids: props.linkedReceiptIds ? [...props.linkedReceiptIds] : [],
 });
@@ -102,6 +110,9 @@ const initUpForm = () => {
         if (form.details.length === 0) {
             form.details.push({
                 account_code_id: upDebitAccId ? upDebitAccId.toString() : '',
+                rba_detail_id: null,
+                rba_detail_uraian: '',
+                rba_detail_breadcrumb: '',
                 amount: ''
             });
         } else {
@@ -274,6 +285,9 @@ const syncReceiptsToForm = () => {
 
     form.details = Object.entries(grouped).map(([accId, amt]) => ({
         account_code_id: accId,
+        rba_detail_id: null,
+        rba_detail_uraian: '',
+        rba_detail_breadcrumb: '',
         amount: amt
     }));
 
@@ -323,7 +337,7 @@ watch(() => form.type, (newType, oldType) => {
             form.activity_description = '';
         }
         if (form.details.length === 0) {
-            form.details = [{ account_code_id: '', amount: '' }];
+            form.details = [{ account_code_id: '', rba_detail_id: null, rba_detail_uraian: '', rba_detail_breadcrumb: '', amount: '' }];
         }
     }
 
@@ -424,12 +438,77 @@ const prevStep = () => {
 const addDetailRow = () => {
     form.details.push({
         account_code_id: '',
-        amount: 0,
+        rba_detail_id: null,
+        rba_detail_uraian: '',
+        rba_detail_breadcrumb: '',
+        amount: '',
     });
 };
 
 const removeDetailRow = (index) => {
     form.details.splice(index, 1);
+};
+
+// RBA Detail Picker Dialog State & Handlers
+const isRbaPickerOpen = ref(false);
+const currentPickerRowIndex = ref(null);
+
+const currentPickerAccountCodeId = computed(() => {
+    if (currentPickerRowIndex.value === null || !form.details[currentPickerRowIndex.value]) return null;
+    return form.details[currentPickerRowIndex.value].account_code_id || null;
+});
+
+const currentPickerSelectedDetailId = computed(() => {
+    if (currentPickerRowIndex.value === null || !form.details[currentPickerRowIndex.value]) return null;
+    return form.details[currentPickerRowIndex.value].rba_detail_id || null;
+});
+
+const openRbaPicker = (rowIndex) => {
+    currentPickerRowIndex.value = rowIndex;
+    isRbaPickerOpen.value = true;
+};
+
+const onAccountAndRbaSelected = (selection) => {
+    if (currentPickerRowIndex.value !== null && form.details[currentPickerRowIndex.value]) {
+        form.details[currentPickerRowIndex.value].account_code_id = selection.account_code_id ? selection.account_code_id.toString() : '';
+        form.details[currentPickerRowIndex.value].rba_detail_id = selection.rba_detail_id || null;
+        form.details[currentPickerRowIndex.value].rba_detail_uraian = selection.rba_detail_uraian || '';
+        form.details[currentPickerRowIndex.value].rba_detail_breadcrumb = selection.rba_detail_breadcrumb || '';
+    }
+};
+
+const clearAccountAndRba = (rowIndex) => {
+    if (form.details[rowIndex]) {
+        form.details[rowIndex].account_code_id = '';
+        form.details[rowIndex].rba_detail_id = null;
+        form.details[rowIndex].rba_detail_uraian = '';
+        form.details[rowIndex].rba_detail_breadcrumb = '';
+    }
+};
+
+const getAccount = (accountId) => {
+    if (!accountId || !props.accountCodes) return null;
+    return props.accountCodes.find(a => a.id.toString() === accountId.toString()) || null;
+};
+
+const getAccountCode = (accountId) => {
+    return getAccount(accountId)?.code || '';
+};
+
+const getAccountName = (accountId) => {
+    return getAccount(accountId)?.name || '';
+};
+
+const formatShortBreadcrumb = (path) => {
+    if (!path) return '';
+    const parts = path.split(' > ').map(p => p.trim()).filter(Boolean);
+    if (parts.length <= 1) {
+        return parts[0] || '';
+    }
+    if (parts.length === 2) {
+        return `${parts[0]} > ${parts[1]}`;
+    }
+    return `... > ${parts[parts.length - 1]}`;
 };
 
 const addTaxRow = () => {
@@ -970,7 +1049,7 @@ const submitForm = (status) => {
 
                     <!-- KASUS C: Belanja Reguler / UP (Input Manual) -->
                     <div v-else class="overflow-x-auto bg-background rounded-xl border">
-                        <Table>
+                        <Table class="table-fixed w-full">
                             <TableHeader>
                                 <TableRow class="bg-muted/50">
                                     <TableHead :class="form.type === 'UP' ? 'w-[55%]' : 'w-[50%]'">
@@ -982,7 +1061,7 @@ const submitForm = (status) => {
                             </TableHeader>
                             <TableBody>
                                 <TableRow v-for="(item, index) in form.details" :key="index">
-                                    <TableCell class="align-top">
+                                    <TableCell class="align-top max-w-0 overflow-hidden">
                                         <template v-if="form.type === 'UP'">
                                             <div class="space-y-1.5">
                                                 <Select v-model="form.details[index].account_code_id">
@@ -1000,32 +1079,112 @@ const submitForm = (status) => {
                                             </div>
                                         </template>
                                         <template v-else>
-                                            <Select v-model="form.details[index].account_code_id">
-                                                <SelectTrigger><SelectValue placeholder="Pilih Akun" /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem v-for="acc in filteredAccountCodes" :key="acc.id" :value="acc.id.toString()">
-                                                        {{ acc.code }} - {{ acc.name }}
-                                                    </SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            
-                                            <!-- Info Pagu RBA untuk Belanja Riil -->
-                                            <div v-if="item.account_code_id" class="mt-2 text-[11px] sm:text-xs p-2 sm:p-3 bg-muted/30 rounded-lg border flex flex-col gap-1.5 shadow-sm">
-                                                <div class="flex justify-between items-center">
-                                                    <span class="text-muted-foreground">Total Pagu:</span>
-                                                    <span class="font-semibold font-mono">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}</span>
+                                            <!-- Jika Belum Memilih Rekening: Tombol Pemilih Terpadu -->
+                                            <div v-if="!item.account_code_id">
+                                                <button
+                                                    type="button"
+                                                    @click="openRbaPicker(index)"
+                                                    class="w-full py-3.5 px-3 border-2 border-dashed border-primary/30 hover:border-primary hover:bg-primary/5 rounded-xl transition-all flex items-center justify-center gap-2 text-xs text-primary font-semibold group cursor-pointer"
+                                                >
+                                                    <div class="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+                                                        <Plus class="w-3.5 h-3.5 text-primary" />
+                                                    </div>
+                                                    <span>Pilih Rekening & Rincian Anggaran</span>
+                                                </button>
+                                            </div>
+
+                                            <!-- Jika Sudah Memilih Rekening: Card Ramping & Informatif -->
+                                            <div v-else class="rounded-xl border border-border/80 bg-card p-2.5 sm:p-3 shadow-xs hover:border-border transition-all flex flex-col gap-2 w-full min-w-0 overflow-hidden">
+                                                <!-- Baris 1: Pos Anggaran (Header Kategori & Micro-Toolbar) -->
+                                                <div class="flex items-center justify-between gap-2 min-w-0">
+                                                    <div class="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                                                        <Badge variant="outline" class="font-mono text-[10.5px] font-semibold px-2 py-0.5 bg-slate-100 text-slate-700 border-slate-200/90 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 flex-shrink-0">
+                                                            {{ getAccountCode(item.account_code_id) }}
+                                                        </Badge>
+                                                        <span class="text-[11.5px] font-medium text-muted-foreground truncate block" :title="getAccountName(item.account_code_id)">
+                                                            {{ getAccountName(item.account_code_id) }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1 flex-shrink-0">
+                                                        <Button 
+                                                            type="button" 
+                                                            variant="outline" 
+                                                            size="sm" 
+                                                            class="h-6 px-2 text-[11px] gap-1 text-primary hover:text-primary hover:bg-primary/10 border-primary/25 cursor-pointer font-medium"
+                                                            @click="openRbaPicker(index)"
+                                                        >
+                                                            <Pencil class="w-3 h-3" />
+                                                            <span>Ubah</span>
+                                                        </Button>
+                                                        <Button 
+                                                            type="button" 
+                                                            variant="ghost" 
+                                                            size="icon" 
+                                                            class="h-6 w-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+                                                            @click="clearAccountAndRba(index)"
+                                                            title="Hapus pilihan rekening"
+                                                        >
+                                                            <X class="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div class="flex justify-between items-center">
-                                                    <span class="text-muted-foreground">Jml. Pengajuan:</span>
-                                                    <span class="font-medium font-mono text-amber-600">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'submitted_amount')) }}</span>
+
+                                                <!-- Baris 2: Objek Belanja Utama (Hero Object) & Breadcrumb -->
+                                                <div class="flex items-center gap-1.5 text-xs min-w-0 overflow-hidden">
+                                                    <div v-if="item.rba_detail_id && item.rba_detail_uraian" class="flex items-center gap-1.5 min-w-0 w-full text-foreground overflow-hidden">
+                                                        <CornerDownRight class="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
+                                                        <span class="text-xs sm:text-[13px] font-bold text-foreground truncate min-w-0 flex-1 leading-snug" :title="item.rba_detail_uraian">
+                                                            {{ item.rba_detail_uraian }}
+                                                        </span>
+                                                        <span 
+                                                            v-if="item.rba_detail_breadcrumb" 
+                                                            class="text-[10px] text-muted-foreground/90 truncate max-w-[150px] sm:max-w-[200px] lg:max-w-[260px] flex-shrink-0 cursor-help hover:text-foreground inline-flex items-center gap-1 bg-muted/60 px-2 py-0.5 rounded-full border border-border/50" 
+                                                            :title="`Jalur Hirarki Lengkap:\n${item.rba_detail_breadcrumb}`"
+                                                        >
+                                                            <Folder class="w-2.5 h-2.5 flex-shrink-0 text-muted-foreground/70" />
+                                                            <span class="truncate">{{ formatShortBreadcrumb(item.rba_detail_breadcrumb) }}</span>
+                                                        </span>
+                                                    </div>
+                                                    <div v-else class="text-[11px] text-muted-foreground italic flex items-center gap-1.5 min-w-0 overflow-hidden">
+                                                        <CornerDownRight class="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
+                                                        <span class="truncate">Pengeluaran tingkat akun (tanpa rincian sub-kegiatan)</span>
+                                                    </div>
                                                 </div>
-                                                <div class="flex justify-between items-center">
-                                                    <span class="text-muted-foreground">Jml. Cair (SPD):</span>
-                                                    <span class="font-medium font-mono text-emerald-600">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'disbursed_amount')) }}</span>
-                                                </div>
-                                                <div class="flex justify-between items-center border-t border-border/80 pt-1.5 mt-0.5">
-                                                    <span class="font-semibold text-foreground">Sisa Pagu:</span>
-                                                    <span class="font-bold font-mono text-primary">{{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'remaining_budget')) }}</span>
+
+                                                <!-- Baris 3: Status Pagu (Compact Bar dengan Kontras Jelas) -->
+                                                <div 
+                                                    class="px-2.5 py-1 rounded-md text-[11px] font-mono flex items-center justify-between gap-2 transition-colors"
+                                                    :class="[
+                                                        Number(item.amount || 0) > Number(getAccountInfo(Number(item.account_code_id), 'remaining_budget'))
+                                                            ? 'bg-destructive/10 text-destructive'
+                                                            : 'bg-muted/40 text-muted-foreground'
+                                                    ]"
+                                                >
+                                                    <div class="flex items-center gap-1.5 truncate">
+                                                        <span class="text-[10px] tracking-wider uppercase text-muted-foreground font-semibold">Total Pagu:</span>
+                                                        <span class="font-bold text-foreground">
+                                                            {{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}
+                                                        </span>
+                                                    </div>
+                                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                                        <span class="text-[10px] tracking-wider uppercase text-muted-foreground font-semibold">Sisa:</span>
+                                                        <span 
+                                                            class="px-1.5 py-0.5 rounded font-mono font-bold text-xs"
+                                                            :class="[
+                                                                Number(item.amount || 0) > Number(getAccountInfo(Number(item.account_code_id), 'remaining_budget'))
+                                                                    ? 'bg-destructive/15 text-destructive font-extrabold border border-destructive/20'
+                                                                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20'
+                                                            ]"
+                                                        >
+                                                            {{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'remaining_budget')) }}
+                                                        </span>
+                                                        <span 
+                                                            class="cursor-help text-muted-foreground hover:text-foreground inline-flex items-center ml-0.5"
+                                                            :title="`Rincian Pemakaian Pagu:\n• Jml. Pengajuan: ${formatCurrency(getAccountInfo(Number(item.account_code_id), 'submitted_amount'))}\n• Jml. Cair (SPD): ${formatCurrency(getAccountInfo(Number(item.account_code_id), 'disbursed_amount'))}`"
+                                                        >
+                                                            <Info class="w-3 h-3" />
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </template>
@@ -1447,5 +1606,14 @@ const submitForm = (status) => {
                 </DialogFooter>
             </DialogScrollContent>
         </Dialog>
+
+        <!-- RBA Detail Picker Modal -->
+        <RbaDetailPickerDialog
+            v-model:open="isRbaPickerOpen"
+            :account-codes="filteredAccountCodes"
+            :initial-account-code-id="currentPickerAccountCodeId"
+            :initial-detail-id="currentPickerSelectedDetailId"
+            @select="onAccountAndRbaSelected"
+        />
     </AuthenticatedLayout>
 </template>

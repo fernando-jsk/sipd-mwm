@@ -9,6 +9,7 @@ use App\Models\Vendor;
 use App\Models\User;
 use App\Models\Setting;
 use App\Models\RbaDocument;
+use App\Models\RbaDetail;
 use App\Models\ExpenditureReceipt;
 use App\Services\BudgetRealizationService;
 use Illuminate\Http\Request;
@@ -161,6 +162,7 @@ class ExpenditureController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'details' => 'required|array|min:1',
             'details.*.account_code_id' => 'required|exists:account_codes,id',
+            'details.*.rba_detail_id' => 'nullable|exists:rba_details,id',
             'details.*.amount' => 'required|numeric|min:0.01',
             'taxes' => 'nullable|array',
             'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
@@ -188,6 +190,7 @@ class ExpenditureController extends Controller
             foreach ($validated['details'] as $detail) {
                 $expenditure->details()->create([
                     'account_code_id' => $detail['account_code_id'],
+                    'rba_detail_id' => $detail['rba_detail_id'] ?? null,
                     'amount' => $detail['amount']
                 ]);
             }
@@ -220,7 +223,7 @@ class ExpenditureController extends Controller
 
     public function show(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes', 'receipts.accountCode']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes', 'receipts.accountCode']);
         
         $activities = \Spatie\Activitylog\Models\Activity::with('causer')
             ->where('subject_type', Expenditure::class)
@@ -240,7 +243,7 @@ class ExpenditureController extends Controller
             return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen Draft atau Ditolak yang dapat diedit.');
         }
 
-        $expenditure->load(['details', 'taxes', 'receipts.accountCode']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'taxes', 'receipts.accountCode']);
         
         $users = User::all(['id', 'name']);
         $vendors = Vendor::all(['id', 'name', 'bank_name', 'bank_account_number']);
@@ -293,6 +296,7 @@ class ExpenditureController extends Controller
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'details' => 'required|array|min:1',
             'details.*.account_code_id' => 'required|exists:account_codes,id',
+            'details.*.rba_detail_id' => 'nullable|exists:rba_details,id',
             'details.*.amount' => 'required|numeric|min:0.01',
             'taxes' => 'nullable|array',
             'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
@@ -326,6 +330,7 @@ class ExpenditureController extends Controller
             foreach ($validated['details'] as $detail) {
                 $expenditure->details()->create([
                     'account_code_id' => $detail['account_code_id'],
+                    'rba_detail_id' => $detail['rba_detail_id'] ?? null,
                     'amount' => $detail['amount']
                 ]);
             }
@@ -454,7 +459,7 @@ class ExpenditureController extends Controller
 
     public function printSppd(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSppd', [
             'expenditure' => $expenditure
@@ -463,7 +468,7 @@ class ExpenditureController extends Controller
 
     public function printSpm(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSpm', [
             'expenditure' => $expenditure
@@ -510,7 +515,7 @@ class ExpenditureController extends Controller
 
     public function printLembarPeneliti(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintLembarPeneliti', [
             'expenditure' => $expenditure
@@ -519,7 +524,7 @@ class ExpenditureController extends Controller
 
     public function printSuratPengantar(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         
         $year = date('Y', strtotime($expenditure->date));
@@ -550,7 +555,7 @@ class ExpenditureController extends Controller
 
     public function printSuratPernyataan(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSuratPernyataan', [
             'expenditure' => $expenditure
@@ -559,7 +564,7 @@ class ExpenditureController extends Controller
 
     public function printSuratVerifikasi(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         $ppk = User::role('kabag-keuangan')->first();
         return Inertia::render('Expenditures/PrintSuratVerifikasi', [
@@ -570,7 +575,7 @@ class ExpenditureController extends Controller
 
     public function printKwitansi(Expenditure $expenditure)
     {
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintKwitansi', [
             'expenditure' => $expenditure
@@ -583,7 +588,7 @@ class ExpenditureController extends Controller
             return redirect()->back()->with('error', 'Dokumen OPD belum diotorisasi.');
         }
 
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintOpd', [
             'expenditure' => $expenditure
@@ -596,7 +601,7 @@ class ExpenditureController extends Controller
             return redirect()->back()->with('error', 'Dokumen SPD belum diverifikasi / dicairkan.');
         }
 
-        $expenditure->load(['details.accountCode', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes']);
+        $expenditure->load(['details.accountCode', 'details.rbaDetail', 'vendor', 'treasurer', 'kpa', 'ptk', 'createdBy', 'opdAuthorizedBy', 'spdDisbursedBy', 'taxes']);
         $this->groupDetailsByGelondongan($expenditure);
         return Inertia::render('Expenditures/PrintSpd', [
             'expenditure' => $expenditure
@@ -866,5 +871,129 @@ class ExpenditureController extends Controller
         })->values();
 
         $expenditure->setRelation('details', $newDetails);
+    }
+
+    /**
+     * Ambil struktur pohon RBA untuk akun tertentu (khusus pemilih rincian pencairan dana).
+     */
+    public function getRbaTree(Request $request, $accountCodeId)
+    {
+        $budgetYear = $request->hasSession() ? $request->session()->get('active_budget_year', date('Y')) : date('Y');
+        $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? Setting::where('key', 'rba_active_version')->value('value') ?? 0);
+
+        $rbaDoc = RbaDocument::with('accountCode')
+            ->where('budget_year', $budgetYear)
+            ->where('version', $activeVersion)
+            ->where('account_code_id', $accountCodeId)
+            ->first();
+
+        if (!$rbaDoc) {
+            return response()->json([
+                'status' => 'not_found',
+                'message' => 'Dokumen RBA tidak ditemukan untuk rekening ini pada tahun anggaran aktif.',
+                'rba_document' => null,
+                'tree' => [],
+                'leaf_headers' => []
+            ]);
+        }
+
+        $rbaDetails = RbaDetail::where('rba_document_id', $rbaDoc->id)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        if ($rbaDetails->isEmpty()) {
+            return response()->json([
+                'status' => 'empty',
+                'message' => 'Rekening ini tidak memiliki rincian RBA.',
+                'rba_document' => $rbaDoc,
+                'tree' => [],
+                'leaf_headers' => []
+            ]);
+        }
+
+        // 1. Map all nodes by id
+        $map = [];
+        foreach ($rbaDetails as $d) {
+            $map[$d->id] = [
+                'id' => $d->id,
+                'parent_id' => $d->parent_id,
+                'type' => $d->type,
+                'uraian' => $d->uraian,
+                'satuan' => $d->satuan,
+                'harga' => (float) ($d->harga ?? 0),
+                'koefisien' => (float) ($d->koefisien ?? 0),
+                'jumlah' => (float) ($d->jumlah ?? 0),
+                'vol_1' => $d->vol_1,
+                'satuan_1' => $d->satuan_1,
+                'vol_2' => $d->vol_2,
+                'satuan_2' => $d->satuan_2,
+                'vol_3' => $d->vol_3,
+                'satuan_3' => $d->satuan_3,
+                'vol_4' => $d->vol_4,
+                'satuan_4' => $d->satuan_4,
+                'children' => [],
+                'is_leaf_header' => false,
+                'breadcrumb' => ''
+            ];
+        }
+
+        // 2. Build tree structure
+        $roots = [];
+        foreach ($map as $id => &$node) {
+            if ($node['parent_id'] !== null && isset($map[$node['parent_id']])) {
+                $map[$node['parent_id']]['children'][] = &$node;
+            } else {
+                $roots[] = &$node;
+            }
+        }
+        unset($node);
+
+        // 3. Recursive calculation of totals, breadcrumbs, and is_leaf_header
+        $leafHeaders = [];
+
+        $processNode = function (&$node, $parentBreadcrumb = '') use (&$processNode, &$leafHeaders) {
+            $node['breadcrumb'] = $parentBreadcrumb 
+                ? "{$parentBreadcrumb} ❯ {$node['uraian']}" 
+                : $node['uraian'];
+
+            if ($node['type'] === 'header') {
+                $hasChildHeader = false;
+                $sum = 0;
+
+                foreach ($node['children'] as &$child) {
+                    $processNode($child, $node['breadcrumb']);
+                    if ($child['type'] === 'header') {
+                        $hasChildHeader = true;
+                    }
+                    $sum += (float) ($child['jumlah'] ?? 0);
+                }
+                unset($child);
+
+                $node['jumlah'] = $sum;
+                // Leaf header adalah header yang TIDAK memiliki anak header lagi
+                $node['is_leaf_header'] = !$hasChildHeader;
+
+                if ($node['is_leaf_header']) {
+                    $leafHeaders[] = [
+                        'id' => $node['id'],
+                        'uraian' => $node['uraian'],
+                        'breadcrumb' => $node['breadcrumb'],
+                        'jumlah' => $node['jumlah'],
+                    ];
+                }
+            }
+        };
+
+        foreach ($roots as &$root) {
+            $processNode($root);
+        }
+        unset($root);
+
+        return response()->json([
+            'status' => 'success',
+            'rba_document' => $rbaDoc,
+            'tree' => $roots,
+            'leaf_headers' => $leafHeaders
+        ]);
     }
 }
