@@ -381,7 +381,10 @@ class ExpenditureController extends Controller
 
     public function destroy(Expenditure $expenditure)
     {
-        if (!in_array($expenditure->status, ['draft', 'submitted'])) {
+        $user = auth()->user();
+        $isSuperAdmin = $user && ($user->hasRole('super-admin') || $user->hasRole('super admin'));
+
+        if (!$isSuperAdmin && !in_array($expenditure->status, ['draft', 'submitted'])) {
             return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen berstatus Draft atau Pengajuan yang dapat dihapus.');
         }
 
@@ -393,8 +396,8 @@ class ExpenditureController extends Controller
                 \Storage::disk('public')->delete($expenditure->attachment_path);
             }
 
-            // Lepaskan kuitansi terkait jika tipe GU agar dapat diajukan kembali
-            if ($expenditure->type === 'GU') {
+            // Lepaskan kuitansi belanja kas UP terkait jika ada agar dapat diajukan kembali
+            if ($expenditure->receipts()->exists()) {
                 $expenditure->receipts()->update([
                     'expenditure_id' => null,
                     'status' => 'paid'

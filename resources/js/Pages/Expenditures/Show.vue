@@ -132,7 +132,13 @@ const updateStatus = () => {
 // Delete logic
 const isDeleteDialogOpen = ref(false);
 const deleteForm = useForm({});
+const isSuperAdmin = computed(() => {
+    const roles = page.props.auth?.roles || [];
+    return roles.includes('super-admin') || roles.includes('super admin');
+});
+
 const isDeletable = computed(() => {
+    if (isSuperAdmin.value) return true;
     return ['draft', 'submitted'].includes(props.expenditure.status);
 });
 
@@ -719,9 +725,12 @@ const deleteExpenditure = () => {
                                         :disabled="!isDeletable"
                                         @click="isDeleteDialogOpen = true"
                                     >
-                                        <Trash2 class="w-4 h-4 mr-2" /> Hapus Pengajuan
+                                        <Trash2 class="w-4 h-4 mr-2" /> Hapus Dokumen SPPD
                                     </Button>
-                                    <p v-if="!isDeletable" class="text-[11px] text-muted-foreground text-center mt-1.5">
+                                    <p v-if="isSuperAdmin && !['draft', 'submitted'].includes(expenditure.status)" class="text-[11px] text-amber-600 dark:text-amber-400 text-center mt-1.5 font-medium flex items-center justify-center gap-1">
+                                        <ShieldCheck class="w-3.5 h-3.5 shrink-0" /> Akses Super Admin: Hapus aktif untuk semua status.
+                                    </p>
+                                    <p v-else-if="!isDeletable" class="text-[11px] text-muted-foreground text-center mt-1.5">
                                         Hapus hanya aktif saat status Draft atau Pengajuan.
                                     </p>
                                 </div>
@@ -933,6 +942,12 @@ const deleteExpenditure = () => {
                         Apakah Anda yakin ingin menghapus dokumen SPPD <strong>{{ expenditure.document_number }}</strong>? Tindakan ini tidak dapat dibatalkan dan seluruh rincian belanja terkait akan dihapus.
                     </DialogDescription>
                 </DialogHeader>
+
+                <div v-if="isSuperAdmin && !['draft', 'submitted'].includes(expenditure.status)" class="bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 p-3 rounded-xl text-xs flex items-start gap-2.5 my-2">
+                    <AlertCircle class="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                    <span>Perhatian (Super Admin): Dokumen ini berstatus <strong>{{ getStatusLabel(expenditure.status) }}</strong>. Menghapus dokumen ini akan membatalkan seluruh data terkait termasuk pembatalan jurnal otomatis jika telah cair.</span>
+                </div>
+
                 <DialogFooter class="mt-4 flex sm:justify-end gap-2">
                     <Button variant="outline" size="sm" @click="isDeleteDialogOpen = false" :disabled="deleteForm.processing">
                         Batal
