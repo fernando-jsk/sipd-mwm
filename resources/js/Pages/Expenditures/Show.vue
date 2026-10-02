@@ -132,6 +132,10 @@ const updateStatus = () => {
 // Delete logic
 const isDeleteDialogOpen = ref(false);
 const deleteForm = useForm({});
+const isDeletable = computed(() => {
+    return ['draft', 'submitted'].includes(props.expenditure.status);
+});
+
 const deleteExpenditure = () => {
     deleteForm.delete(`/expenditures/${props.expenditure.id}`, {
         onSuccess: () => {
@@ -189,15 +193,6 @@ const deleteExpenditure = () => {
                     <Link v-if="expenditure.status === 'draft' || expenditure.status === 'rejected'" :href="`/expenditures/${expenditure.id}/edit`">
                         <Button variant="outline" size="sm" class="h-9">Edit Pengajuan</Button>
                     </Link>
-                    <Button 
-                        v-if="(expenditure.status === 'draft' || expenditure.status === 'rejected') && can('manage sppd')" 
-                        variant="destructive" 
-                        size="sm" 
-                        class="h-9" 
-                        @click="isDeleteDialogOpen = true"
-                    >
-                        <Trash2 class="w-4 h-4 mr-1.5" /> Hapus
-                    </Button>
                 </div>
             </div>
         </template>
@@ -715,6 +710,21 @@ const deleteExpenditure = () => {
                                         <CheckCircle class="w-5 h-5"/> Dana Telah Cair &amp; SPD Terbit
                                     </div>
                                 </template>
+
+                                <!-- Tombol Hapus Pengajuan -->
+                                <div class="pt-3 border-t border-border/80">
+                                    <Button 
+                                        variant="outline" 
+                                        class="w-full text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 hover:border-destructive transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                                        :disabled="!isDeletable"
+                                        @click="isDeleteDialogOpen = true"
+                                    >
+                                        <Trash2 class="w-4 h-4 mr-2" /> Hapus Pengajuan
+                                    </Button>
+                                    <p v-if="!isDeletable" class="text-[11px] text-muted-foreground text-center mt-1.5">
+                                        Hapus hanya aktif saat status Draft atau Pengajuan.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>

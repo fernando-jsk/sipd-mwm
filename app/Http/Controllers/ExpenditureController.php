@@ -372,29 +372,39 @@ class ExpenditureController extends Controller
 
     public function destroy(Expenditure $expenditure)
     {
-        if ($expenditure->status !== 'draft' && $expenditure->status !== 'rejected') {
-            return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen Draft atau Ditolak yang dapat dihapus.');
+        if (!in_array($expenditure->status, ['draft', 'submitted'])) {
+            return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen berstatus Draft atau Pengajuan yang dapat dihapus.');
         }
 
-        if ($expenditure->attachment_path) {
-            \Storage::disk('public')->delete($expenditure->attachment_path);
+        DB::beginTransaction();
+        try {
+            $docNumber = $expenditure->document_number;
+
+            if ($expenditure->attachment_path && \Storage::disk('public')->exists($expenditure->attachment_path)) {
+                \Storage::disk('public')->delete($expenditure->attachment_path);
+            }
+
+            // Lepaskan kuitansi terkait jika tipe GU agar dapat diajukan kembali
+            if ($expenditure->type === 'GU') {
+                $expenditure->receipts()->update([
+                    'expenditure_id' => null,
+                    'status' => 'paid'
+                ]);
+            }
+
+            // Delete children individually to trigger model events
+            $expenditure->details->each(fn($detail) => $detail->delete());
+            $expenditure->taxes->each(fn($tax) => $tax->delete());
+
+            $expenditure->delete();
+
+            DB::commit();
+
+            return redirect()->route('expenditures.sppd')->with('message', "Dokumen SPPD {$docNumber} berhasil dihapus.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal menghapus dokumen SPPD: ' . $e->getMessage());
         }
-
-        // Lepaskan kuitansi terkait jika tipe GU
-        if ($expenditure->type === 'GU') {
-            $expenditure->receipts()->update([
-                'expenditure_id' => null,
-                'status' => 'paid'
-            ]);
-        }
-
-        // Delete children individually to trigger model events
-        $expenditure->details->each(fn($detail) => $detail->delete());
-        $expenditure->taxes->each(fn($tax) => $tax->delete());
-
-        $expenditure->delete();
-
-        return redirect()->route('expenditures.sppd')->with('message', 'Dokumen SPPD berhasil dihapus.');
     }
 
     public function updateStatus(Request $request, Expenditure $expenditure)
