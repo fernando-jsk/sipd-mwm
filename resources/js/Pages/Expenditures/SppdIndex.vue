@@ -343,19 +343,19 @@ const getStatusLabel = (status) => {
 
         <!-- Tabel SPPD -->
         <Card class="p-0 overflow-hidden border-border/80 shadow-sm">
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto relative">
                 <Table>
                     <TableHeader class="bg-muted/50">
                         <TableRow class="hover:bg-transparent">
-                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">No. SPPD / Tanggal</TableHead>
-                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Uraian Pembayaran</TableHead>
-                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Penerima / Nominal</TableHead>
-                            <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                            <TableHead class="text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Aksi</TableHead>
+                            <TableHead class="min-w-[170px] text-xs font-semibold uppercase tracking-wider text-muted-foreground">No. SPPD / Tanggal</TableHead>
+                            <TableHead class="min-w-[220px] max-w-xs text-xs font-semibold uppercase tracking-wider text-muted-foreground">Uraian Pembayaran</TableHead>
+                            <TableHead class="min-w-[200px] text-xs font-semibold uppercase tracking-wider text-muted-foreground">Penerima / Nominal</TableHead>
+                            <TableHead class="min-w-[140px] text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                            <TableHead class="sticky right-0 z-10 bg-muted/90 backdrop-blur-xs border-l border-border/60 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground min-w-[110px] px-4">Aksi</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        <TableRow v-for="item in expenditures.data" :key="item.id">
+                        <TableRow v-for="item in expenditures.data" :key="item.id" class="group">
                             <TableCell>
                                 <div class="font-semibold text-sm text-secondary dark:text-foreground font-mono">{{ item.document_number }}</div>
                                 <div class="text-xs text-muted-foreground">{{ format(new Date(item.date), 'dd MMM yyyy', { locale: id }) }}</div>
@@ -378,7 +378,7 @@ const getStatusLabel = (status) => {
                                     {{ getStatusLabel(item.status) }}
                                 </Badge>
                             </TableCell>
-                            <TableCell class="text-right space-x-2">
+                            <TableCell class="sticky right-0 z-10 bg-card group-hover:bg-muted/40 transition-colors border-l border-border/60 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] text-right py-3 px-4 whitespace-nowrap">
                                 <Link :href="`/expenditures/${item.id}`">
                                     <Button variant="outline" size="sm" class="h-8 px-3 text-xs">
                                         <Eye class="w-3.5 h-3.5 mr-1" /> Detail
