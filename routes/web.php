@@ -137,6 +137,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/expenditures/{expenditure}/print-opd', [\App\Http\Controllers\ExpenditureController::class, 'printOpd'])->name('expenditures.print-opd');
     Route::get('/expenditures/{expenditure}/print-spd', [\App\Http\Controllers\ExpenditureController::class, 'printSpd'])->name('expenditures.print-spd');
 
+    Route::get('/expenditures/rba-tree/{accountCodeId}', [\App\Http\Controllers\ExpenditureController::class, 'getRbaTree'])->name('expenditures.rba-tree');
     Route::resource('expenditures', \App\Http\Controllers\ExpenditureController::class);
     Route::patch('/expenditures/{expenditure}/status', [\App\Http\Controllers\ExpenditureController::class, 'updateStatus'])->name('expenditures.status');
 

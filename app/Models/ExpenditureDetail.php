@@ -16,7 +16,7 @@ class ExpenditureDetail extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['amount', 'account_code_id'])
+            ->logOnly(['amount', 'account_code_id', 'rba_detail_id'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('expenditure_detail')
@@ -31,5 +31,10 @@ class ExpenditureDetail extends Model
     public function accountCode()
     {
         return $this->belongsTo(AccountCode::class);
+    }
+
+    public function rbaDetail()
+    {
+        return $this->belongsTo(RbaDetail::class);
     }
 }
