@@ -75,22 +75,26 @@ class RbaImportController extends Controller
 
                 // 2. Determine Indent Level
                 $indentLevel = $uraianCell->getStyle()->getAlignment()->getIndent();
+                $originalVal = (string) ($uraianCell->getValue() ?? '');
                 
                 // Fallback for CSV or badly formatted files (count leading spaces)
                 if ($indentLevel == 0) {
-                    $originalVal = $uraianCell->getValue() ?? '';
-                    if (is_string($originalVal) && preg_match('/^(\s+)/', $originalVal, $matches)) {
+                    if (preg_match('/^(\s+)/', $originalVal, $matches)) {
                         $indentLevel = floor(strlen($matches[1]) / 2); // Assume 2 spaces per indent
                     } else if (str_starts_with($uraian, '[#]')) {
                         $indentLevel = 0;
-                        $uraian = trim(str_replace('[#]', '', $uraian));
+                        $uraian = trim(substr($uraian, 3));
                     } else if (str_starts_with($uraian, '-')) {
                         $indentLevel = 1;
                         $uraian = trim(ltrim($uraian, '- '));
                     }
                 } else {
-                    // Clean up prefixes if they exist even with proper indent
-                    $uraian = trim(str_replace(['[#]', '-'], '', $uraian));
+                    // Clean up leading prefixes if they exist even with proper indent
+                    if (str_starts_with($uraian, '[#]')) {
+                        $uraian = trim(substr($uraian, 3));
+                    } else if (str_starts_with($uraian, '- ')) {
+                        $uraian = trim(substr($uraian, 2));
+                    }
                 }
 
                 $colHarga = strtoupper($request->start_column);
@@ -100,11 +104,33 @@ class RbaImportController extends Controller
                 $colVol2 = $colSat2; $colVol2++;
 
                 // 3. Read Financial Values (5 columns dynamically)
-                $harga = (float) str_replace(',', '', $sheet->getCell("{$colHarga}{$row}")->getCalculatedValue() ?? 0);
-                $sat1 = trim($sheet->getCell("{$colSat1}{$row}")->getCalculatedValue() ?? '');
-                $vol1 = (float) str_replace(',', '', $sheet->getCell("{$colVol1}{$row}")->getCalculatedValue() ?? 0);
-                $sat2 = trim($sheet->getCell("{$colSat2}{$row}")->getCalculatedValue() ?? '');
-                $vol2 = (float) str_replace(',', '', $sheet->getCell("{$colVol2}{$row}")->getCalculatedValue() ?? 0);
+                $rawHarga = trim((string) ($sheet->getCell("{$colHarga}{$row}")->getCalculatedValue() ?? ''));
+                $rawSat1  = trim((string) ($sheet->getCell("{$colSat1}{$row}")->getCalculatedValue() ?? ''));
+                $rawVol1  = trim((string) ($sheet->getCell("{$colVol1}{$row}")->getCalculatedValue() ?? ''));
+                $rawSat2  = trim((string) ($sheet->getCell("{$colSat2}{$row}")->getCalculatedValue() ?? ''));
+                $rawVol2  = trim((string) ($sheet->getCell("{$colVol2}{$row}")->getCalculatedValue() ?? ''));
+
+                $isDash = function ($val) {
+                    $str = trim((string) $val);
+                    return in_array($str, ['-', '–', '—', 'Rp -', 'Rp. -']);
+                };
+
+                $parseNum = function ($raw) use ($isDash) {
+                    if (is_numeric($raw)) {
+                        return (float) $raw;
+                    }
+                    if ($isDash($raw) || empty($raw)) {
+                        return 0.0;
+                    }
+                    $clean = str_replace([',', 'Rp', 'rp', 'RP', ' '], '', (string) $raw);
+                    return is_numeric($clean) ? (float) $clean : 0.0;
+                };
+
+                $harga = $parseNum($rawHarga);
+                $vol1  = $parseNum($rawVol1);
+                $vol2  = $parseNum($rawVol2);
+                $sat1  = $rawSat1;
+                $sat2  = $rawSat2;
 
                 // Calculate final koefisien and combined satuan
                 // If vol2 is 0 or empty, we just use vol1
@@ -113,12 +139,23 @@ class RbaImportController extends Controller
                 
                 if ($vol2 > 0) {
                     $koefisien = $vol1 * $vol2;
-                    $satuan = $sat1 . '/' . $sat2;
+                    $satuan = ($sat1 !== '' ? $sat1 : '-') . '/' . ($sat2 !== '' ? $sat2 : '-');
                 }
 
                 // 4. Determine Type (item vs header)
-                // An item must have koefisien (at least vol1) and harga > 0
-                $isItem = ($koefisien > 0 && $harga > 0);
+                // A row is an item if:
+                // - It has price and volume > 0, OR
+                // - Price/volume/satuan cells explicitly contain dash '-' or '0', OR
+                // - Satuan is provided along with price or volume
+                $isPrefixedHeader = str_starts_with(trim($originalVal), '[#]');
+                $hasDashIndicator = $isDash($rawHarga) || $isDash($rawVol1) || $isDash($rawSat1);
+                $hasItemSpecs = ($rawSat1 !== '' && ($rawVol1 !== '' || $rawHarga !== ''));
+
+                $isItem = !$isPrefixedHeader && (
+                    ($koefisien > 0 && $harga > 0) ||
+                    $hasDashIndicator ||
+                    $hasItemSpecs
+                );
                 $type = $isItem ? 'item' : 'header';
 
                 // 5. Determine Parent ID based on Indent Level
@@ -141,22 +178,24 @@ class RbaImportController extends Controller
                     'type' => $type,
                     'uraian' => ltrim($uraian),
                     'harga' => $isItem ? $harga : null,
-                    'vol_1' => $isItem ? ($vol1 > 0 ? $vol1 : null) : null,
+                    'vol_1' => $isItem ? ($vol1 > 0 ? $vol1 : ($isDash($rawVol1) ? 0 : null)) : null,
                     'satuan_1' => $isItem ? ($sat1 !== '' ? $sat1 : null) : null,
-                    'vol_2' => $isItem ? ($vol2 > 0 ? $vol2 : null) : null,
+                    'vol_2' => $isItem ? ($vol2 > 0 ? $vol2 : ($isDash($rawVol2) ? 0 : null)) : null,
                     'satuan_2' => $isItem ? ($sat2 !== '' ? $sat2 : null) : null,
                     'koefisien' => $isItem ? $koefisien : null,
-                    'satuan' => $isItem ? $satuan : null,
+                    'satuan' => $isItem ? ($satuan !== '' ? $satuan : null) : null,
                     'jumlah' => $isItem ? $jumlah : null,
                 ]);
 
-                // Update stack for current level
-                $stack[$indentLevel] = $detail->id;
+                // Update stack for current level ONLY if this is a header
+                if ($type === 'header') {
+                    $stack[$indentLevel] = $detail->id;
 
-                // Clear deeper levels from stack to prevent stray children
-                foreach (array_keys($stack) as $lvl) {
-                    if ($lvl > $indentLevel) {
-                        unset($stack[$lvl]);
+                    // Clear deeper levels from stack to prevent stray children
+                    foreach (array_keys($stack) as $lvl) {
+                        if ($lvl > $indentLevel) {
+                            unset($stack[$lvl]);
+                        }
                     }
                 }
 
