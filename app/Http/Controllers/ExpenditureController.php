@@ -122,7 +122,9 @@ class ExpenditureController extends Controller
     public function create(Request $request)
     {
         $users = User::all(['id', 'name']);
-        $vendors = Vendor::all(['id', 'name', 'bank_name', 'bank_account_number']);
+        $vendors = Vendor::where('is_active', true)
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name', 'type', 'director_name', 'bank_name', 'bank_account_number']);
         $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
         $expenditureRules = $rulesJson ? json_decode($rulesJson, true) : [];
 
@@ -246,7 +248,14 @@ class ExpenditureController extends Controller
         $expenditure->load(['details.accountCode', 'details.rbaDetail', 'taxes', 'receipts.accountCode']);
         
         $users = User::all(['id', 'name']);
-        $vendors = Vendor::all(['id', 'name', 'bank_name', 'bank_account_number']);
+        $vendors = Vendor::where(function ($query) use ($expenditure) {
+                $query->where('is_active', true);
+                if ($expenditure->vendor_id) {
+                    $query->orWhere('id', $expenditure->vendor_id);
+                }
+            })
+            ->orderBy('name', 'asc')
+            ->get(['id', 'name', 'type', 'director_name', 'bank_name', 'bank_account_number']);
         
         $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
         $expenditureRules = $rulesJson ? json_decode($rulesJson, true) : [];

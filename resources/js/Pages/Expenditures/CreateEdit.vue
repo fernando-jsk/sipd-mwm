@@ -40,6 +40,7 @@ import { terbilang } from '@/lib/utils';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import RbaDetailPickerDialog from '@/Components/RbaDetailPickerDialog.vue';
+import VendorCombobox from '@/Components/VendorCombobox.vue';
 
 const props = defineProps({
     expenditure: Object,
@@ -360,11 +361,16 @@ watch(() => form.type, (newType, oldType) => {
 
 // For keeping track of selected vendor to auto-fill bank
 watch(() => form.vendor_id, (newVendorId) => {
-    if (form.payment_method === 'rekanan' && newVendorId) {
-        const vendor = props.vendors.find(v => v.id.toString() === newVendorId.toString());
-        if (vendor) {
-            form.bank_name = vendor.bank_name || '';
-            form.bank_account_number = vendor.bank_account_number || '';
+    if (form.payment_method === 'rekanan') {
+        if (newVendorId) {
+            const vendor = props.vendors.find(v => v.id.toString() === newVendorId.toString());
+            if (vendor) {
+                form.bank_name = vendor.bank_name || '';
+                form.bank_account_number = vendor.bank_account_number || '';
+            }
+        } else {
+            form.bank_name = '';
+            form.bank_account_number = '';
         }
     }
 });
@@ -785,12 +791,12 @@ const submitForm = (status) => {
                                 <template v-if="form.payment_method === 'rekanan'">
                                     <div class="space-y-2">
                                         <Label for="vendor_id">Nama Rekanan</Label>
-                                        <Select v-model="form.vendor_id">
-                                            <SelectTrigger><SelectValue placeholder="Pilih Rekanan" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem v-for="vendor in vendors" :key="vendor.id" :value="vendor.id.toString()">{{ vendor.name }}</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <VendorCombobox
+                                            id="vendor_id"
+                                            v-model="form.vendor_id"
+                                            :vendors="vendors"
+                                            placeholder="Pilih Rekanan..."
+                                        />
                                     </div>
                                     <div class="space-y-2">
                                         <Label for="bank_name">Bank Penerima</Label>
