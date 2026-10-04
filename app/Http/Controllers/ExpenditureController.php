@@ -505,9 +505,10 @@ class ExpenditureController extends Controller
         $sppList = Expenditure::whereYear('date', $year)
             ->where('date', '<=', $expenditure->date)
             ->withSum('details as total_amount', 'amount')
-            ->orderBy('date', 'asc')
-            ->orderBy('id', 'asc')
-            ->get();
+            ->orderBy('document_number', 'asc')
+            ->get()
+            ->sortBy('document_number', SORT_NATURAL)
+            ->values();
 
         $activeVersion = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
         $totalDpa = \App\Models\RbaDocument::where('budget_year', $year)
