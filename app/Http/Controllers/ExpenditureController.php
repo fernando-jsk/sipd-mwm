@@ -12,6 +12,8 @@ use App\Models\RbaDocument;
 use App\Models\RbaDetail;
 use App\Models\ExpenditureReceipt;
 use App\Services\BudgetRealizationService;
+use App\Services\ExpenditureExportService;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -116,6 +118,39 @@ class ExpenditureController extends Controller
             'expenditures' => $expenditures,
             'filters' => $filters,
             'totalAmount' => $totalAmount,
+        ]);
+    }
+
+    public function exportSpd(Request $request, ExpenditureExportService $exportService)
+    {
+        $query = Expenditure::with([
+            'vendor',
+            'treasurer',
+            'kpa',
+            'ptk',
+            'spdDisbursedBy',
+            'details.accountCode',
+            'taxes'
+        ])->whereIn('status', ['disbursed', 'spd_disbursed']);
+
+        $query = $this->applyFiltersAndSort($query, $request, 'document_number');
+        $expenditures = $query->get();
+
+        activity('expenditure')
+            ->causedBy(auth()->user())
+            ->log('Mengekspor data pencairan belanja (SPD) ke format Excel');
+
+        $spreadsheet = $exportService->generateSpdDisbursementSpreadsheet($expenditures);
+
+        $fileName = 'Pencairan_SPD_' . date('Ymd_His') . '.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0',
+            'Access-Control-Expose-Headers' => 'Content-Disposition',
         ]);
     }
 
