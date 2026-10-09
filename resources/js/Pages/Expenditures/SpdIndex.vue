@@ -6,7 +6,8 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbS
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
-import { Search, Eye, CheckCircle, RotateCcw, Calendar, Coins } from '@lucide/vue';
+import { Search, Eye, CheckCircle, RotateCcw, Calendar, Coins, FileSpreadsheet, Loader2 } from '@lucide/vue';
+import axios from 'axios';
 import { Badge } from '@/Components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
 import {
@@ -34,6 +35,9 @@ const sortFilter = ref(props.filters?.sort || 'doc_desc');
 const startDate = ref(props.filters?.start_date || props.filters?.date || '');
 const endDate = ref(props.filters?.end_date || props.filters?.date || '');
 
+const isSearchFocused = ref(false);
+let lastSentSearch = search.value;
+
 const hasActiveFilters = computed(() => {
     return !!(
         search.value ||
@@ -52,10 +56,12 @@ const resetFilters = () => {
     startDate.value = '';
     endDate.value = '';
     sortFilter.value = 'doc_desc';
+    lastSentSearch = '';
 };
 
 watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSearch, newSearchBy, newStatus, newSort, newStartDate, newEndDate], oldValue, onCleanup) => {
     const searchTimeout = setTimeout(() => {
+        lastSentSearch = newSearch;
         const params = {};
         if (newSearch) params.search = newSearch;
         if (newSearchBy && newSearchBy !== 'all') params.search_by = newSearchBy;
@@ -65,7 +71,7 @@ watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSea
         if (newEndDate) params.end_date = newEndDate;
 
         router.get('/expenditures/spd', params, { preserveState: true, replace: true });
-    }, 300);
+    }, 500);
 
     onCleanup(() => {
         clearTimeout(searchTimeout);
@@ -74,7 +80,10 @@ watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSea
 
 watch(() => props.filters, (newFilters) => {
     if (newFilters) {
-        if (newFilters.search !== undefined && newFilters.search !== search.value) search.value = newFilters.search || '';
+        const isEchoOfOurRequest = newFilters.search === lastSentSearch;
+        if (!isSearchFocused.value && !isEchoOfOurRequest && newFilters.search !== undefined && newFilters.search !== search.value) {
+            search.value = newFilters.search || '';
+        }
         if (newFilters.search_by !== undefined && newFilters.search_by !== searchBy.value) searchBy.value = newFilters.search_by || 'all';
         if (newFilters.status !== undefined && newFilters.status !== statusFilter.value) statusFilter.value = newFilters.status || 'all';
         if (newFilters.start_date !== undefined && newFilters.start_date !== startDate.value) startDate.value = newFilters.start_date || '';
@@ -115,6 +124,49 @@ const getStatusLabel = (status) => {
         default: return status;
     }
 };
+
+const isExporting = ref(false);
+
+const exportExcel = async () => {
+    if (isExporting.value) return;
+    isExporting.value = true;
+    try {
+        const params = {};
+        if (search.value) params.search = search.value;
+        if (searchBy.value && searchBy.value !== 'all') params.search_by = searchBy.value;
+        if (statusFilter.value && statusFilter.value !== 'all') params.status = statusFilter.value;
+        if (sortFilter.value) params.sort = sortFilter.value;
+        if (startDate.value) params.start_date = startDate.value;
+        if (endDate.value) params.end_date = endDate.value;
+
+        const response = await axios.get('/expenditures/export-spd', {
+            params,
+            responseType: 'blob',
+        });
+
+        let fileName = `Pencairan_SPD_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const disposition = response.headers['content-disposition'];
+        if (disposition) {
+            const matches = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (matches && matches[1]) {
+                fileName = matches[1].replace(/['"]/g, '');
+            }
+        }
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('Gagal mengekspor data Excel:', error);
+    } finally {
+        isExporting.value = false;
+    }
+};
 </script>
 
 <template>
@@ -122,7 +174,7 @@ const getStatusLabel = (status) => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center justify-between w-full">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
                 <div class="flex flex-col">
                     <Breadcrumb class="mb-1">
                         <BreadcrumbList>
@@ -138,6 +190,21 @@ const getStatusLabel = (status) => {
                     <h2 class="text-xl font-bold tracking-tight text-secondary dark:text-foreground">
                         Daftar Pencairan SPD (Surat Pencairan Dana)
                     </h2>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        @click="exportExcel"
+                        :disabled="isExporting"
+                        class="gap-2 text-xs font-semibold shadow-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 dark:hover:bg-emerald-950/30 transition-all cursor-pointer"
+                    >
+                        <Loader2 v-if="isExporting" class="size-4 animate-spin text-emerald-600 dark:text-emerald-400" />
+                        <FileSpreadsheet v-else class="size-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>{{ isExporting ? 'Mengekspor...' : 'Export Excel' }}</span>
+                    </Button>
                 </div>
             </div>
         </template>
@@ -200,6 +267,8 @@ const getStatusLabel = (status) => {
                             </div>
                             <Input 
                                 v-model="search" 
+                                @focus="isSearchFocused = true"
+                                @blur="isSearchFocused = false"
                                 type="text" 
                                 placeholder="Ketik kata kunci pencarian..." 
                                 class="pl-9 w-full rounded-l-none bg-background focus-visible:ring-primary shadow-sm"

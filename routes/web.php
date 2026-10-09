@@ -125,6 +125,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/expenditures/sppd', [\App\Http\Controllers\ExpenditureController::class, 'sppdIndex'])->name('expenditures.sppd');
     Route::get('/expenditures/opd', [\App\Http\Controllers\ExpenditureController::class, 'opdIndex'])->name('expenditures.opd');
     Route::get('/expenditures/spd', [\App\Http\Controllers\ExpenditureController::class, 'spdIndex'])->name('expenditures.spd');
+    Route::get('/expenditures/export-spd', [\App\Http\Controllers\ExpenditureController::class, 'exportSpd'])->name('expenditures.export-spd');
 
     Route::get('/expenditures/{expenditure}/print-sppd', [\App\Http\Controllers\ExpenditureController::class, 'printSppd'])->name('expenditures.print-sppd');
     Route::get('/expenditures/{expenditure}/print-spm', [\App\Http\Controllers\ExpenditureController::class, 'printSpm'])->name('expenditures.print-spm');

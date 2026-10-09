@@ -51,6 +51,8 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
+const isSearchFocused = ref(false);
+let lastSentSearch = search.value;
 const status = ref(props.filters?.status || 'all');
 const startDate = ref(props.filters?.start_date || props.filters?.date || '');
 const endDate = ref(props.filters?.end_date || props.filters?.date || '');
@@ -97,11 +99,13 @@ const resetFilters = () => {
     receiptTypeId.value = 'all';
     receiptSubTypeId.value = 'all';
     sort.value = 'date_desc';
+    lastSentSearch = '';
 };
 
 watch([search, status, startDate, endDate, receiptTypeId, receiptSubTypeId, sort], 
   ([newSearch, newStatus, newStartDate, newEndDate, newTypeId, newSubTypeId, newSort], oldValue, onCleanup) => {
     const searchTimeout = setTimeout(() => {
+        lastSentSearch = newSearch;
         let params = {};
         if (newSearch) params.search = newSearch;
         if (newStatus && newStatus !== 'all') params.status = newStatus;
@@ -112,7 +116,7 @@ watch([search, status, startDate, endDate, receiptTypeId, receiptSubTypeId, sort
         if (newSort) params.sort = newSort;
         
         router.get('/receipts', params, { preserveState: true, replace: true });
-    }, 300);
+    }, 500);
 
     onCleanup(() => {
         clearTimeout(searchTimeout);
@@ -121,7 +125,10 @@ watch([search, status, startDate, endDate, receiptTypeId, receiptSubTypeId, sort
 
 watch(() => props.filters, (newFilters) => {
     if (newFilters) {
-        if (newFilters.search !== undefined && newFilters.search !== search.value) search.value = newFilters.search || '';
+        const isEchoOfOurRequest = newFilters.search === lastSentSearch;
+        if (!isSearchFocused.value && !isEchoOfOurRequest && newFilters.search !== undefined && newFilters.search !== search.value) {
+            search.value = newFilters.search || '';
+        }
         if (newFilters.status !== undefined && newFilters.status !== status.value) status.value = newFilters.status || 'all';
         if (newFilters.start_date !== undefined && newFilters.start_date !== startDate.value) startDate.value = newFilters.start_date || '';
         if (newFilters.end_date !== undefined && newFilters.end_date !== endDate.value) endDate.value = newFilters.end_date || '';
@@ -281,6 +288,8 @@ const handleFileChange = (e) => {
                             type="text"
                             placeholder="Cari No. Dokumen, Uraian, Penyetor..."
                             v-model="search"
+                            @focus="isSearchFocused = true"
+                            @blur="isSearchFocused = false"
                             class="pl-9 bg-background shadow-sm focus-visible:ring-primary w-full"
                         />
                     </div>

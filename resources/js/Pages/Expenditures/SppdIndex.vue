@@ -67,6 +67,9 @@ const sortFilter = ref(props.filters?.sort || 'doc_desc');
 const startDate = ref(props.filters?.start_date || props.filters?.date || '');
 const endDate = ref(props.filters?.end_date || props.filters?.date || '');
 
+const isSearchFocused = ref(false);
+let lastSentSearch = search.value;
+
 const hasActiveFilters = computed(() => {
     return !!(
         search.value ||
@@ -85,10 +88,12 @@ const resetFilters = () => {
     startDate.value = '';
     endDate.value = '';
     sortFilter.value = 'doc_desc';
+    lastSentSearch = '';
 };
 
 watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSearch, newSearchBy, newStatus, newSort, newStartDate, newEndDate], oldValue, onCleanup) => {
     const searchTimeout = setTimeout(() => {
+        lastSentSearch = newSearch;
         const params = {};
         if (newSearch) params.search = newSearch;
         if (newSearchBy && newSearchBy !== 'all') params.search_by = newSearchBy;
@@ -99,7 +104,7 @@ watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSea
 
         const routeUrl = window.location.pathname.startsWith('/expenditures/sppd') ? '/expenditures/sppd' : '/expenditures';
         router.get(routeUrl, params, { preserveState: true, replace: true });
-    }, 300);
+    }, 500);
 
     onCleanup(() => {
         clearTimeout(searchTimeout);
@@ -108,7 +113,10 @@ watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSea
 
 watch(() => props.filters, (newFilters) => {
     if (newFilters) {
-        if (newFilters.search !== undefined && newFilters.search !== search.value) search.value = newFilters.search || '';
+        const isEchoOfOurRequest = newFilters.search === lastSentSearch;
+        if (!isSearchFocused.value && !isEchoOfOurRequest && newFilters.search !== undefined && newFilters.search !== search.value) {
+            search.value = newFilters.search || '';
+        }
         if (newFilters.search_by !== undefined && newFilters.search_by !== searchBy.value) searchBy.value = newFilters.search_by || 'all';
         if (newFilters.status !== undefined && newFilters.status !== statusFilter.value) statusFilter.value = newFilters.status || 'all';
         if (newFilters.start_date !== undefined && newFilters.start_date !== startDate.value) startDate.value = newFilters.start_date || '';
@@ -252,6 +260,8 @@ const getStatusLabel = (status) => {
                             </div>
                             <Input 
                                 v-model="search" 
+                                @focus="isSearchFocused = true"
+                                @blur="isSearchFocused = false"
                                 type="text" 
                                 placeholder="Ketik kata kunci pencarian..." 
                                 class="pl-9 w-full rounded-l-none bg-background focus-visible:ring-primary shadow-sm"
