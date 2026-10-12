@@ -18,7 +18,7 @@ import {
     Download, FileText, CheckCircle, XCircle, Send, ArrowRight, UserCheck, ShieldCheck, 
     Printer, Receipt, ExternalLink, Image as ImageIcon, FileSearch, ArrowLeft, Trash2,
     Calendar, User, Building, Paperclip, CreditCard, Clock, AlertCircle, CheckCircle2,
-    FileCheck2, Hash, Layers
+    FileCheck2, Hash, Layers, Copy, Check
 } from '@lucide/vue';
 import {
   Dialog,
@@ -68,6 +68,24 @@ const totalReceiptsAmount = computed(() => {
 const totalReceiptsTax = computed(() => {
     return (props.expenditure.receipts || []).reduce((sum, r) => sum + Number(r.tax_amount || 0), 0);
 });
+
+// Copy to clipboard helper
+const copiedKey = ref(null);
+const copyToClipboard = async (text, key) => {
+    if (!text || text === '-') return;
+    try {
+        await navigator.clipboard.writeText(text);
+        copiedKey.value = key;
+        setTimeout(() => {
+            if (copiedKey.value === key) {
+                copiedKey.value = null;
+            }
+        }, 1800);
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+};
+
 
 const getStatusColor = (status) => {
     switch (status) {
@@ -606,24 +624,33 @@ const deleteExpenditure = () => {
                     <!-- Rincian Anggaran / Rekening Belanja Card -->
                     <div class="bg-card text-card-foreground border rounded-xl shadow-sm overflow-hidden">
                         <div class="px-6 py-4 border-b bg-muted/10 font-semibold text-secondary flex justify-between items-center">
-                            <span>{{ expenditure.type === 'UP' ? 'Rincian Pencairan Uang Persediaan (Non-Anggaran)' : 'Rincian Penggunaan Anggaran' }}</span>
-                            <Badge v-if="expenditure.type === 'UP'" variant="outline" class="text-xs font-normal text-muted-foreground bg-background">
-                                Mutasi Kas: Kas BLUD ➔ Kas Bendahara
-                            </Badge>
+                            <div class="flex items-center gap-2.5">
+                                <Layers class="w-5 h-5 text-primary" />
+                                <span>{{ expenditure.type === 'UP' ? 'Rincian Pencairan Uang Persediaan (Non-Anggaran)' : 'Rincian Penggunaan Anggaran' }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Badge v-if="expenditure.type === 'UP'" variant="outline" class="text-xs font-normal text-muted-foreground bg-background">
+                                    Mutasi Kas: Kas BLUD ➔ Kas Bendahara
+                                </Badge>
+                                <Badge variant="outline" class="text-xs font-semibold bg-primary/10 text-primary border-primary/30">
+                                    {{ expenditure.details?.length || 0 }} Rekening Belanja
+                                </Badge>
+                            </div>
                         </div>
+
                         <div class="overflow-x-auto">
                             <Table>
-                                <TableHeader>
-                                    <TableRow class="bg-transparent hover:bg-transparent">
-                                        <TableHead class="w-48">Kode Rekening</TableHead>
-                                        <TableHead>Nama Rekening Belanja</TableHead>
-                                        <TableHead class="text-right w-44">Nominal</TableHead>
+                                <TableHeader class="bg-muted/50">
+                                    <TableRow class="hover:bg-transparent">
+                                        <TableHead class="w-48 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Kode Rekening</TableHead>
+                                        <TableHead class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nama Rekening Belanja</TableHead>
+                                        <TableHead class="text-right w-44 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nominal</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    <TableRow v-for="detail in expenditure.details" :key="detail.id">
-                                        <TableCell class="font-mono text-xs font-semibold">{{ detail.account_code?.code }}</TableCell>
-                                        <TableCell class="font-medium text-xs">
+                                    <TableRow v-for="detail in expenditure.details" :key="detail.id" class="text-xs">
+                                        <TableCell class="font-mono font-semibold text-foreground">{{ detail.account_code?.code }}</TableCell>
+                                        <TableCell class="font-medium">
                                             <div class="text-foreground">{{ detail.account_code?.name }}</div>
                                             <div v-if="detail.rba_detail" class="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal">
                                                 <Badge variant="outline" class="text-[9px] py-0 px-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-medium">
@@ -633,49 +660,157 @@ const deleteExpenditure = () => {
                                             </div>
                                             <span v-if="expenditure.type === 'UP'" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-normal">(Kas Bendahara Pengeluaran)</span>
                                         </TableCell>
-                                        <TableCell class="text-right font-mono text-xs font-semibold">{{ formatCurrency(detail.amount) }}</TableCell>
+                                        <TableCell class="text-right font-mono font-semibold text-foreground">{{ formatCurrency(detail.amount) }}</TableCell>
+                                    </TableRow>
+                                    <TableRow v-if="!expenditure.details || expenditure.details.length === 0">
+                                        <TableCell colspan="3" class="text-center py-6 text-muted-foreground text-xs">
+                                            Tidak ada rincian rekening belanja terlampir.
+                                        </TableCell>
                                     </TableRow>
                                 </TableBody>
-                                <tfoot class="bg-muted/30">
+                                <tfoot v-if="expenditure.details && expenditure.details.length > 1" class="bg-muted/30 border-t">
                                     <tr>
-                                        <td colspan="2" class="p-4 text-right font-semibold text-muted-foreground">
-                                            {{ expenditure.type === 'UP' ? 'Total Nilai Pencairan UP:' : 'Total Pengajuan (Kotor):' }}
+                                        <td colspan="2" class="p-3 text-right font-semibold text-xs text-muted-foreground">
+                                            Subtotal Rincian Belanja:
                                         </td>
-                                        <td class="p-4 text-right font-bold text-primary font-mono text-lg">{{ formatCurrency(totalAmount) }}</td>
-                                    </tr>
-                                    <tr v-if="totalAmount > 0">
-                                        <td colspan="3" class="px-4 py-2.5 bg-muted/20 border-t border-border/50 text-xs text-muted-foreground italic">
-                                            Terbilang: <strong class="text-foreground not-italic font-medium">{{ terbilang(totalAmount) }} Rupiah</strong>
+                                        <td class="p-3 text-right font-mono font-bold text-foreground text-xs">
+                                            {{ formatCurrency(totalAmount) }}
                                         </td>
                                     </tr>
-                                    <template v-if="expenditure.taxes && expenditure.taxes.length > 0">
-                                        <tr>
-                                            <td colspan="3" class="px-4 py-2 bg-muted/10 font-semibold text-xs text-secondary uppercase tracking-wider">Potongan Pajak:</td>
-                                        </tr>
-                                        <tr v-for="tax in expenditure.taxes" :key="tax.id" class="text-sm">
-                                            <td class="px-4 py-1 text-right text-muted-foreground">{{ tax.tax_type }} <span v-if="tax.billing_code" class="text-xs">(Billing: {{ tax.billing_code }})</span></td>
-                                            <td class="px-4 py-1 text-right"></td>
-                                            <td class="px-4 py-1 text-right font-mono text-destructive">-{{ formatCurrency(tax.amount) }}</td>
-                                        </tr>
-                                        <tr class="border-t">
-                                            <td colspan="2" class="p-4 text-right font-semibold text-muted-foreground">Total Bersih (Netto):</td>
-                                            <td class="p-4 text-right font-bold text-emerald-700 font-mono text-lg">{{ formatCurrency(netAmount) }}</td>
-                                        </tr>
-                                        <tr v-if="netAmount > 0">
-                                            <td colspan="3" class="px-4 py-2.5 bg-muted/20 border-t border-border/50 text-xs text-muted-foreground italic">
-                                                Terbilang Bersih: <strong class="text-foreground not-italic font-medium">{{ terbilang(netAmount) }} Rupiah</strong>
-                                            </td>
-                                        </tr>
-                                    </template>
-                                    <template v-else-if="expenditure.type === 'UP'">
-                                        <tr>
-                                            <td colspan="3" class="px-4 py-2.5 bg-emerald-500/10 border-t border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                                                ✓ Bebas Potongan Pajak (PPN/PPh). Pemungutan pajak dilakukan saat uang persediaan dibelanjakan oleh bendahara (SPJ / GU).
-                                            </td>
-                                        </tr>
-                                    </template>
                                 </tfoot>
                             </Table>
+                        </div>
+
+                        <!-- Panel Rekapitulasi Finansial & Terbilang -->
+                        <div class="border-t bg-muted/15 p-5 md:p-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 items-stretch">
+                                <!-- Kolom Kiri: Terbilang Pembayaran -->
+                                <div class="rounded-xl border border-border/80 bg-background/80 p-4 shadow-2xs flex flex-col justify-between h-full">
+                                    <div>
+                                        <div class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground pb-2.5 border-b border-border/60">
+                                            <FileCheck2 class="w-4 h-4 text-primary" />
+                                            <span>Terbilang Pembayaran</span>
+                                        </div>
+                                        <div class="py-3.5 space-y-1.5">
+                                            <span class="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                                                {{ (expenditure.taxes && expenditure.taxes.length > 0) ? 'Terbilang Bersih (Netto):' : 'Terbilang Pengajuan:' }}
+                                            </span>
+                                            <blockquote class="text-sm md:text-[15px] font-semibold text-secondary dark:text-foreground leading-relaxed italic bg-muted/30 rounded-lg p-3 border-l-2 border-primary">
+                                                "{{ terbilang((expenditure.taxes && expenditure.taxes.length > 0) ? netAmount : totalAmount) }} Rupiah"
+                                            </blockquote>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div v-if="expenditure.taxes && expenditure.taxes.length > 0 && totalAmount > 0" class="pt-2.5 border-t border-border/60 text-[11px] text-muted-foreground flex items-baseline gap-1">
+                                            <span class="font-medium text-foreground/80 shrink-0">Terbilang Bruto:</span>
+                                            <span class="italic">{{ terbilang(totalAmount) }} Rupiah</span>
+                                        </div>
+
+                                        <div v-if="expenditure.type === 'UP'" class="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2.5 text-xs text-emerald-700 dark:text-emerald-400 flex items-start gap-2 mt-2">
+                                            <CheckCircle2 class="w-4 h-4 shrink-0 mt-0.5" />
+                                            <p class="leading-relaxed text-[11px]">
+                                                Bebas Potongan Pajak (Kas UP). Pemungutan pajak dilakukan saat uang persediaan dibelanjakan (SPJ / GU).
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Kolom Kanan: Rincian Kalkulasi Pembayaran -->
+                                <div class="rounded-xl border border-border/80 bg-background/80 p-4 shadow-2xs flex flex-col justify-between h-full space-y-3">
+                                    <div>
+                                        <div class="flex items-center justify-between pb-2.5 border-b border-border/60">
+                                            <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Rincian Pembayaran</span>
+                                            <Badge v-if="expenditure.taxes && expenditure.taxes.length > 0" variant="outline" class="text-[10px] py-0 px-1.5 font-medium text-destructive bg-destructive/5 border-destructive/20">
+                                                {{ expenditure.taxes.length }} Potongan Pajak
+                                            </Badge>
+                                            <Badge v-else variant="outline" class="text-[10px] py-0 px-1.5 font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20">
+                                                Bebas Pajak
+                                            </Badge>
+                                        </div>
+
+                                        <div class="space-y-2 pt-2.5">
+                                            <!-- Nilai Bruto -->
+                                            <div class="flex items-center justify-between text-xs py-0.5">
+                                                <span class="font-medium text-muted-foreground">
+                                                    {{ expenditure.type === 'UP' ? 'Total Nilai Pencairan UP:' : 'Total Pengajuan (Kotor):' }}
+                                                </span>
+                                                <span class="font-mono font-bold text-foreground text-sm">
+                                                    {{ formatCurrency(totalAmount) }}
+                                                </span>
+                                            </div>
+
+                                            <!-- Potongan Pajak (Jika Ada) -->
+                                            <template v-if="expenditure.taxes && expenditure.taxes.length > 0">
+                                                <div class="pt-2 border-t border-dashed border-border/80 space-y-1.5">
+                                                    <div class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                                        Potongan Pajak
+                                                    </div>
+
+                                                    <!-- Clean List Pajak (Sejajar dan Rapi) -->
+                                                    <div class="space-y-1 pt-0.5">
+                                                        <div 
+                                                            v-for="tax in expenditure.taxes" 
+                                                            :key="tax.id" 
+                                                            class="flex items-center justify-between text-xs py-0.5"
+                                                        >
+                                                            <div class="flex items-center gap-2">
+                                                                <span class="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                                                    {{ tax.tax_type }}
+                                                                </span>
+                                                                <span v-if="tax.billing_code" class="text-[11px] text-muted-foreground font-mono flex items-center gap-1">
+                                                                    <span>Billing: {{ tax.billing_code }}</span>
+                                                                    <button 
+                                                                        type="button"
+                                                                        @click="copyToClipboard(tax.billing_code, 'tax-' + tax.id)"
+                                                                        class="p-0.5 hover:text-foreground transition-colors rounded text-muted-foreground/70"
+                                                                        :title="copiedKey === 'tax-' + tax.id ? 'Tersalin!' : 'Salin Kode Billing'"
+                                                                    >
+                                                                        <Check v-if="copiedKey === 'tax-' + tax.id" class="w-3 h-3 text-emerald-600" />
+                                                                        <Copy v-else class="w-3 h-3" />
+                                                                    </button>
+                                                                </span>
+                                                            </div>
+                                                            <span class="font-mono text-destructive font-semibold text-xs">
+                                                                -{{ formatCurrency(tax.amount) }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+
+                                    <!-- Total Netto Card di Bagian Bawah -->
+                                    <div>
+                                        <div v-if="expenditure.taxes && expenditure.taxes.length > 0" class="rounded-lg bg-emerald-500/10 border border-emerald-500/25 p-3 shadow-2xs">
+                                            <div class="flex items-center justify-between">
+                                                <div>
+                                                    <span class="text-xs font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wide block">
+                                                        Total Bersih (Netto)
+                                                    </span>
+                                                    <span class="text-[11px] text-emerald-600/90 dark:text-emerald-400/80">
+                                                        Nilai yang dicairkan
+                                                    </span>
+                                                </div>
+                                                <span class="font-mono text-lg md:text-xl font-bold text-emerald-700 dark:text-emerald-300">
+                                                    {{ formatCurrency(netAmount) }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div v-else-if="expenditure.type !== 'UP'" class="rounded-lg bg-muted/60 border border-border/80 p-3 flex items-center justify-between">
+                                            <div>
+                                                <span class="text-xs font-semibold text-muted-foreground block">Total Netto</span>
+                                                <span class="text-[10px] text-muted-foreground/70">Tanpa potongan pajak</span>
+                                            </div>
+                                            <span class="font-mono text-base font-bold text-foreground">
+                                                {{ formatCurrency(totalAmount) }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
