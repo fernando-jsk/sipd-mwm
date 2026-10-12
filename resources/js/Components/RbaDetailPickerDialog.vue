@@ -24,7 +24,8 @@ import {
     ArrowRight,
     HelpCircle,
     Info,
-    CornerDownRight
+    CornerDownRight,
+    X
 } from 'lucide-vue-next';
 import RbaTreeNode from '@/Components/RbaTreeNode.vue';
 
@@ -53,8 +54,9 @@ const emit = defineEmits(['update:open', 'select']);
 const selectedAccountId = ref(null);
 const selectedDetailId = ref(null);
 const accountSearchQuery = ref('');
+const searchInput = ref('');
 const rbaSearchQuery = ref('');
-const activeView = ref('list'); // 'list' or 'tree'
+const activeView = ref('tree'); // 'tree' as default or 'list'
 const headerFilterType = ref('all'); // 'all', 'parent', 'leaf'
 const loading = ref(false);
 const errorMessage = ref('');
@@ -164,8 +166,12 @@ const fetchRbaTree = async (accountId) => {
 };
 
 const initializeExpanded = () => {
-    // Default: Semua collapsable ditutup secara default
-    expandedNodes.value = new Set();
+    if (rbaSearchQuery.value.trim()) {
+        expandedNodes.value = new Set(filteredTreeResult.value.expandIds);
+    } else {
+        // Default: Semua collapsable ditutup secara default
+        expandedNodes.value = new Set();
+    }
 };
 
 const expandAll = () => {
@@ -180,7 +186,7 @@ const expandAll = () => {
             }
         });
     };
-    traverse(treeData.value);
+    traverse(filteredTreeData.value);
     expandedNodes.value = all;
 };
 
@@ -211,9 +217,9 @@ const handleSelectAccount = (accId) => {
 watch(() => props.open, (isOpen) => {
     if (isOpen) {
         accountSearchQuery.value = '';
-        rbaSearchQuery.value = '';
+        clearSearch();
         headerFilterType.value = 'all';
-        activeView.value = 'list';
+        activeView.value = 'tree';
         
         if (props.initialAccountCodeId) {
             selectedAccountId.value = props.initialAccountCodeId.toString();
@@ -229,6 +235,31 @@ watch(() => props.open, (isOpen) => {
         }
     }
 });
+
+// Debounced Search Handling untuk UI super responsif tanpa lag
+let searchDebounceTimer = null;
+watch(searchInput, (newVal) => {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
+    // Jika input dihapus sampai kosong, langsung reset seketika tanpa delay
+    if (!newVal.trim()) {
+        rbaSearchQuery.value = '';
+        return;
+    }
+    // Debounce ringan 150ms agar main thread tidak freeze saat mengetik cepat
+    searchDebounceTimer = setTimeout(() => {
+        rbaSearchQuery.value = newVal;
+    }, 150);
+});
+
+const clearSearch = () => {
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
+    searchInput.value = '';
+    rbaSearchQuery.value = '';
+};
 
 // Counts for List View Tabs
 const parentHeadersCount = computed(() => allHeaders.value.filter(h => !h.is_leaf_header).length);
@@ -251,6 +282,75 @@ const filteredHeaders = computed(() => {
         (item.uraian && item.uraian.toLowerCase().includes(q)) ||
         (item.breadcrumb && item.breadcrumb.toLowerCase().includes(q))
     );
+});
+
+// Single-Pass Tree Filter & Auto-Expand Calculation (High Performance)
+const filteredTreeResult = computed(() => {
+    if (!rbaSearchQuery.value.trim()) {
+        return {
+            tree: treeData.value,
+            matchCount: 0,
+            expandIds: new Set()
+        };
+    }
+    const q = rbaSearchQuery.value.toLowerCase().trim();
+    let matchCount = 0;
+    const expandIds = new Set();
+
+    const filterNode = (node) => {
+        const selfMatch = Boolean(node.uraian && node.uraian.toLowerCase().includes(q));
+        if (selfMatch) {
+            matchCount++;
+        }
+
+        let matchingChildren = [];
+        if (node.children && node.children.length > 0) {
+            matchingChildren = node.children
+                .map(child => filterNode(child))
+                .filter(Boolean);
+        }
+
+        if (matchingChildren.length > 0) {
+            expandIds.add(node.id);
+            return {
+                ...node,
+                children: matchingChildren,
+                isMatch: selfMatch
+            };
+        } else if (selfMatch) {
+            // Jika node induk cocok, sertakan seluruh anak-anaknya agar pengguna dapat memilih rincian
+            if (node.children && node.children.length > 0) {
+                expandIds.add(node.id);
+            }
+            return {
+                ...node,
+                children: node.children || [],
+                isMatch: true
+            };
+        }
+
+        return null;
+    };
+
+    const tree = treeData.value
+        .map(rootNode => filterNode(rootNode))
+        .filter(Boolean);
+
+    return { tree, matchCount, expandIds };
+});
+
+const filteredTreeData = computed(() => filteredTreeResult.value.tree);
+const searchMatchCount = computed(() => filteredTreeResult.value.matchCount);
+
+// Auto-expand tree when search query changes (langsung mengambil expandIds dari single-pass)
+watch(rbaSearchQuery, (newQuery) => {
+    const q = newQuery.trim();
+    if (q) {
+        expandedNodes.value = new Set(filteredTreeResult.value.expandIds);
+    } else {
+        // Ketika pencarian dihapus, kembalikan status pohon ke terlipat/tertutup rapi
+        expandedNodes.value = new Set();
+    }
 });
 
 // Select Header (either parent or leaf)
@@ -424,38 +524,47 @@ const selectAccountOnly = () => {
                             <div class="relative flex-1">
                                 <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                                 <Input 
-                                    v-model="rbaSearchQuery"
+                                    v-model="searchInput"
                                     placeholder="Cari uraian kegiatan (induk atau rincian)..."
-                                    class="pl-8 h-8 text-xs focus-visible:ring-primary"
+                                    class="pl-8 pr-8 h-8 text-xs focus-visible:ring-primary"
                                     :disabled="loading || allHeaders.length === 0"
                                 />
+                                <button 
+                                    v-if="searchInput" 
+                                    type="button"
+                                    @click="clearSearch"
+                                    class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded cursor-pointer"
+                                    title="Bersihkan pencarian"
+                                >
+                                    <X class="w-3.5 h-3.5" />
+                                </button>
                             </div>
                             <div v-if="allHeaders.length > 0" class="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border text-xs">
                                 <button 
                                     type="button"
-                                    @click="activeView = 'list'"
-                                    :class="[
-                                        'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1',
-                                        activeView === 'list' 
-                                            ? 'bg-background text-foreground shadow-xs' 
-                                             : 'text-muted-foreground hover:text-foreground'
-                                    ]"
-                                >
-                                    <ListFilter class="w-3 h-3" />
-                                    Daftar ({{ allHeaders.length }})
-                                </button>
-                                <button 
-                                    type="button"
                                     @click="activeView = 'tree'"
                                     :class="[
-                                        'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1',
+                                        'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1 cursor-pointer',
                                         activeView === 'tree' 
-                                            ? 'bg-background text-foreground shadow-xs' 
+                                            ? 'bg-background text-foreground shadow-xs font-semibold' 
                                             : 'text-muted-foreground hover:text-foreground'
                                     ]"
                                 >
                                     <Layers class="w-3 h-3" />
                                     Hirarki
+                                </button>
+                                <button 
+                                    type="button"
+                                    @click="activeView = 'list'"
+                                    :class="[
+                                        'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1 cursor-pointer',
+                                        activeView === 'list' 
+                                            ? 'bg-background text-foreground shadow-xs font-semibold' 
+                                             : 'text-muted-foreground hover:text-foreground'
+                                    ]"
+                                >
+                                    <ListFilter class="w-3 h-3" />
+                                    Daftar ({{ allHeaders.length }})
                                 </button>
                             </div>
                         </div>
@@ -503,20 +612,23 @@ const selectAccountOnly = () => {
 
                         <!-- Toolbar Khusus Tree View: Kontrol Expand / Collapse -->
                         <div v-if="activeView === 'tree' && treeData.length > 0" class="px-3.5 py-1.5 border-b bg-muted/15 flex items-center justify-between gap-2 flex-shrink-0 text-xs">
-                            <div class="flex items-center gap-1.5 text-muted-foreground text-[11px]">
-                                <Layers class="w-3.5 h-3.5 text-primary" />
-                                <span>Pohon Hirarki RBA (Klik panah untuk membuka)</span>
+                            <div class="flex items-center gap-1.5 text-muted-foreground text-[11px] truncate">
+                                <Layers class="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                                <span class="truncate">Pohon Hirarki RBA (Klik panah untuk membuka)</span>
+                                <span v-if="rbaSearchQuery.trim()" class="text-primary font-semibold flex-shrink-0">
+                                    • Ditemukan {{ searchMatchCount }} uraian
+                                </span>
                             </div>
-                            <div class="flex items-center gap-1.5">
+                            <div class="flex items-center gap-1.5 flex-shrink-0">
                                 <button 
-                                    type="button"
+                                    type="button" 
                                     @click="expandAll"
                                     class="px-2 py-0.5 rounded text-[11px] font-medium bg-background text-muted-foreground hover:text-foreground border border-border/70 hover:bg-muted/40 transition-all cursor-pointer shadow-2xs"
                                 >
                                     Buka Semua
                                 </button>
                                 <button 
-                                    type="button"
+                                    type="button" 
                                     @click="collapseAll"
                                     class="px-2 py-0.5 rounded text-[11px] font-medium bg-background text-muted-foreground hover:text-foreground border border-border/70 hover:bg-muted/40 transition-all cursor-pointer shadow-2xs"
                                 >
@@ -557,8 +669,15 @@ const selectAccountOnly = () => {
 
                             <!-- Mode 1: List View (Daftar Headers) -->
                             <div v-else-if="activeView === 'list'" class="space-y-2">
-                                <div v-if="filteredHeaders.length === 0" class="text-center py-12 text-muted-foreground text-xs">
-                                    Tidak ada uraian yang cocok dengan pencarian "{{ rbaSearchQuery }}".
+                                <div v-if="filteredHeaders.length === 0" class="text-center py-12 text-muted-foreground text-xs space-y-2">
+                                    <p>Tidak ada uraian yang cocok dengan pencarian "{{ searchInput }}".</p>
+                                    <button 
+                                        type="button" 
+                                        @click="clearSearch"
+                                        class="text-xs text-primary hover:underline font-medium cursor-pointer"
+                                    >
+                                        Reset Pencarian
+                                    </button>
                                 </div>
 
                                 <div 
@@ -579,20 +698,6 @@ const selectAccountOnly = () => {
                                         </div>
                                         <!-- Uraian Title -->
                                         <div class="font-semibold text-xs text-foreground flex items-center gap-2">
-                                            <Badge 
-                                                v-if="item.is_leaf_header"
-                                                variant="outline" 
-                                                class="text-[9px] py-0 px-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 flex-shrink-0 font-medium"
-                                            >
-                                                Rincian
-                                            </Badge>
-                                            <Badge 
-                                                v-else
-                                                variant="outline" 
-                                                class="text-[9px] py-0 px-1.5 bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30 flex-shrink-0 font-medium"
-                                            >
-                                                Induk
-                                            </Badge>
                                             <span class="truncate font-semibold">{{ item.uraian }}</span>
                                         </div>
                                     </div>
@@ -620,15 +725,28 @@ const selectAccountOnly = () => {
 
                             <!-- Mode 2: Tree View (Hirarki Pohon) -->
                             <div v-else class="space-y-1 text-xs">
-                                <template v-for="node in treeData" :key="node.id">
-                                    <RbaTreeNode 
-                                        :node="node" 
-                                        :level="0"
-                                        :expanded-nodes="expandedNodes"
-                                        :selected-id="selectedDetailId"
-                                        @toggle="toggleExpand"
-                                        @select="selectDetail"
-                                    />
+                                <div v-if="filteredTreeData.length === 0" class="text-center py-12 text-muted-foreground text-xs space-y-2">
+                                    <p>Tidak ada uraian hirarki yang cocok dengan pencarian "{{ searchInput }}".</p>
+                                    <button 
+                                        type="button" 
+                                        @click="clearSearch"
+                                        class="text-xs text-primary hover:underline font-medium cursor-pointer"
+                                    >
+                                        Reset Pencarian
+                                    </button>
+                                </div>
+                                <template v-else>
+                                    <template v-for="node in filteredTreeData" :key="node.id">
+                                        <RbaTreeNode 
+                                            :node="node" 
+                                            :level="0"
+                                            :expanded-nodes="expandedNodes"
+                                            :selected-id="selectedDetailId"
+                                            :search-query="rbaSearchQuery"
+                                            @toggle="toggleExpand"
+                                            @select="selectDetail"
+                                        />
+                                    </template>
                                 </template>
                             </div>
                         </div>
