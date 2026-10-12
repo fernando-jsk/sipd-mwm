@@ -26,6 +26,7 @@ import {
     Info,
     CornerDownRight
 } from 'lucide-vue-next';
+import RbaTreeNode from '@/Components/RbaTreeNode.vue';
 
 const props = defineProps({
     open: {
@@ -54,9 +55,11 @@ const selectedDetailId = ref(null);
 const accountSearchQuery = ref('');
 const rbaSearchQuery = ref('');
 const activeView = ref('list'); // 'list' or 'tree'
+const headerFilterType = ref('all'); // 'all', 'parent', 'leaf'
 const loading = ref(false);
 const errorMessage = ref('');
 const treeData = ref([]);
+const allHeaders = ref([]);
 const leafHeaders = ref([]);
 const rbaDoc = ref(null);
 const expandedNodes = ref(new Set());
@@ -95,6 +98,7 @@ const activeAccount = computed(() => {
 const fetchRbaTree = async (accountId) => {
     if (!accountId) {
         treeData.value = [];
+        allHeaders.value = [];
         leafHeaders.value = [];
         rbaDoc.value = null;
         errorMessage.value = '';
@@ -104,6 +108,7 @@ const fetchRbaTree = async (accountId) => {
     if (cache.value[accountId]) {
         const cached = cache.value[accountId];
         treeData.value = cached.tree || [];
+        allHeaders.value = cached.all_headers || cached.leaf_headers || [];
         leafHeaders.value = cached.leaf_headers || [];
         rbaDoc.value = cached.rba_document || null;
         errorMessage.value = cached.message || '';
@@ -131,16 +136,19 @@ const fetchRbaTree = async (accountId) => {
         if (data.status === 'not_found' || data.status === 'empty') {
             errorMessage.value = data.message || 'Tidak ada data rincian.';
             treeData.value = [];
+            allHeaders.value = [];
             leafHeaders.value = [];
             rbaDoc.value = data.rba_document || null;
         } else {
             treeData.value = data.tree || [];
+            allHeaders.value = data.all_headers || data.leaf_headers || [];
             leafHeaders.value = data.leaf_headers || [];
             rbaDoc.value = data.rba_document || null;
         }
 
         cache.value[accountId] = {
             tree: treeData.value,
+            all_headers: allHeaders.value,
             leaf_headers: leafHeaders.value,
             rba_document: rbaDoc.value,
             message: errorMessage.value
@@ -156,11 +164,16 @@ const fetchRbaTree = async (accountId) => {
 };
 
 const initializeExpanded = () => {
-    const newExpanded = new Set();
+    // Default: Semua collapsable ditutup secara default
+    expandedNodes.value = new Set();
+};
+
+const expandAll = () => {
+    const all = new Set();
     const traverse = (nodes) => {
         nodes.forEach(node => {
             if (node.type === 'header') {
-                newExpanded.add(node.id);
+                all.add(node.id);
                 if (node.children?.length) {
                     traverse(node.children);
                 }
@@ -168,7 +181,11 @@ const initializeExpanded = () => {
         });
     };
     traverse(treeData.value);
-    expandedNodes.value = newExpanded;
+    expandedNodes.value = all;
+};
+
+const collapseAll = () => {
+    expandedNodes.value = new Set();
 };
 
 const toggleExpand = (nodeId) => {
@@ -195,6 +212,7 @@ watch(() => props.open, (isOpen) => {
     if (isOpen) {
         accountSearchQuery.value = '';
         rbaSearchQuery.value = '';
+        headerFilterType.value = 'all';
         activeView.value = 'list';
         
         if (props.initialAccountCodeId) {
@@ -205,25 +223,37 @@ watch(() => props.open, (isOpen) => {
             selectedAccountId.value = null;
             selectedDetailId.value = null;
             treeData.value = [];
+            allHeaders.value = [];
             leafHeaders.value = [];
             errorMessage.value = '';
         }
     }
 });
 
-// Filtered Leaf Headers for List View (Right Panel)
-const filteredLeafHeaders = computed(() => {
+// Counts for List View Tabs
+const parentHeadersCount = computed(() => allHeaders.value.filter(h => !h.is_leaf_header).length);
+const leafHeadersCount = computed(() => allHeaders.value.filter(h => h.is_leaf_header).length);
+
+// Filtered Headers for List View (Right Panel)
+const filteredHeaders = computed(() => {
+    let list = allHeaders.value;
+    if (headerFilterType.value === 'parent') {
+        list = list.filter(item => !item.is_leaf_header);
+    } else if (headerFilterType.value === 'leaf') {
+        list = list.filter(item => item.is_leaf_header);
+    }
+
     if (!rbaSearchQuery.value.trim()) {
-        return leafHeaders.value;
+        return list;
     }
     const q = rbaSearchQuery.value.toLowerCase().trim();
-    return leafHeaders.value.filter(item => 
+    return list.filter(item => 
         (item.uraian && item.uraian.toLowerCase().includes(q)) ||
         (item.breadcrumb && item.breadcrumb.toLowerCase().includes(q))
     );
 });
 
-// Select Leaf Header (with rincian)
+// Select Header (either parent or leaf)
 const selectDetail = (item) => {
     selectedDetailId.value = item.id;
     emit('select', {
@@ -395,12 +425,12 @@ const selectAccountOnly = () => {
                                 <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                                 <Input 
                                     v-model="rbaSearchQuery"
-                                    placeholder="Cari uraian kegiatan rincian..."
+                                    placeholder="Cari uraian kegiatan (induk atau rincian)..."
                                     class="pl-8 h-8 text-xs focus-visible:ring-primary"
-                                    :disabled="loading || leafHeaders.length === 0"
+                                    :disabled="loading || allHeaders.length === 0"
                                 />
                             </div>
-                            <div v-if="leafHeaders.length > 0" class="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border text-xs">
+                            <div v-if="allHeaders.length > 0" class="flex items-center gap-1 bg-muted/60 p-0.5 rounded-lg border text-xs">
                                 <button 
                                     type="button"
                                     @click="activeView = 'list'"
@@ -408,11 +438,11 @@ const selectAccountOnly = () => {
                                         'px-2.5 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1',
                                         activeView === 'list' 
                                             ? 'bg-background text-foreground shadow-xs' 
-                                            : 'text-muted-foreground hover:text-foreground'
+                                             : 'text-muted-foreground hover:text-foreground'
                                     ]"
                                 >
                                     <ListFilter class="w-3 h-3" />
-                                    Daftar ({{ leafHeaders.length }})
+                                    Daftar ({{ allHeaders.length }})
                                 </button>
                                 <button 
                                     type="button"
@@ -430,6 +460,71 @@ const selectAccountOnly = () => {
                             </div>
                         </div>
 
+                        <!-- Filter Tabs untuk List View -->
+                        <div v-if="activeView === 'list' && allHeaders.length > 0" class="px-3.5 py-1.5 border-b bg-muted/15 flex items-center gap-1.5 flex-shrink-0 text-xs overflow-x-auto">
+                            <span class="text-[11px] text-muted-foreground mr-1 flex-shrink-0">Tampilkan:</span>
+                            <button 
+                                type="button"
+                                @click="headerFilterType = 'all'"
+                                :class="[
+                                    'px-2.5 py-0.5 rounded-full text-[11px] transition-all cursor-pointer border whitespace-nowrap',
+                                    headerFilterType === 'all'
+                                        ? 'bg-primary text-primary-foreground border-primary shadow-2xs font-semibold'
+                                        : 'bg-background text-muted-foreground hover:text-foreground border-border/70 hover:bg-muted/40 font-medium'
+                                ]"
+                            >
+                                Semua ({{ allHeaders.length }})
+                            </button>
+                            <button 
+                                type="button"
+                                @click="headerFilterType = 'parent'"
+                                :class="[
+                                    'px-2.5 py-0.5 rounded-full text-[11px] transition-all cursor-pointer border whitespace-nowrap',
+                                    headerFilterType === 'parent'
+                                        ? 'bg-sky-600 text-white border-sky-600 shadow-2xs font-semibold'
+                                        : 'bg-background text-muted-foreground hover:text-foreground border-border/70 hover:bg-muted/40 font-medium'
+                                ]"
+                            >
+                                Induk Kegiatan ({{ parentHeadersCount }})
+                            </button>
+                            <button 
+                                type="button"
+                                @click="headerFilterType = 'leaf'"
+                                :class="[
+                                    'px-2.5 py-0.5 rounded-full text-[11px] transition-all cursor-pointer border whitespace-nowrap',
+                                    headerFilterType === 'leaf'
+                                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold'
+                                        : 'bg-background text-muted-foreground hover:text-foreground border-border/70 hover:bg-muted/40 font-medium'
+                                ]"
+                            >
+                                Rincian Terbawah ({{ leafHeadersCount }})
+                            </button>
+                        </div>
+
+                        <!-- Toolbar Khusus Tree View: Kontrol Expand / Collapse -->
+                        <div v-if="activeView === 'tree' && treeData.length > 0" class="px-3.5 py-1.5 border-b bg-muted/15 flex items-center justify-between gap-2 flex-shrink-0 text-xs">
+                            <div class="flex items-center gap-1.5 text-muted-foreground text-[11px]">
+                                <Layers class="w-3.5 h-3.5 text-primary" />
+                                <span>Pohon Hirarki RBA (Klik panah untuk membuka)</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button 
+                                    type="button"
+                                    @click="expandAll"
+                                    class="px-2 py-0.5 rounded text-[11px] font-medium bg-background text-muted-foreground hover:text-foreground border border-border/70 hover:bg-muted/40 transition-all cursor-pointer shadow-2xs"
+                                >
+                                    Buka Semua
+                                </button>
+                                <button 
+                                    type="button"
+                                    @click="collapseAll"
+                                    class="px-2 py-0.5 rounded text-[11px] font-medium bg-background text-muted-foreground hover:text-foreground border border-border/70 hover:bg-muted/40 transition-all cursor-pointer shadow-2xs"
+                                >
+                                    Tutup Semua
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Content Area RBA (Scrollable) -->
                         <div class="flex-1 overflow-y-auto p-3.5 space-y-2">
                             <!-- Loading State -->
@@ -439,7 +534,7 @@ const selectAccountOnly = () => {
                             </div>
 
                             <!-- Error / Empty State (Gelondongan) -->
-                            <div v-else-if="errorMessage || (!treeData.length && !leafHeaders.length)" class="h-64 flex flex-col items-center justify-center gap-3 text-center px-6">
+                            <div v-else-if="errorMessage || (!treeData.length && !allHeaders.length)" class="h-64 flex flex-col items-center justify-center gap-3 text-center px-6">
                                 <div class="w-12 h-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center">
                                     <FileText class="w-6 h-6" />
                                 </div>
@@ -460,14 +555,14 @@ const selectAccountOnly = () => {
                                 </Button>
                             </div>
 
-                            <!-- Mode 1: List View (Daftar Leaf Headers) -->
+                            <!-- Mode 1: List View (Daftar Headers) -->
                             <div v-else-if="activeView === 'list'" class="space-y-2">
-                                <div v-if="filteredLeafHeaders.length === 0" class="text-center py-12 text-muted-foreground text-xs">
-                                    Tidak ada uraian rincian yang cocok dengan pencarian "{{ rbaSearchQuery }}".
+                                <div v-if="filteredHeaders.length === 0" class="text-center py-12 text-muted-foreground text-xs">
+                                    Tidak ada uraian yang cocok dengan pencarian "{{ rbaSearchQuery }}".
                                 </div>
 
                                 <div 
-                                    v-for="item in filteredLeafHeaders" 
+                                    v-for="item in filteredHeaders" 
                                     :key="item.id"
                                     :class="[
                                         'p-3 rounded-lg border transition-all flex items-center justify-between gap-3 text-left',
@@ -484,8 +579,19 @@ const selectAccountOnly = () => {
                                         </div>
                                         <!-- Uraian Title -->
                                         <div class="font-semibold text-xs text-foreground flex items-center gap-2">
-                                            <Badge variant="outline" class="text-[9px] py-0 px-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 flex-shrink-0">
+                                            <Badge 
+                                                v-if="item.is_leaf_header"
+                                                variant="outline" 
+                                                class="text-[9px] py-0 px-1.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 flex-shrink-0 font-medium"
+                                            >
                                                 Rincian
+                                            </Badge>
+                                            <Badge 
+                                                v-else
+                                                variant="outline" 
+                                                class="text-[9px] py-0 px-1.5 bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/30 flex-shrink-0 font-medium"
+                                            >
+                                                Induk
                                             </Badge>
                                             <span class="truncate font-semibold">{{ item.uraian }}</span>
                                         </div>
@@ -506,7 +612,7 @@ const selectAccountOnly = () => {
                                             @click="selectDetail(item)"
                                         >
                                             <Check v-if="selectedDetailId === item.id" class="w-3.5 h-3.5 mr-1" />
-                                            {{ selectedDetailId === item.id ? 'Terpilih' : 'Pilih Rincian' }}
+                                            {{ selectedDetailId === item.id ? 'Terpilih' : 'Pilih' }}
                                         </Button>
                                     </div>
                                 </div>
@@ -515,7 +621,7 @@ const selectAccountOnly = () => {
                             <!-- Mode 2: Tree View (Hirarki Pohon) -->
                             <div v-else class="space-y-1 text-xs">
                                 <template v-for="node in treeData" :key="node.id">
-                                    <TreeNode 
+                                    <RbaTreeNode 
                                         :node="node" 
                                         :level="0"
                                         :expanded-nodes="expandedNodes"
@@ -537,7 +643,7 @@ const selectAccountOnly = () => {
                         <Info class="w-3.5 h-3.5" />
                     </div>
                     <p class="text-[11.5px] leading-normal text-muted-foreground">
-                        Pilih tombol <strong class="text-foreground font-semibold">Pilih Rincian</strong> untuk rincian spesifik, atau klik <strong class="text-foreground font-semibold">Gunakan Rekening Ini Saja</strong> di kanan atas untuk pos belanja umum.
+                        Pilih tombol <strong class="text-foreground font-semibold">Pilih</strong> pada induk kegiatan maupun sub-rincian kegiatan RBA, atau klik <strong class="text-foreground font-semibold">Gunakan Rekening Ini Saja</strong> di kanan atas untuk pos belanja umum.
                     </p>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
@@ -555,158 +661,3 @@ const selectAccountOnly = () => {
         </DialogContent>
     </Dialog>
 </template>
-
-<!-- Recursive TreeNode Component defined locally -->
-<script>
-import { defineComponent, computed } from 'vue';
-
-const TreeNode = defineComponent({
-    name: 'TreeNode',
-    props: {
-        node: { type: Object, required: true },
-        level: { type: Number, default: 0 },
-        expandedNodes: { type: Object, required: true },
-        selectedId: { type: [Number, String, null], default: null }
-    },
-    emits: ['toggle', 'select'],
-    setup(props, { emit }) {
-        const isExpanded = computed(() => props.expandedNodes.has(props.node.id));
-        const hasChildren = computed(() => props.node.children && props.node.children.length > 0);
-        const isLeaf = computed(() => props.node.is_leaf_header);
-        const isItem = computed(() => props.node.type === 'item');
-        const isSelected = computed(() => props.selectedId === props.node.id);
-
-        const formatCurrency = (val) => {
-            if (val == null || isNaN(val)) return 'Rp 0';
-            return new Intl.NumberFormat('id-ID', {
-                style: 'currency',
-                currency: 'IDR',
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2,
-            }).format(val);
-        };
-
-        const formatNumber = (val) => {
-            if (val == null) return '';
-            return new Intl.NumberFormat('id-ID').format(val);
-        };
-
-        const formatVolumes = (item) => {
-            if (item.type !== 'item') return '';
-            const parts = [];
-            if (item.vol_1) parts.push(`${formatNumber(item.vol_1)} ${item.satuan_1 || ''}`.trim());
-            if (item.vol_2) parts.push(`${formatNumber(item.vol_2)} ${item.satuan_2 || ''}`.trim());
-            if (item.vol_3) parts.push(`${formatNumber(item.vol_3)} ${item.satuan_3 || ''}`.trim());
-            if (item.vol_4) parts.push(`${formatNumber(item.vol_4)} ${item.satuan_4 || ''}`.trim());
-            return parts.join(' x ');
-        };
-
-        return {
-            isExpanded,
-            hasChildren,
-            isLeaf,
-            isItem,
-            isSelected,
-            formatCurrency,
-            formatVolumes
-        };
-    },
-    template: `
-        <div class="select-none">
-            <!-- Node Row -->
-            <div 
-                :style="{ paddingLeft: (level * 18 + 6) + 'px' }"
-                :class="[
-                    'py-1.5 px-2 rounded-md flex items-center justify-between gap-2 transition-all my-0.5',
-                    isLeaf 
-                        ? (isSelected ? 'bg-primary/10 border border-primary/40 font-semibold' : 'hover:bg-muted/50 border border-transparent') 
-                        : (isItem ? 'text-muted-foreground hover:bg-muted/20 text-[11px]' : 'hover:bg-muted/40 font-medium')
-                ]"
-            >
-                <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                    <!-- Expand/Collapse Chevron for non-items -->
-                    <button 
-                        v-if="!isItem && hasChildren" 
-                        type="button"
-                        @click.stop="$emit('toggle', node.id)"
-                        class="w-4 h-4 flex items-center justify-center text-muted-foreground hover:text-foreground rounded cursor-pointer"
-                    >
-                        <svg v-if="isExpanded" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                    </button>
-                    <span v-else class="w-4 h-4 inline-block"></span>
-
-                    <!-- Node Icon -->
-                    <span v-if="isItem" class="text-muted-foreground/60">
-                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"></circle></svg>
-                    </span>
-                    <span v-else-if="isLeaf" class="text-emerald-600 dark:text-emerald-400">
-                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    </span>
-                    <span v-else class="text-muted-foreground">
-                        <svg v-if="isExpanded" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                        <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                    </span>
-
-                    <!-- Node Title & Badges -->
-                    <span class="truncate" :class="{ 'font-semibold text-foreground': isLeaf, 'text-muted-foreground': isItem }">
-                        {{ node.uraian }}
-                    </span>
-
-                    <span v-if="isLeaf" class="text-[9px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                        Rincian
-                    </span>
-                    <span v-else-if="!isItem" class="text-[9px] px-1 py-0.2 rounded bg-muted text-muted-foreground">
-                        Induk
-                    </span>
-                    
-                    <!-- Volume / Satuan for item -->
-                    <span v-if="isItem && formatVolumes(node)" class="text-[10px] text-muted-foreground/80 font-mono">
-                        ({{ formatVolumes(node) }})
-                    </span>
-                </div>
-
-                <!-- Right Side: Nominal & Button -->
-                <div class="flex items-center gap-2.5 flex-shrink-0">
-                    <span v-if="node.jumlah > 0" class="font-mono text-xs" :class="isLeaf ? 'font-bold text-foreground' : 'text-muted-foreground'">
-                        {{ formatCurrency(node.jumlah) }}
-                    </span>
-
-                    <!-- Button: Only active for Leaf Headers -->
-                    <button 
-                        v-if="isLeaf"
-                        type="button"
-                        @click="$emit('select', node)"
-                        :class="[
-                            'px-2 py-0.5 rounded text-xs font-medium transition-all cursor-pointer',
-                            isSelected 
-                                ? 'bg-primary text-primary-foreground shadow-xs' 
-                                : 'bg-muted/80 hover:bg-primary hover:text-primary-foreground text-foreground'
-                        ]"
-                    >
-                        {{ isSelected ? 'Terpilih' : 'Pilih' }}
-                    </button>
-                    <!-- Spacer for items & parents to maintain alignment -->
-                    <span v-else class="w-12 text-center text-[10px] text-muted-foreground/40">
-                        {{ isItem ? 'Sub' : '' }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Children Recursive Container -->
-            <div v-if="hasChildren && isExpanded">
-                <TreeNode 
-                    v-for="child in node.children" 
-                    :key="child.id"
-                    :node="child"
-                    :level="level + 1"
-                    :expanded-nodes="expandedNodes"
-                    :selected-id="selectedId"
-                    @toggle="$emit('toggle', $event)"
-                    @select="$emit('select', $event)"
-                />
-            </div>
-        </div>
-    `
-});
-</script>

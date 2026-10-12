@@ -1006,10 +1006,9 @@ class ExpenditureController extends Controller
         }
         unset($node);
 
-        // 3. Recursive calculation of totals, breadcrumbs, and is_leaf_header
-        $leafHeaders = [];
-
-        $processNode = function (&$node, $parentBreadcrumb = '') use (&$processNode, &$leafHeaders) {
+        // 3. Recursive calculation of totals, breadcrumbs, and levels
+        $processNode = function (&$node, $parentBreadcrumb = '', $level = 0) use (&$processNode) {
+            $node['level'] = $level;
             $node['breadcrumb'] = $parentBreadcrumb 
                 ? "{$parentBreadcrumb} ❯ {$node['uraian']}" 
                 : $node['uraian'];
@@ -1019,7 +1018,7 @@ class ExpenditureController extends Controller
                 $sum = 0;
 
                 foreach ($node['children'] as &$child) {
-                    $processNode($child, $node['breadcrumb']);
+                    $processNode($child, $node['breadcrumb'], $level + 1);
                     if ($child['type'] === 'header') {
                         $hasChildHeader = true;
                     }
@@ -1030,28 +1029,51 @@ class ExpenditureController extends Controller
                 $node['jumlah'] = $sum;
                 // Leaf header adalah header yang TIDAK memiliki anak header lagi
                 $node['is_leaf_header'] = !$hasChildHeader;
-
-                if ($node['is_leaf_header']) {
-                    $leafHeaders[] = [
-                        'id' => $node['id'],
-                        'uraian' => $node['uraian'],
-                        'breadcrumb' => $node['breadcrumb'],
-                        'jumlah' => $node['jumlah'],
-                    ];
-                }
             }
         };
 
         foreach ($roots as &$root) {
-            $processNode($root);
+            $processNode($root, '', 0);
         }
         unset($root);
+
+        // 4. Flatten headers in natural Pre-Order (Induk tampil lebih dahulu sebelum anak-anaknya)
+        $leafHeaders = [];
+        $allHeaders = [];
+
+        $flattenPreOrder = function ($node) use (&$flattenPreOrder, &$allHeaders, &$leafHeaders) {
+            if ($node['type'] === 'header') {
+                $headerItem = [
+                    'id' => $node['id'],
+                    'uraian' => $node['uraian'],
+                    'breadcrumb' => $node['breadcrumb'],
+                    'jumlah' => $node['jumlah'],
+                    'level' => $node['level'],
+                    'is_leaf_header' => $node['is_leaf_header'],
+                ];
+
+                $allHeaders[] = $headerItem;
+
+                if ($node['is_leaf_header']) {
+                    $leafHeaders[] = $headerItem;
+                }
+
+                foreach ($node['children'] as $child) {
+                    $flattenPreOrder($child);
+                }
+            }
+        };
+
+        foreach ($roots as $root) {
+            $flattenPreOrder($root);
+        }
 
         return response()->json([
             'status' => 'success',
             'rba_document' => $rbaDoc,
             'tree' => $roots,
-            'leaf_headers' => $leafHeaders
+            'leaf_headers' => $leafHeaders,
+            'all_headers' => $allHeaders,
         ]);
     }
 }
