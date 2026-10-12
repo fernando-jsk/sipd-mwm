@@ -17,6 +17,10 @@ const props = defineProps({
     selectedId: {
         type: [Number, String, null],
         default: null
+    },
+    searchQuery: {
+        type: String,
+        default: ''
     }
 });
 
@@ -27,6 +31,22 @@ const hasChildren = computed(() => props.node.children && props.node.children.le
 const isLeaf = computed(() => props.node.is_leaf_header);
 const isItem = computed(() => props.node.type === 'item');
 const isSelected = computed(() => props.selectedId != null && props.selectedId.toString() === props.node.id.toString());
+
+const highlightedParts = computed(() => {
+    const text = props.node.uraian || '';
+    const q = (props.searchQuery || '').trim();
+    if (!q || !text.toLowerCase().includes(q.toLowerCase())) {
+        return [{ text, match: false }];
+    }
+
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escaped})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map(part => ({
+        text: part,
+        match: part.toLowerCase() === q.toLowerCase()
+    }));
+});
 
 const formatCurrency = (val) => {
     if (val == null || isNaN(val)) return 'Rp 0';
@@ -63,11 +83,9 @@ const formatVolumes = (item) => {
                 'py-1.5 px-2 rounded-md flex items-center justify-between gap-2 transition-all my-0.5',
                 isSelected 
                     ? 'bg-primary/10 border border-primary/40 font-semibold' 
-                    : (isLeaf 
-                        ? 'hover:bg-muted/50 border border-transparent font-medium' 
-                        : (isItem 
-                            ? 'text-muted-foreground hover:bg-muted/20 text-[11px] border border-transparent' 
-                            : 'hover:bg-muted/40 font-semibold text-foreground border border-transparent'))
+                    : (!isItem 
+                        ? 'hover:bg-muted/40 font-semibold text-foreground border border-transparent' 
+                        : 'text-muted-foreground hover:bg-muted/20 text-[11px] border border-transparent')
             ]"
         >
             <div class="flex items-center gap-1.5 min-w-0 flex-1">
@@ -93,34 +111,25 @@ const formatVolumes = (item) => {
                         <circle cx="12" cy="12" r="2"></circle>
                     </svg>
                 </span>
-                <span v-else-if="isLeaf" class="text-emerald-600 dark:text-emerald-400 flex-shrink-0">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                </span>
                 <span v-else class="text-sky-600 dark:text-sky-400 flex-shrink-0">
-                    <svg v-if="isExpanded" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                    <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                     </svg>
                 </span>
 
-                <!-- Node Title & Badges -->
+                <!-- Node Title -->
                 <span class="truncate" :class="{ 'font-semibold text-foreground': !isItem, 'text-muted-foreground': isItem }">
-                    {{ node.uraian }}
-                </span>
-
-                <span v-if="isLeaf" class="text-[9px] px-1 py-0.2 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex-shrink-0">
-                    Rincian
-                </span>
-                <span v-else-if="!isItem" class="text-[9px] px-1 py-0.2 rounded bg-sky-500/10 text-sky-700 dark:text-sky-400 border border-sky-500/30 flex-shrink-0">
-                    Induk
+                    <template v-if="searchQuery && searchQuery.trim()">
+                        <template v-for="(part, idx) in highlightedParts" :key="idx">
+                            <mark v-if="part.match" class="bg-amber-400/30 text-amber-950 dark:text-amber-200 font-bold px-0.5 rounded">
+                                {{ part.text }}
+                            </mark>
+                            <span v-else>{{ part.text }}</span>
+                        </template>
+                    </template>
+                    <template v-else>
+                        {{ node.uraian }}
+                    </template>
                 </span>
                 
                 <!-- Volume / Satuan for item -->
@@ -165,6 +174,7 @@ const formatVolumes = (item) => {
                 :level="level + 1" 
                 :expanded-nodes="expandedNodes" 
                 :selected-id="selectedId" 
+                :search-query="searchQuery"
                 @toggle="emit('toggle', $event)" 
                 @select="emit('select', $event)" 
             />
