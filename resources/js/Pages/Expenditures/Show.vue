@@ -652,11 +652,8 @@ const deleteExpenditure = () => {
                                         <TableCell class="font-mono font-semibold text-foreground">{{ detail.account_code?.code }}</TableCell>
                                         <TableCell class="font-medium">
                                             <div class="text-foreground">{{ detail.account_code?.name }}</div>
-                                            <div v-if="detail.rba_detail" class="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal">
-                                                <Badge variant="outline" class="text-[9px] py-0 px-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 font-medium">
-                                                    Rincian RBA
-                                                </Badge>
-                                                <span class="font-medium text-foreground/80">{{ detail.rba_detail.uraian }}</span>
+                                            <div v-if="detail.rba_detail" class="mt-0.5 text-[11.5px] text-muted-foreground font-normal">
+                                                <span>{{ detail.rba_detail.uraian }}</span>
                                             </div>
                                             <span v-if="expenditure.type === 'UP'" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-normal">(Kas Bendahara Pengeluaran)</span>
                                         </TableCell>
