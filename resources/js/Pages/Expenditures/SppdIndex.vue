@@ -5,6 +5,7 @@ import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
 import { Search, Plus, Eye, FileSpreadsheet, Upload, Calendar, Coins, RotateCcw } from '@lucide/vue';
+import { SlidersHorizontal } from 'lucide-vue-next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import {
   Dialog,
@@ -28,6 +29,7 @@ import {
 import { ref, computed, watch } from 'vue';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import BulkRbaAlignmentModal from '@/Components/BulkRbaAlignmentModal.vue';
 
 const props = defineProps({
     expenditures: Object,
@@ -37,7 +39,17 @@ const props = defineProps({
         default: 0
     },
     users: Array,
+    unmappedCount: {
+        type: Number,
+        default: 0
+    }
 });
+
+const isAlignmentModalOpen = ref(false);
+
+const onAlignmentResolved = () => {
+    router.reload({ only: ['unmappedCount', 'expenditures'] });
+};
 
 const importForm = useForm({
     file: null,
@@ -184,7 +196,24 @@ const getStatusLabel = (status) => {
                         Daftar Pengajuan SPPD (Surat Permintaan Pencairan Dana)
                     </h2>
                 </div>
-                <div class="flex gap-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <Button 
+                        variant="outline" 
+                        @click="isAlignmentModalOpen = true"
+                        class="relative transition-colors"
+                        :class="unmappedCount > 0 ? 'border-amber-500/50 hover:bg-amber-500/10 text-amber-900 dark:text-amber-300' : ''"
+                        title="Penyelarasan massal rincian belanja ke RBA"
+                    >
+                        <SlidersHorizontal class="w-4 h-4 mr-2 text-amber-600 dark:text-amber-400" />
+                        <span>Penyelarasan RBA</span>
+                        <Badge 
+                            v-if="unmappedCount > 0" 
+                            variant="destructive" 
+                            class="ml-2 px-1.5 py-0 text-[10px] h-5 min-w-5 flex items-center justify-center font-bold bg-amber-600 hover:bg-amber-700 text-white border-0"
+                        >
+                            {{ unmappedCount }}
+                        </Badge>
+                    </Button>
                     <Button variant="outline" @click="isImportModalOpen = true">
                         <FileSpreadsheet class="w-4 h-4 mr-2"/> Import Excel
                     </Button>
@@ -207,6 +236,32 @@ const getStatusLabel = (status) => {
         </div>
         <div v-if="$page.props.flash?.error" class="mb-4 bg-red-500/10 border border-red-500/20 text-red-700 px-4 py-3 rounded-lg relative" role="alert">
             <span class="block sm:inline text-sm font-medium">{{ $page.props.flash.error }}</span>
+        </div>
+
+        <!-- Alert Banner Penyelarasan RBA jika ada data belum terpetakan -->
+        <div v-if="unmappedCount > 0" class="mb-4 bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded-lg bg-amber-500/20 text-amber-700 dark:text-amber-300 shrink-0">
+                    <SlidersHorizontal class="w-5 h-5" />
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm text-foreground">
+                        Terdapat {{ unmappedCount }} rincian belanja belum selaras dengan RBA
+                    </h4>
+                    <p class="text-xs text-muted-foreground mt-0.5">
+                        Sebagian pengeluaran hasil import Excel belum terhubung ke master rincian anggaran. Anda dapat menyelaraskannya ke RBA resmi secara massal.
+                    </p>
+                </div>
+            </div>
+            <Button 
+                size="sm" 
+                variant="outline" 
+                class="border-amber-500/40 bg-background hover:bg-amber-500/15 text-xs font-semibold shrink-0" 
+                @click="isAlignmentModalOpen = true"
+            >
+                <SlidersHorizontal class="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                Buka Penyelarasan Massal
+            </Button>
         </div>
 
         <!-- Ringkasan Nominal Sesuai Filter -->
@@ -507,5 +562,12 @@ const getStatusLabel = (status) => {
                 </form>
             </DialogContent>
         </Dialog>
+
+        <!-- Modal Penyelarasan Massal RBA -->
+        <BulkRbaAlignmentModal 
+            :open="isAlignmentModalOpen" 
+            @update:open="isAlignmentModalOpen = $event" 
+            @resolved="onAlignmentResolved" 
+        />
     </AuthenticatedLayout>
 </template>

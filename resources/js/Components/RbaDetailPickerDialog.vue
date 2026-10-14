@@ -78,13 +78,25 @@ const formatCurrency = (value) => {
     }).format(value);
 };
 
+// Base budgetary account codes from RBA documents only (excluding Kas di Bendahara Pengeluaran)
+const rbaAccountCodes = computed(() => {
+    if (!props.accountCodes || !props.accountCodes.length) return [];
+    return props.accountCodes.filter(acc => {
+        if (acc.is_non_budgetary) return false;
+        if (acc.code && acc.code.startsWith('1.')) return false;
+        if (acc.name && acc.name.toLowerCase().includes('kas di bendahara')) return false;
+        return true;
+    });
+});
+
 // Filtered Account Codes (Left Panel)
 const filteredAccountCodes = computed(() => {
-    if (!props.accountCodes || !props.accountCodes.length) return [];
-    if (!accountSearchQuery.value.trim()) return props.accountCodes;
+    const list = rbaAccountCodes.value;
+    if (!list.length) return [];
+    if (!accountSearchQuery.value.trim()) return list;
 
     const q = accountSearchQuery.value.toLowerCase().trim();
-    return props.accountCodes.filter(acc => 
+    return list.filter(acc => 
         (acc.code && acc.code.toLowerCase().includes(q)) ||
         (acc.name && acc.name.toLowerCase().includes(q))
     );
@@ -93,7 +105,12 @@ const filteredAccountCodes = computed(() => {
 // Currently Active Account Object
 const activeAccount = computed(() => {
     if (!selectedAccountId.value) return null;
-    return props.accountCodes.find(a => a.id.toString() === selectedAccountId.value.toString()) || null;
+    const found = props.accountCodes.find(a => a.id.toString() === selectedAccountId.value.toString());
+    if (found) return found;
+    if (rbaDoc.value?.account_code) {
+        return rbaDoc.value.account_code;
+    }
+    return null;
 });
 
 // Fetch RBA Tree Data
@@ -357,7 +374,7 @@ watch(rbaSearchQuery, (newQuery) => {
 const selectDetail = (item) => {
     selectedDetailId.value = item.id;
     emit('select', {
-        account_code_id: selectedAccountId.value,
+        account_code_id: rbaDoc.value?.account_code_id || selectedAccountId.value,
         rba_detail_id: item.id,
         rba_detail_uraian: item.uraian,
         rba_detail_breadcrumb: item.breadcrumb,
@@ -369,7 +386,7 @@ const selectDetail = (item) => {
 const selectAccountOnly = () => {
     if (!selectedAccountId.value) return;
     emit('select', {
-        account_code_id: selectedAccountId.value,
+        account_code_id: rbaDoc.value?.account_code_id || selectedAccountId.value,
         rba_detail_id: null,
         rba_detail_uraian: '',
         rba_detail_breadcrumb: '',
