@@ -53,11 +53,17 @@ class ExpenditureController extends Controller
             $request->only('search', 'search_by', 'status', 'start_date', 'end_date', 'date', 'sort')
         );
 
+        $unmappedCount = ExpenditureDetail::whereNull('rba_detail_id')
+            ->whereNotNull('uraian')
+            ->where('uraian', '!=', '')
+            ->count();
+
         return Inertia::render('Expenditures/SppdIndex', [
             'expenditures' => $expenditures,
             'filters' => $filters,
             'totalAmount' => $totalAmount,
             'users' => User::all(['id', 'name']),
+            'unmappedCount' => $unmappedCount,
         ]);
     }
 
@@ -200,6 +206,7 @@ class ExpenditureController extends Controller
             'details' => 'required|array|min:1',
             'details.*.account_code_id' => 'required|exists:account_codes,id',
             'details.*.rba_detail_id' => 'nullable|exists:rba_details,id',
+            'details.*.uraian' => 'nullable|string|max:500',
             'details.*.amount' => 'required|numeric|min:0.01',
             'taxes' => 'nullable|array',
             'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
@@ -225,9 +232,15 @@ class ExpenditureController extends Controller
             $expenditure = Expenditure::create($validated);
 
             foreach ($validated['details'] as $detail) {
+                $uraian = $detail['uraian'] ?? $detail['rba_detail_uraian'] ?? null;
+                if (empty($uraian) && !empty($detail['rba_detail_id'])) {
+                    $uraian = RbaDetail::where('id', $detail['rba_detail_id'])->value('uraian');
+                }
+
                 $expenditure->details()->create([
                     'account_code_id' => $detail['account_code_id'],
                     'rba_detail_id' => $detail['rba_detail_id'] ?? null,
+                    'uraian' => $uraian,
                     'amount' => $detail['amount']
                 ]);
             }
@@ -341,6 +354,7 @@ class ExpenditureController extends Controller
             'details' => 'required|array|min:1',
             'details.*.account_code_id' => 'required|exists:account_codes,id',
             'details.*.rba_detail_id' => 'nullable|exists:rba_details,id',
+            'details.*.uraian' => 'nullable|string|max:500',
             'details.*.amount' => 'required|numeric|min:0.01',
             'taxes' => 'nullable|array',
             'taxes.*.tax_type' => 'required|in:PPN,PPh 21,PPh 22,PPh 23,PPh Final',
@@ -372,9 +386,15 @@ class ExpenditureController extends Controller
 
             // Insert new details
             foreach ($validated['details'] as $detail) {
+                $uraian = $detail['uraian'] ?? $detail['rba_detail_uraian'] ?? null;
+                if (empty($uraian) && !empty($detail['rba_detail_id'])) {
+                    $uraian = RbaDetail::where('id', $detail['rba_detail_id'])->value('uraian');
+                }
+
                 $expenditure->details()->create([
                     'account_code_id' => $detail['account_code_id'],
                     'rba_detail_id' => $detail['rba_detail_id'] ?? null,
+                    'uraian' => $uraian,
                     'amount' => $detail['amount']
                 ]);
             }
@@ -729,9 +749,9 @@ class ExpenditureController extends Controller
         return $query;
     }
 
-    private function getAccountCodesWithBudgetUsage(Request $request, $excludeExpenditureId = null)
+    private function getAccountCodesWithBudgetUsage(Request $request, $excludeExpenditureId = null, bool $rbaOnly = false)
     {
-        $budgetYear = $request->session()->get('active_budget_year', date('Y'));
+        $budgetYear = $request->hasSession() ? $request->session()->get('active_budget_year', date('Y')) : date('Y');
         $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? Setting::where('key', 'rba_active_version')->value('value') ?? 0);
 
         $rbaDocs = RbaDocument::with('accountCode')
@@ -780,26 +800,28 @@ class ExpenditureController extends Controller
             }
         }
 
-        // Tambahkan akun non-anggaran dari rules (misal Kas di Bendahara Pengeluaran untuk UP)
-        $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
-        if ($rulesJson) {
-            $rules = json_decode($rulesJson, true);
-            foreach ($rules as $rule) {
-                if (!empty($rule['debit_account_id'])) {
-                    $acc = AccountCode::find($rule['debit_account_id']);
-                    if ($acc && !collect($accountCodes)->contains('id', $acc->id)) {
-                        $accountCodes[] = [
-                            'id' => $acc->id,
-                            'code' => $acc->code,
-                            'name' => $acc->name,
-                            'funding_source_id' => null,
-                            'total_budget' => 0,
-                            'submitted_amount' => 0,
-                            'disbursed_amount' => 0,
-                            'used_amount' => 0,
-                            'remaining_budget' => 0,
-                            'is_non_budgetary' => true
-                        ];
+        // Tambahkan akun non-anggaran dari rules (misal Kas di Bendahara Pengeluaran untuk UP) jika tidak rbaOnly
+        if (!$rbaOnly) {
+            $rulesJson = Setting::where('key', 'expenditure_journal_rules')->value('value');
+            if ($rulesJson) {
+                $rules = json_decode($rulesJson, true);
+                foreach ($rules as $rule) {
+                    if (!empty($rule['debit_account_id'])) {
+                        $acc = AccountCode::find($rule['debit_account_id']);
+                        if ($acc && !collect($accountCodes)->contains('id', $acc->id)) {
+                            $accountCodes[] = [
+                                'id' => $acc->id,
+                                'code' => $acc->code,
+                                'name' => $acc->name,
+                                'funding_source_id' => null,
+                                'total_budget' => 0,
+                                'submitted_amount' => 0,
+                                'disbursed_amount' => 0,
+                                'used_amount' => 0,
+                                'remaining_budget' => 0,
+                                'is_non_budgetary' => true
+                            ];
+                        }
                     }
                 }
             }
@@ -946,6 +968,19 @@ class ExpenditureController extends Controller
             ->first();
 
         if (!$rbaDoc) {
+            $account = AccountCode::find($accountCodeId);
+            if ($account) {
+                $rbaDoc = RbaDocument::with('accountCode')
+                    ->where('budget_year', $budgetYear)
+                    ->where('version', $activeVersion)
+                    ->whereHas('accountCode', function ($q) use ($account) {
+                        $q->where('name', $account->name);
+                    })
+                    ->first();
+            }
+        }
+
+        if (!$rbaDoc) {
             return response()->json([
                 'status' => 'not_found',
                 'message' => 'Dokumen RBA tidak ditemukan untuk rekening ini pada tahun anggaran aktif.',
@@ -1074,6 +1109,67 @@ class ExpenditureController extends Controller
             'tree' => $roots,
             'leaf_headers' => $leafHeaders,
             'all_headers' => $allHeaders,
+        ]);
+    }
+
+    /**
+     * Ambil daftar kelompok rincian belanja yang belum terpetakan ke RBA.
+     */
+    public function getUnmappedRbaDetails(Request $request)
+    {
+        $items = ExpenditureDetail::whereNull('rba_detail_id')
+            ->whereNotNull('uraian')
+            ->where('uraian', '!=', '')
+            ->select(
+                'account_code_id',
+                'uraian',
+                DB::raw('COUNT(*) as count'),
+                DB::raw('SUM(amount) as total_amount')
+            )
+            ->groupBy('account_code_id', 'uraian')
+            ->orderBy('count', 'desc')
+            ->with('accountCode')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'items' => $items,
+            'total_unmapped_rows' => $items->sum('count'),
+            'total_distinct_texts' => $items->count(),
+            'account_codes' => $this->getAccountCodesWithBudgetUsage($request, null, true),
+        ]);
+    }
+
+    /**
+     * Selaraskan rincian belanja secara massal ke rincian RBA terpilih.
+     */
+    public function bulkMapRbaDetail(Request $request)
+    {
+        $validated = $request->validate([
+            'account_code_id' => 'required|exists:account_codes,id',
+            'raw_uraian' => 'required|string',
+            'rba_detail_id' => 'required|exists:rba_details,id',
+        ]);
+
+        $rbaDetail = RbaDetail::with('rbaDocument.accountCode')->findOrFail($validated['rba_detail_id']);
+
+        $count = ExpenditureDetail::where('account_code_id', $validated['account_code_id'])
+            ->where('uraian', $validated['raw_uraian'])
+            ->whereNull('rba_detail_id')
+            ->update([
+                'rba_detail_id' => $rbaDetail->id,
+                'account_code_id' => $rbaDetail->rbaDocument->account_code_id ?? $validated['account_code_id'],
+                'uraian' => $rbaDetail->uraian, // Selaraskan ke teks resmi RBA
+            ]);
+
+        activity('expenditure')
+            ->log("Menyelaraskan secara massal {$count} rincian belanja '{$validated['raw_uraian']}' ke RBA '{$rbaDetail->uraian}'");
+
+        return response()->json([
+            'status' => 'success',
+            'updated_count' => $count,
+            'official_uraian' => $rbaDetail->uraian,
+            'message' => "Berhasil menyelaraskan {$count} rincian belanja ke '{$rbaDetail->uraian}'."
         ]);
     }
 }

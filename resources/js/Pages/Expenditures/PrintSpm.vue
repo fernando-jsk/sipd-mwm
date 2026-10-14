@@ -170,8 +170,8 @@ const terbilang = (angka) => {
                         <td class="border border-black px-1.5 py-0.5 text-center align-top">{{ idx + 1 }}</td>
                         <td class="border border-black px-1.5 py-0.5 align-top">
                             <div>{{ detail.account_code?.code }} - {{ detail.account_code?.name }}</div>
-                            <div v-if="detail.rba_detail" class="text-[9px] text-gray-700 italic font-medium">
-                                Rincian: {{ detail.rba_detail.uraian }}
+                            <div v-if="detail.uraian || detail.rba_detail" class="text-[9px] text-gray-700 italic font-medium">
+                                Rincian: {{ detail.uraian || detail.rba_detail?.uraian }}
                             </div>
                         </td>
                         <td class="border border-black px-1.5 py-0.5 text-right align-top font-mono">Rp{{ formatCurrency(detail.amount) }}</td>

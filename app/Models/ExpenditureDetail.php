@@ -16,7 +16,7 @@ class ExpenditureDetail extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['amount', 'account_code_id', 'rba_detail_id'])
+            ->logOnly(['amount', 'account_code_id', 'rba_detail_id', 'uraian'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
             ->useLogName('expenditure_detail')

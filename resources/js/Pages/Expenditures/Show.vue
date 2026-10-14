@@ -652,8 +652,8 @@ const deleteExpenditure = () => {
                                         <TableCell class="font-mono font-semibold text-foreground">{{ detail.account_code?.code }}</TableCell>
                                         <TableCell class="font-medium">
                                             <div class="text-foreground">{{ detail.account_code?.name }}</div>
-                                            <div v-if="detail.rba_detail" class="mt-0.5 text-[11.5px] text-muted-foreground font-normal">
-                                                <span>{{ detail.rba_detail.uraian }}</span>
+                                            <div v-if="detail.uraian || detail.rba_detail" class="mt-0.5 text-[11.5px] text-muted-foreground font-normal">
+                                                <span>{{ detail.uraian || detail.rba_detail?.uraian }}</span>
                                             </div>
                                             <span v-if="expenditure.type === 'UP'" class="ml-2 text-xs text-blue-600 dark:text-blue-400 font-normal">(Kas Bendahara Pengeluaran)</span>
                                         </TableCell>

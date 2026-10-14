@@ -85,10 +85,11 @@ const form = useForm({
             ...d, 
             account_code_id: d.account_code_id.toString(),
             rba_detail_id: d.rba_detail_id || null,
-            rba_detail_uraian: d.rba_detail?.uraian || '',
+            uraian: d.uraian || d.rba_detail?.uraian || '',
+            rba_detail_uraian: d.uraian || d.rba_detail?.uraian || '',
             rba_detail_breadcrumb: ''
           })) 
-        : [{ account_code_id: '', rba_detail_id: null, rba_detail_uraian: '', rba_detail_breadcrumb: '', amount: '' }],
+        : [{ account_code_id: '', rba_detail_id: null, uraian: '', rba_detail_uraian: '', rba_detail_breadcrumb: '', amount: '' }],
     taxes: props.expenditure?.taxes || [],
     receipt_ids: props.linkedReceiptIds ? [...props.linkedReceiptIds] : [],
 });
@@ -112,6 +113,7 @@ const initUpForm = () => {
             form.details.push({
                 account_code_id: upDebitAccId ? upDebitAccId.toString() : '',
                 rba_detail_id: null,
+                uraian: '',
                 rba_detail_uraian: '',
                 rba_detail_breadcrumb: '',
                 amount: ''
@@ -287,6 +289,7 @@ const syncReceiptsToForm = () => {
     form.details = Object.entries(grouped).map(([accId, amt]) => ({
         account_code_id: accId,
         rba_detail_id: null,
+        uraian: '',
         rba_detail_uraian: '',
         rba_detail_breadcrumb: '',
         amount: amt
@@ -338,7 +341,7 @@ watch(() => form.type, (newType, oldType) => {
             form.activity_description = '';
         }
         if (form.details.length === 0) {
-            form.details = [{ account_code_id: '', rba_detail_id: null, rba_detail_uraian: '', rba_detail_breadcrumb: '', amount: '' }];
+            form.details = [{ account_code_id: '', rba_detail_id: null, uraian: '', rba_detail_uraian: '', rba_detail_breadcrumb: '', amount: '' }];
         }
     }
 
@@ -445,6 +448,7 @@ const addDetailRow = () => {
     form.details.push({
         account_code_id: '',
         rba_detail_id: null,
+        uraian: '',
         rba_detail_uraian: '',
         rba_detail_breadcrumb: '',
         amount: '',
@@ -478,6 +482,7 @@ const onAccountAndRbaSelected = (selection) => {
     if (currentPickerRowIndex.value !== null && form.details[currentPickerRowIndex.value]) {
         form.details[currentPickerRowIndex.value].account_code_id = selection.account_code_id ? selection.account_code_id.toString() : '';
         form.details[currentPickerRowIndex.value].rba_detail_id = selection.rba_detail_id || null;
+        form.details[currentPickerRowIndex.value].uraian = selection.rba_detail_uraian || '';
         form.details[currentPickerRowIndex.value].rba_detail_uraian = selection.rba_detail_uraian || '';
         form.details[currentPickerRowIndex.value].rba_detail_breadcrumb = selection.rba_detail_breadcrumb || '';
     }
@@ -487,6 +492,7 @@ const clearAccountAndRba = (rowIndex) => {
     if (form.details[rowIndex]) {
         form.details[rowIndex].account_code_id = '';
         form.details[rowIndex].rba_detail_id = null;
+        form.details[rowIndex].uraian = '';
         form.details[rowIndex].rba_detail_uraian = '';
         form.details[rowIndex].rba_detail_breadcrumb = '';
     }
@@ -1137,10 +1143,10 @@ const submitForm = (status) => {
 
                                                 <!-- Baris 2: Objek Belanja Utama (Hero Object) & Breadcrumb -->
                                                 <div class="flex items-center gap-1.5 text-xs min-w-0 overflow-hidden">
-                                                    <div v-if="item.rba_detail_id && item.rba_detail_uraian" class="flex items-center gap-1.5 min-w-0 w-full text-foreground overflow-hidden">
+                                                    <div v-if="(item.rba_detail_id || item.uraian) && (item.rba_detail_uraian || item.uraian)" class="flex items-center gap-1.5 min-w-0 w-full text-foreground overflow-hidden">
                                                         <CornerDownRight class="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
-                                                        <span class="text-xs sm:text-[13px] font-bold text-foreground truncate min-w-0 flex-1 leading-snug" :title="item.rba_detail_uraian">
-                                                            {{ item.rba_detail_uraian }}
+                                                        <span class="text-xs sm:text-[13px] font-bold text-foreground truncate min-w-0 flex-1 leading-snug" :title="item.rba_detail_uraian || item.uraian">
+                                                            {{ item.rba_detail_uraian || item.uraian }}
                                                         </span>
                                                         <span 
                                                             v-if="item.rba_detail_breadcrumb" 

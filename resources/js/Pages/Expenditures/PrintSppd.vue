@@ -196,8 +196,8 @@ const terbilang = (angka) => {
                         <td class="border border-black px-1.5 py-0.5 text-center font-mono">{{ detail.account_code?.code }}</td>
                         <td class="border border-black px-1.5 py-0.5">
                             <div>{{ detail.account_code?.name }}</div>
-                            <div v-if="detail.rba_detail" class="text-[9px] text-gray-700 italic font-medium">
-                                - {{ detail.rba_detail.uraian }}
+                            <div v-if="detail.uraian || detail.rba_detail" class="text-[9px] text-gray-700 italic font-medium">
+                                - {{ detail.uraian || detail.rba_detail?.uraian }}
                             </div>
                         </td>
                         <td class="border border-black px-1.5 py-0.5 text-right font-mono">{{ formatCurrency(detail.amount) }}</td>

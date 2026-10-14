@@ -8,6 +8,9 @@ use App\Models\ExpenditureTax;
 use App\Models\AccountCode;
 use App\Models\Vendor;
 use App\Models\User;
+use App\Models\RbaDocument;
+use App\Models\RbaDetail;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -45,6 +48,12 @@ class ExpenditureImportController extends Controller
         ];
 
         DB::beginTransaction();
+
+        $rbaCache = [
+            'version' => [],
+            'doc' => [],
+            'details' => []
+        ];
 
         try {
             for ($row = 2; $row <= $highestRow; $row++) {
@@ -116,9 +125,11 @@ class ExpenditureImportController extends Controller
                 
                 for ($col = 15; $col <= 38; $col += 3) {
                     $kodeRekeningStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                    $uraianStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 1);
                     $jumlahStr = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col + 2);
                     
                     $kodeRekening = trim($worksheet->getCell($kodeRekeningStr . $row)->getValue() ?? '');
+                    $uraianExcel = trim($worksheet->getCell($uraianStr . $row)->getValue() ?? '');
                     $jumlah = (float)($worksheet->getCell($jumlahStr . $row)->getCalculatedValue() ?? 0);
                     
                     if (!empty($kodeRekening) && $jumlah > 0) {
@@ -131,9 +142,13 @@ class ExpenditureImportController extends Controller
                             $skipRow = true;
                             break; // Keluar dari loop set rekening
                         }
+
+                        $matchedRba = $this->matchRbaDetail($accountCode, $tanggalSpp, $uraianExcel, $rbaCache);
                         
                         $detailsToInsert[] = [
                             'account_code_id' => $accountCode->id,
+                            'rba_detail_id' => $matchedRba ? $matchedRba['id'] : null,
+                            'uraian' => $matchedRba ? $matchedRba['uraian'] : (!empty($uraianExcel) ? $uraianExcel : null),
                             'amount' => $jumlah
                         ];
                     }
@@ -241,5 +256,100 @@ class ExpenditureImportController extends Controller
             Log::error('Excel Import Error: ' . $e->getMessage());
             return redirect()->back()->withErrors(['file' => 'Terjadi kesalahan saat membaca baris ' . $row . ': ' . $e->getMessage()]);
         }
+    }
+
+    /**
+     * Cari RbaDetail yang cocok berdasarkan dokumen RBA aktif dan uraian Excel.
+     * Tier 1: Exact match (case-insensitive & trim).
+     * Tier 2: Normalization & Cleaning (hapus awalan, catatan kurung, bulan/tahun, tanda baca).
+     */
+    private function matchRbaDetail(AccountCode $accountCode, string $tanggalSpp, string $uraianExcel, array &$rbaCache): ?array
+    {
+        if (empty($uraianExcel)) {
+            return null;
+        }
+
+        $year = date('Y', strtotime($tanggalSpp));
+
+        if (!isset($rbaCache['version'][$year])) {
+            $rbaCache['version'][$year] = (int) (Setting::where('key', "rba_active_version_{$year}")->value('value') 
+                ?? Setting::where('key', 'rba_active_version')->value('value') 
+                ?? 0);
+        }
+        $activeVersion = $rbaCache['version'][$year];
+
+        // Cache document per accountCode->id
+        if (!isset($rbaCache['doc'][$year][$accountCode->id])) {
+            $rbaDoc = RbaDocument::where('budget_year', $year)
+                ->where('version', $activeVersion)
+                ->where('account_code_id', $accountCode->id)
+                ->first();
+
+            if (!$rbaDoc) {
+                // Fallback untuk variasi kode rekening (misal .99.9999 vs .099.09999)
+                $rbaDoc = RbaDocument::where('budget_year', $year)
+                    ->where('version', $activeVersion)
+                    ->whereHas('accountCode', function ($q) use ($accountCode) {
+                        $q->where('name', $accountCode->name);
+                    })
+                    ->first();
+            }
+
+            $rbaCache['doc'][$year][$accountCode->id] = $rbaDoc;
+        }
+
+        $rbaDoc = $rbaCache['doc'][$year][$accountCode->id];
+        if (!$rbaDoc) {
+            return null;
+        }
+
+        // Cache detail lookup map [normalized_uraian => ['id' => ..., 'uraian' => ...]] per rba_document_id
+        if (!isset($rbaCache['details'][$rbaDoc->id])) {
+            $exactMap = [];
+            $cleanMap = [];
+
+            $details = RbaDetail::where('rba_document_id', $rbaDoc->id)
+                ->get(['id', 'uraian']);
+
+            foreach ($details as $item) {
+                $rawUraian = trim($item->uraian);
+                $norm = strtolower($rawUraian);
+                $exactMap[$norm] = ['id' => $item->id, 'uraian' => $rawUraian];
+
+                // Clean string for Tier 2: alphanumeric only
+                $cleanPunct = preg_replace('/[^a-z0-9]/', '', $norm);
+                if (!empty($cleanPunct) && !isset($cleanMap[$cleanPunct])) {
+                    $cleanMap[$cleanPunct] = ['id' => $item->id, 'uraian' => $rawUraian];
+                }
+            }
+
+            $rbaCache['details'][$rbaDoc->id] = [
+                'exact' => $exactMap,
+                'clean' => $cleanMap
+            ];
+        }
+
+        $lookup = $rbaCache['details'][$rbaDoc->id];
+        $normExcel = strtolower(trim($uraianExcel));
+
+        // Tier 1: Exact match
+        if (isset($lookup['exact'][$normExcel])) {
+            return $lookup['exact'][$normExcel];
+        }
+
+        // Tier 2: Normalization & Cleaning
+        $cleanText = $normExcel;
+        $cleanText = preg_replace('/^pembayaran\s+/i', '', $cleanText);
+        $cleanText = preg_replace('/\(.*?\)/', '', $cleanText); // Hapus isi tanda kurung
+        $cleanText = preg_replace('/\b(januari|februari|maret|april|mei|juni|juli|agustus|september|oktober|november|desember)\b.*$/i', '', $cleanText);
+        $cleanText = preg_replace('/\b202[0-9]\b/', '', $cleanText);
+        $cleanText = trim($cleanText, " \t\n\r\0\x0B-/,");
+        $cleanNoPunct = preg_replace('/[^a-z0-9]/', '', $cleanText);
+
+        if (!empty($cleanNoPunct) && isset($lookup['clean'][$cleanNoPunct])) {
+            return $lookup['clean'][$cleanNoPunct];
+        }
+
+        return null;
     }
 }
