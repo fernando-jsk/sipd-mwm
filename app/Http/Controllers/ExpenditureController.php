@@ -479,9 +479,9 @@ class ExpenditureController extends Controller
         $validated = $request->validate([
             'status' => 'required|in:draft,submitted,sppd_submitted,authorized,opd_authorized,verified,disbursed,spd_disbursed,rejected',
             'rejection_note' => 'required_if:status,rejected|nullable|string',
-            'opd_number' => 'required_if:status,authorized|required_if:status,opd_authorized|nullable|string',
+            'opd_number' => 'nullable|string',
             'opd_notes' => 'nullable|string',
-            'spd_number' => 'required_if:status,disbursed|required_if:status,spd_disbursed|nullable|string'
+            'spd_number' => 'nullable|string'
         ]);
 
         $updateData = [
@@ -496,7 +496,7 @@ class ExpenditureController extends Controller
         // 2. Otorisasi OPD oleh Direktur
         if ($validated['status'] === 'authorized' || $validated['status'] === 'opd_authorized') {
             $updateData['status'] = 'authorized';
-            $updateData['opd_number'] = $validated['opd_number'];
+            $updateData['opd_number'] = !empty($validated['opd_number']) ? $validated['opd_number'] : $expenditure->document_number;
             $updateData['opd_date'] = now();
             $updateData['opd_notes'] = $validated['opd_notes'] ?? null;
             $updateData['opd_authorized_by'] = auth()->id();
@@ -505,7 +505,7 @@ class ExpenditureController extends Controller
         // 3. Verifikasi & Pencairan SPD oleh Kabag Keuangan
         if ($validated['status'] === 'disbursed' || $validated['status'] === 'spd_disbursed') {
             $updateData['status'] = 'disbursed';
-            $updateData['spd_number'] = $validated['spd_number'];
+            $updateData['spd_number'] = !empty($validated['spd_number']) ? $validated['spd_number'] : $expenditure->document_number;
             $updateData['spd_date'] = now();
             $updateData['spd_disbursed_by'] = auth()->id();
 

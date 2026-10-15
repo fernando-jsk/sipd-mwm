@@ -132,9 +132,9 @@ const openStatusDialog = (action) => {
     }
     
     statusForm.rejection_note = '';
-    statusForm.opd_number = props.expenditure.opd_number || '';
+    statusForm.opd_number = props.expenditure.document_number || props.expenditure.opd_number || '';
     statusForm.opd_notes = props.expenditure.opd_notes || '';
-    statusForm.spd_number = props.expenditure.spd_number || '';
+    statusForm.spd_number = props.expenditure.document_number || props.expenditure.spd_number || '';
     
     isStatusDialogOpen.value = true;
 };
@@ -1007,10 +1007,10 @@ const deleteExpenditure = () => {
                             Silakan masukkan alasan penolakan. Dokumen akan dikembalikan ke status revisi/ditolak.
                         </template>
                         <template v-else-if="dialogAction === 'authorize'">
-                            Silakan isi Nomor Surat Otorisasi Direktur (OPD) untuk menyetujui pengajuan pencairan ini.
+                            Konfirmasi otorisasi pengeluaran dana oleh Direktur. Nomor surat otomatis menggunakan nomor SPPD.
                         </template>
                         <template v-else-if="dialogAction === 'disburse'">
-                            Silakan isi Nomor Surat Pencairan Dana (SPD) untuk menyelesaikan proses pencairan.
+                            Konfirmasi verifikasi dan pencairan dana oleh Kabag Keuangan. Nomor surat otomatis menggunakan nomor SPPD.
                         </template>
                         <template v-else>
                             Apakah Anda yakin ingin mengajukan SPPD ini ke Direktur?
@@ -1020,10 +1020,14 @@ const deleteExpenditure = () => {
                 
                 <!-- Form Inputs for Authorize (OPD) -->
                 <div v-if="dialogAction === 'authorize'" class="space-y-4 py-2">
-                    <div>
-                        <Label for="opd_number" class="mb-1 block text-xs font-semibold">Nomor Surat OPD <span class="text-destructive">*</span></Label>
-                        <Input id="opd_number" v-model="statusForm.opd_number" placeholder="Contoh: 001/OPD/DIR/2026" class="font-mono text-sm" />
-                        <p v-if="statusForm.errors.opd_number" class="text-xs text-destructive mt-1">{{ statusForm.errors.opd_number }}</p>
+                    <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1">
+                        <div class="text-[11px] text-muted-foreground uppercase font-semibold">Nomor Surat Otorisasi (OPD)</div>
+                        <div class="text-sm font-bold font-mono text-amber-700 dark:text-amber-400">
+                            {{ expenditure.document_number }}
+                        </div>
+                        <div class="text-[11px] text-muted-foreground italic">
+                            *Otomatis menggunakan nomor surat SPPD yang sudah ada.
+                        </div>
                     </div>
                     <div>
                         <Label for="opd_notes" class="mb-1 block text-xs font-semibold">Catatan Otorisasi Direktur (Opsional)</Label>
@@ -1032,11 +1036,15 @@ const deleteExpenditure = () => {
                 </div>
 
                 <!-- Form Inputs for Disburse (SPD) -->
-                <div v-if="dialogAction === 'disburse'" class="space-y-4 py-2">
-                    <div>
-                        <Label for="spd_number" class="mb-1 block text-xs font-semibold">Nomor Surat SPD <span class="text-destructive">*</span></Label>
-                        <Input id="spd_number" v-model="statusForm.spd_number" placeholder="Contoh: 001/SPD/KABAG/2026" class="font-mono text-sm" />
-                        <p v-if="statusForm.errors.spd_number" class="text-xs text-destructive mt-1">{{ statusForm.errors.spd_number }}</p>
+                <div v-if="dialogAction === 'disburse'" class="space-y-3 py-2">
+                    <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl space-y-1">
+                        <div class="text-[11px] text-muted-foreground uppercase font-semibold">Nomor Surat Pencairan (SPD)</div>
+                        <div class="text-sm font-bold font-mono text-emerald-700 dark:text-emerald-400">
+                            {{ expenditure.document_number }}
+                        </div>
+                        <div class="text-[11px] text-muted-foreground italic">
+                            *Otomatis menggunakan nomor surat SPPD yang sudah ada.
+                        </div>
                     </div>
                 </div>
 
@@ -1055,7 +1063,7 @@ const deleteExpenditure = () => {
                         :variant="dialogAction === 'reject' ? 'destructive' : 'default'" 
                         :class="dialogAction === 'disburse' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''"
                         @click="updateStatus" 
-                        :disabled="statusForm.processing || (dialogAction === 'reject' && !statusForm.rejection_note) || (dialogAction === 'authorize' && !statusForm.opd_number) || (dialogAction === 'disburse' && !statusForm.spd_number)"
+                        :disabled="statusForm.processing || (dialogAction === 'reject' && !statusForm.rejection_note)"
                     >
                         {{ statusForm.processing ? 'Memproses...' : 'Konfirmasi' }}
                     </Button>
