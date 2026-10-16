@@ -540,6 +540,56 @@ const getAccountInfo = (accountId, key) => {
     return acc ? acc[key] : 0;
 };
 
+const monthNamesIndo = [
+    '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+const getCumulativeCashInfo = (accountId) => {
+    if (!accountId || !props.accountCodes) return null;
+    const acc = props.accountCodes.find(a => a.id === Number(accountId));
+    if (!acc) return null;
+
+    const hasAllocations = acc.cash_allocations && Object.keys(acc.cash_allocations).length > 0;
+    const month = form.date ? (new Date(form.date).getMonth() + 1) : (new Date().getMonth() + 1);
+    const monthName = monthNamesIndo[month] || `Bulan ${month}`;
+
+    if (!hasAllocations) {
+        return {
+            has_allocation: false,
+            month,
+            month_name: monthName,
+            cumulative_budget: 0,
+            remaining_cash: 0,
+        };
+    }
+
+    let cumBudget = 0;
+    for (let m = 1; m <= month; m++) {
+        cumBudget += Number(acc.cash_allocations[m] || 0);
+    }
+
+    if (cumBudget <= 0) {
+        return {
+            has_allocation: false,
+            month,
+            month_name: monthName,
+            cumulative_budget: 0,
+            remaining_cash: 0,
+        };
+    }
+
+    const used = Number(acc.used_amount || 0);
+    const remainingCash = cumBudget - used;
+    return {
+        has_allocation: true,
+        month,
+        month_name: monthName,
+        cumulative_budget: cumBudget,
+        remaining_cash: remainingCash,
+    };
+};
+
 const totalAmount = computed(() => {
     return form.details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 });
@@ -1163,39 +1213,78 @@ const submitForm = (status) => {
                                                     </div>
                                                 </div>
 
-                                                <!-- Baris 3: Status Pagu (Compact Bar dengan Kontras Jelas) -->
-                                                <div 
-                                                    class="px-2.5 py-1 rounded-md text-[11px] font-mono flex items-center justify-between gap-2 transition-colors"
-                                                    :class="[
-                                                        Number(item.amount || 0) > Number(getAccountInfo(Number(item.account_code_id), 'remaining_budget'))
-                                                            ? 'bg-destructive/10 text-destructive'
-                                                            : 'bg-muted/40 text-muted-foreground'
-                                                    ]"
-                                                >
-                                                    <div class="flex items-center gap-1.5 truncate">
-                                                        <span class="text-[10px] tracking-wider uppercase text-muted-foreground font-semibold">Total Pagu:</span>
-                                                        <span class="font-bold text-foreground">
-                                                            {{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}
-                                                        </span>
+                                                <!-- Unified Budget & Cash Summary Card -->
+                                                <div class="rounded-lg border border-border/80 bg-muted/20 p-2.5 space-y-2 text-xs transition-colors">
+                                                    <!-- Row 1: Pagu Tahunan (RBA) -->
+                                                    <div class="flex flex-wrap items-center justify-between gap-2 pb-1.5 border-b border-border/60">
+                                                        <div class="flex items-center gap-1.5 truncate">
+                                                            <span class="text-[10px] tracking-wider uppercase font-semibold text-muted-foreground">Pagu Tahunan:</span>
+                                                            <span class="font-bold font-mono text-foreground">
+                                                                {{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'total_budget')) }}
+                                                            </span>
+                                                        </div>
+                                                        <div class="flex items-center gap-1.5 flex-shrink-0">
+                                                            <span class="text-[10px] tracking-wider uppercase font-semibold text-muted-foreground">Sisa Pagu:</span>
+                                                            <span 
+                                                                class="px-1.5 py-0.5 rounded font-mono font-bold text-xs"
+                                                                :class="[
+                                                                    Number(item.amount || 0) > Number(getAccountInfo(Number(item.account_code_id), 'remaining_budget'))
+                                                                        ? 'bg-destructive/15 text-destructive font-extrabold border border-destructive/20'
+                                                                        : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20'
+                                                                ]"
+                                                            >
+                                                                {{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'remaining_budget')) }}
+                                                            </span>
+                                                            <span 
+                                                                class="cursor-help text-muted-foreground hover:text-foreground inline-flex items-center ml-0.5"
+                                                                :title="`Rincian Pemakaian Pagu:\n• Jml. Pengajuan: ${formatCurrency(getAccountInfo(Number(item.account_code_id), 'submitted_amount'))}\n• Jml. Cair (SPD): ${formatCurrency(getAccountInfo(Number(item.account_code_id), 'disbursed_amount'))}`"
+                                                            >
+                                                                <Info class="w-3 h-3" />
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div class="flex items-center gap-2 flex-shrink-0">
-                                                        <span class="text-[10px] tracking-wider uppercase text-muted-foreground font-semibold">Sisa:</span>
-                                                        <span 
-                                                            class="px-1.5 py-0.5 rounded font-mono font-bold text-xs"
-                                                            :class="[
-                                                                Number(item.amount || 0) > Number(getAccountInfo(Number(item.account_code_id), 'remaining_budget'))
-                                                                    ? 'bg-destructive/15 text-destructive font-extrabold border border-destructive/20'
-                                                                    : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20'
-                                                            ]"
-                                                        >
-                                                            {{ formatCurrency(getAccountInfo(Number(item.account_code_id), 'remaining_budget')) }}
-                                                        </span>
-                                                        <span 
-                                                            class="cursor-help text-muted-foreground hover:text-foreground inline-flex items-center ml-0.5"
-                                                            :title="`Rincian Pemakaian Pagu:\n• Jml. Pengajuan: ${formatCurrency(getAccountInfo(Number(item.account_code_id), 'submitted_amount'))}\n• Jml. Cair (SPD): ${formatCurrency(getAccountInfo(Number(item.account_code_id), 'disbursed_amount'))}`"
-                                                        >
-                                                            <Info class="w-3 h-3" />
-                                                        </span>
+
+                                                    <!-- Row 2: Anggaran Kas (RAK Kumulatif s.d. Bulan Transaksi) -->
+                                                    <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                                                        <template v-if="getCumulativeCashInfo(item.account_code_id)?.has_allocation">
+                                                            <div class="flex items-center gap-1.5 truncate">
+                                                                <span class="text-[10px] tracking-wider uppercase font-semibold text-muted-foreground">
+                                                                    Plafon Kas (s.d. {{ getCumulativeCashInfo(item.account_code_id).month_name }}):
+                                                                </span>
+                                                                <span class="font-bold font-mono text-foreground">
+                                                                    {{ formatCurrency(getCumulativeCashInfo(item.account_code_id).cumulative_budget) }}
+                                                                </span>
+                                                            </div>
+                                                            <div class="flex items-center gap-1.5 flex-shrink-0">
+                                                                <span class="text-[10px] tracking-wider uppercase font-semibold text-muted-foreground">Sisa Kas:</span>
+                                                                <span 
+                                                                    class="px-1.5 py-0.5 rounded font-mono font-bold text-xs"
+                                                                    :class="[
+                                                                        Number(item.amount || 0) > getCumulativeCashInfo(item.account_code_id).remaining_cash
+                                                                            ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 font-extrabold border border-amber-500/30'
+                                                                            : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-bold border border-emerald-500/20'
+                                                                    ]"
+                                                                >
+                                                                    {{ formatCurrency(getCumulativeCashInfo(item.account_code_id).remaining_cash) }}
+                                                                </span>
+                                                                <span 
+                                                                    v-if="Number(item.amount || 0) > getCumulativeCashInfo(item.account_code_id).remaining_cash"
+                                                                    class="text-[10px] text-amber-700 dark:text-amber-400 font-semibold flex items-center gap-0.5 ml-1"
+                                                                    title="Pengeluaran melebihi sisa plafon kas kumulatif bulan ini"
+                                                                >
+                                                                    <AlertCircle class="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                                                                    <span>Melebihi Kas</span>
+                                                                </span>
+                                                            </div>
+                                                        </template>
+                                                        <template v-else>
+                                                            <div class="flex items-center gap-1.5 text-muted-foreground/70 italic text-[10px]">
+                                                                <span>Alokasi kas bulanan belum diatur di menu RAK</span>
+                                                            </div>
+                                                            <div class="text-[10px] text-muted-foreground/60">
+                                                                (Pengendalian kas nonaktif)
+                                                            </div>
+                                                        </template>
                                                     </div>
                                                 </div>
                                             </div>

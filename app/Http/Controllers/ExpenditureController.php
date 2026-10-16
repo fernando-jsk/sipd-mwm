@@ -754,7 +754,7 @@ class ExpenditureController extends Controller
         $budgetYear = $request->hasSession() ? $request->session()->get('active_budget_year', date('Y')) : date('Y');
         $activeVersion = (int) (Setting::where('key', "rba_active_version_{$budgetYear}")->value('value') ?? Setting::where('key', 'rba_active_version')->value('value') ?? 0);
 
-        $rbaDocs = RbaDocument::with('accountCode')
+        $rbaDocs = RbaDocument::with(['accountCode', 'cashAllocations'])
             ->where('budget_year', $budgetYear)
             ->where('version', $activeVersion)
             ->where('rba_type', 'rinci')
@@ -764,7 +764,7 @@ class ExpenditureController extends Controller
             ->get();
 
         if ($rbaDocs->isEmpty()) {
-            $rbaDocs = RbaDocument::with('accountCode')
+            $rbaDocs = RbaDocument::with(['accountCode', 'cashAllocations'])
                 ->where('budget_year', $budgetYear)
                 ->where('version', $activeVersion)
                 ->where('rba_type', 'gelondongan')
@@ -784,6 +784,13 @@ class ExpenditureController extends Controller
                 $submitted = $budgetUsage[$accId]['submitted'] ?? 0;
                 $disbursed = $budgetUsage[$accId]['disbursed'] ?? 0;
                 $usedAmount = $submitted + $disbursed;
+
+                $cashMap = [];
+                if ($doc->relationLoaded('cashAllocations')) {
+                    foreach ($doc->cashAllocations as $alloc) {
+                        $cashMap[$alloc->month] = (float) $alloc->amount;
+                    }
+                }
                 
                 $accountCodes[] = [
                     'id' => $accId,
@@ -795,6 +802,7 @@ class ExpenditureController extends Controller
                     'disbursed_amount' => $disbursed,
                     'used_amount' => $usedAmount,
                     'remaining_budget' => $doc->total_budget - $usedAmount,
+                    'cash_allocations' => $cashMap,
                     'is_non_budgetary' => false
                 ];
             }
@@ -884,6 +892,21 @@ class ExpenditureController extends Controller
                 }
                 // Jika mode warning, biarkan lolos, tapi kita bisa tambahkan flash session warning di frontend nantinya
                 session()->flash('warning', 'Peringatan: Beberapa pengeluaran melebihi sisa pagu anggaran.');
+            }
+
+            // Pengecekan Anggaran Kas Kumulatif (RAK) s.d. bulan transaksi
+            $transactionDate = $request->input('date', date('Y-m-d'));
+            $transactionMonth = (int) date('m', strtotime($transactionDate));
+            $cumulativeCashBudget = (float) DB::table('rba_cash_allocations')
+                ->where('rba_document_id', $rbaDoc->id)
+                ->where('month', '<=', $transactionMonth)
+                ->sum('amount');
+
+            if ($cumulativeCashBudget > 0 && ($usedAmount + $amount) > $cumulativeCashBudget) {
+                $monthName = \Carbon\Carbon::create()->month($transactionMonth)->locale('id')->isoFormat('MMMM');
+                $deficit = ($usedAmount + $amount) - $cumulativeCashBudget;
+                $formattedDeficit = 'Rp ' . number_format($deficit, 2, ',', '.');
+                session()->flash('warning', "Peringatan: Pengeluaran melebihi anggaran kas kumulatif s.d. bulan {$monthName} sebesar {$formattedDeficit}.");
             }
         }
     }

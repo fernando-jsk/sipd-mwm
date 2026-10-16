@@ -149,6 +149,14 @@ const handleLinkClick = () => {
                 >
                     RBA Belanja
                 </Link>
+                <Link
+                    href="/rba/anggaran-kas"
+                    @click="handleLinkClick"
+                    class="block px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                    :class="{ 'bg-muted text-foreground font-semibold': $page.url.startsWith('/rba/anggaran-kas') }"
+                >
+                    Anggaran Kas Belanja (RAK)
+                </Link>
             </template>
 
             <!-- Bendahara Penerimaan -->
