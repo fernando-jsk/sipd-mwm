@@ -47,7 +47,43 @@ const props = defineProps({
     varianceData: {
         type: Object,
         default: () => ({})
+    },
+    widgets: {
+        type: Object,
+        default: () => ({})
     }
+});
+
+const isVisible = (key) => {
+    if (!props.widgets || Object.keys(props.widgets).length === 0) return true;
+    return props.widgets[key] !== false;
+};
+
+const hasVisibleSection = computed(() => {
+    return isVisible('kpi_revenue_variance') ||
+           isVisible('kpi_expense_variance') ||
+           isVisible('kpi_revenue_realization') ||
+           isVisible('kpi_net_budget_variance') ||
+           isVisible('chart_monthly_variance') ||
+           isVisible('chart_cumulative_variance') ||
+           isVisible('table_budget_summary');
+});
+
+const visibleKpiCount = computed(() => {
+    let count = 0;
+    if (isVisible('kpi_revenue_variance')) count++;
+    if (isVisible('kpi_expense_variance')) count++;
+    if (isVisible('kpi_revenue_realization')) count++;
+    if (isVisible('kpi_net_budget_variance')) count++;
+    return count;
+});
+
+const kpiGridClass = computed(() => {
+    if (visibleKpiCount.value === 4) return 'grid grid-cols-2 lg:grid-cols-4 gap-4';
+    if (visibleKpiCount.value === 3) return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+    if (visibleKpiCount.value === 2) return 'grid grid-cols-1 sm:grid-cols-2 gap-4';
+    if (visibleKpiCount.value === 1) return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+    return 'hidden';
 });
 
 const months = computed(() => props.data.months || []);
@@ -407,7 +443,7 @@ const severityClass = {
     <!-- ============================================================
          SECTION 3: DASHBOARD REALISASI (ANGGARAN VS REALISASI)
     ============================================================ -->
-    <section class="space-y-5">
+    <section v-if="hasVisibleSection" class="space-y-5">
 
         <!-- ── Section Header ──────────────────────────────────── -->
         <div class="flex items-center justify-between">
@@ -445,10 +481,10 @@ const severityClass = {
         </div>
 
         <!-- ── ROW 1: KPI Cards ─────────────────────────────────── -->
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div v-if="visibleKpiCount > 0" :class="kpiGridClass">
 
             <!-- Revenue Variance -->
-            <div :class="[
+            <div v-if="isVisible('kpi_revenue_variance')" :class="[
                 'border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group',
                 revVariance >= 0 ? 'bg-emerald-50/80 border-emerald-200' : 'bg-rose-50/80 border-rose-200'
             ]">
@@ -473,7 +509,7 @@ const severityClass = {
             </div>
 
             <!-- Expense Variance & Sisa Pagu Belanja -->
-            <div :class="[
+            <div v-if="isVisible('kpi_expense_variance')" :class="[
                 'border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group',
                 expVariance <= 0 ? 'bg-emerald-50/80 border-emerald-200' : expVariancePct <= 15 ? 'bg-amber-50/80 border-amber-300' : 'bg-rose-50/80 border-rose-300'
             ]">
@@ -511,7 +547,7 @@ const severityClass = {
             </div>
 
             <!-- Realisasi Pendapatan -->
-            <div class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
+            <div v-if="isVisible('kpi_revenue_realization')" class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Realisasi Pendapatan</span>
                     <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
@@ -531,7 +567,7 @@ const severityClass = {
             </div>
 
             <!-- Net Budget vs Actual -->
-            <div :class="[
+            <div v-if="isVisible('kpi_net_budget_variance')" :class="[
                 'border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group',
                 netVariance >= 0 ? 'bg-card border-border/80' : 'bg-rose-50/80 border-rose-200'
             ]">
@@ -557,7 +593,7 @@ const severityClass = {
         </div>
 
         <!-- ── ROW 2: Chart Budget vs Actual (Bulanan) ───────────── -->
-        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+        <div v-if="isVisible('chart_monthly_variance')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
 
             <!-- Tab Header -->
             <div class="px-5 py-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-3">
@@ -644,7 +680,7 @@ const severityClass = {
         </div>
 
         <!-- ── ROW 3: Chart Budget vs Actual (Akumulasi Kumulatif YTD) ── -->
-        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+        <div v-if="isVisible('chart_cumulative_variance')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
 
             <!-- Tab Header -->
             <div class="px-5 py-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-3">
@@ -733,7 +769,7 @@ const severityClass = {
 
 
         <!-- ── ROW 4: Variance Table Summary ───────────────────── -->
-        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+        <div v-if="isVisible('table_budget_summary')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-semibold text-secondary">Tabel Ringkasan Realisasi</h3>

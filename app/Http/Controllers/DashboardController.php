@@ -185,7 +185,21 @@ class DashboardController extends Controller
 
         return Inertia::render('Dashboard', [
             'cashFlowData' => $cashFlowData,
-            'varianceData' => $varianceData
+            'varianceData' => $varianceData,
+            'dashboardWidgets' => $request->user()->dashboard_widgets,
         ]);
+    }
+
+    public function updatePreferences(\Illuminate\Http\Request $request)
+    {
+        $validated = $request->validate([
+            'widgets' => 'required|array',
+        ]);
+
+        $user = $request->user();
+        $user->dashboard_widgets = $validated['widgets'];
+        $user->save();
+
+        return back()->with('message', 'Pengaturan tampilan dashboard berhasil disimpan.');
     }
 }

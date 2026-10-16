@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/dashboard', [\App\Http\Controllers\DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/dashboard/preferences', [\App\Http\Controllers\DashboardController::class, 'updatePreferences'])->name('dashboard.preferences');
 
     // =========================================================
     // Manajemen User & Sistem (hanya super-admin)

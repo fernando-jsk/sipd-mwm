@@ -26,6 +26,7 @@ class User extends Authenticatable
         'nip',
         'username',
         'password',
+        'dashboard_widgets',
     ];
 
     /**
@@ -47,6 +48,7 @@ class User extends Authenticatable
     {
         return [
             'password' => 'hashed',
+            'dashboard_widgets' => 'array',
         ];
     }
 

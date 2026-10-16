@@ -29,7 +29,54 @@ const props = defineProps({
     data: {
         type: Object,
         default: () => ({})
+    },
+    widgets: {
+        type: Object,
+        default: () => ({})
     }
+});
+
+const isVisible = (key) => {
+    if (!props.widgets || Object.keys(props.widgets).length === 0) return true;
+    return props.widgets[key] !== false;
+};
+
+const hasVisibleSection = computed(() => {
+    return isVisible('kpi_cash_in') ||
+           isVisible('kpi_cash_out') ||
+           isVisible('kpi_net_cash_flow') ||
+           isVisible('chart_receipt_breakdown') ||
+           isVisible('chart_expense_breakdown') ||
+           isVisible('chart_monthly_cashflow') ||
+           isVisible('chart_cumulative_cashflow');
+});
+
+const visibleKpiCount = computed(() => {
+    let count = 0;
+    if (isVisible('kpi_cash_in')) count++;
+    if (isVisible('kpi_cash_out')) count++;
+    if (isVisible('kpi_net_cash_flow')) count++;
+    return count;
+});
+
+const kpiGridClass = computed(() => {
+    if (visibleKpiCount.value === 3) return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+    if (visibleKpiCount.value === 2) return 'grid grid-cols-1 sm:grid-cols-2 gap-4';
+    if (visibleKpiCount.value === 1) return 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4';
+    return 'hidden';
+});
+
+const visibleDoughnutCount = computed(() => {
+    let count = 0;
+    if (isVisible('chart_receipt_breakdown')) count++;
+    if (isVisible('chart_expense_breakdown')) count++;
+    return count;
+});
+
+const doughnutGridClass = computed(() => {
+    if (visibleDoughnutCount.value === 2) return 'grid grid-cols-1 lg:grid-cols-2 gap-4';
+    if (visibleDoughnutCount.value === 1) return 'grid grid-cols-1 gap-4';
+    return 'hidden';
 });
 
 const startMonth = ref(props.data.startMonth?.toString() || '1');
@@ -440,7 +487,7 @@ function formatRupiahShort(val) {
     <!-- ============================================================
          SECTION 1: DASHBOARD CASH FLOW (ARUS KAS)
     ============================================================ -->
-    <section class="space-y-5">
+    <section v-if="hasVisibleSection" class="space-y-5">
 
         <!-- ── Section Header ──────────────────────────────────── -->
         <div class="flex items-center justify-between">
@@ -478,10 +525,10 @@ function formatRupiahShort(val) {
         </div>
 
         <!-- ── ROW 1: KPI Cards ─────────────────────────────────── -->
-        <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div v-if="visibleKpiCount > 0" :class="kpiGridClass">
 
             <!-- KPI: Cash In -->
-            <div class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
+            <div v-if="isVisible('kpi_cash_in')" class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Pemasukan</span>
                     <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors duration-200">
@@ -501,7 +548,7 @@ function formatRupiahShort(val) {
             </div>
 
             <!-- KPI: Cash Out -->
-            <div class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
+            <div v-if="isVisible('kpi_cash_out')" class="bg-card border border-border/80 rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group">
                 <div class="flex items-center justify-between mb-3">
                     <span class="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Pengeluaran</span>
                     <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-200">
@@ -521,7 +568,7 @@ function formatRupiahShort(val) {
             </div>
 
             <!-- KPI: Net Cash Flow -->
-            <div :class="[
+            <div v-if="isVisible('kpi_net_cash_flow')" :class="[
                 'border rounded-xl p-5 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 group',
                 netCashFlow >= 0
                     ? 'bg-emerald-50/80 border-emerald-200'
@@ -549,14 +596,13 @@ function formatRupiahShort(val) {
                 </div>
             </div>
 
-
         </div>
 
         <!-- ── ROW 2: Doughnut Charts (Penerimaan & Pengeluaran) ── -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div v-if="visibleDoughnutCount > 0" :class="doughnutGridClass">
 
             <!-- Doughnut 1: Rincian Penerimaan -->
-            <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div v-if="isVisible('chart_receipt_breakdown')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden flex flex-col">
                 <div class="px-5 py-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <h3 class="text-sm font-semibold text-secondary">Rincian Penerimaan</h3>
@@ -582,7 +628,7 @@ function formatRupiahShort(val) {
             </div>
 
             <!-- Doughnut 2: Rincian Pengeluaran -->
-            <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden flex flex-col">
+            <div v-if="isVisible('chart_expense_breakdown')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden flex flex-col">
                 <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                     <div>
                         <h3 class="text-sm font-semibold text-secondary">Rincian Pengeluaran</h3>
@@ -601,7 +647,7 @@ function formatRupiahShort(val) {
         </div>
 
         <!-- ── ROW 3: Bar Chart: Tren Cash In vs Cash Out ────────── -->
-        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+        <div v-if="isVisible('chart_monthly_cashflow')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-semibold text-secondary">Tren Pemasukan vs Pengeluaran</h3>
@@ -615,7 +661,7 @@ function formatRupiahShort(val) {
         </div>
 
         <!-- ── ROW 4: Line Chart: Akumulasi Cash Flow ────────────── -->
-        <div class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
+        <div v-if="isVisible('chart_cumulative_cashflow')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
                 <div>
                     <h3 class="text-sm font-semibold text-secondary">Akumulasi Pemasukan & Pengeluaran</h3>
