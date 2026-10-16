@@ -567,12 +567,12 @@ const submitEditDocument = () => {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead class="w-[250px]">Kode</TableHead>
+                                    <TableHead class="w-[220px]">Kode</TableHead>
                                     <TableHead>Nama Rekening</TableHead>
-                                    <TableHead class="text-right w-[200px]">Total Anggaran</TableHead>
-                                    <TableHead class="text-right w-[200px]">Realisasi</TableHead>
-                                    <TableHead class="text-right w-[200px]">Sisa Pagu</TableHead>
-                                    <TableHead class="text-right w-[180px]">Aksi</TableHead>
+                                    <TableHead class="text-right w-[170px]">Total Anggaran</TableHead>
+                                    <TableHead class="text-right w-[170px]">Realisasi</TableHead>
+                                    <TableHead class="text-right w-[170px]">Sisa Pagu</TableHead>
+                                    <TableHead class="text-right w-[130px]">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>

@@ -5,7 +5,15 @@ import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
 import { Search, Plus, Eye, FileSpreadsheet, Upload, Calendar, Coins, RotateCcw } from '@lucide/vue';
-import { SlidersHorizontal } from 'lucide-vue-next';
+import { SlidersHorizontal, MoreHorizontal } from 'lucide-vue-next';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui/card';
 import {
   Dialog,
@@ -196,27 +204,54 @@ const getStatusLabel = (status) => {
                         Daftar Pengajuan SPPD (Surat Permintaan Pencairan Dana)
                     </h2>
                 </div>
-                <div class="flex flex-wrap items-center gap-2">
-                    <Button 
-                        variant="outline" 
-                        @click="isAlignmentModalOpen = true"
-                        class="relative transition-colors"
-                        :class="unmappedCount > 0 ? 'border-amber-500/50 hover:bg-amber-500/10 text-amber-900 dark:text-amber-300' : ''"
-                        title="Penyelarasan massal rincian belanja ke RBA"
-                    >
-                        <SlidersHorizontal class="w-4 h-4 mr-2 text-amber-600 dark:text-amber-400" />
-                        <span>Penyelarasan RBA</span>
-                        <Badge 
-                            v-if="unmappedCount > 0" 
-                            variant="destructive" 
-                            class="ml-2 px-1.5 py-0 text-[10px] h-5 min-w-5 flex items-center justify-center font-bold bg-amber-600 hover:bg-amber-700 text-white border-0"
-                        >
-                            {{ unmappedCount }}
-                        </Badge>
-                    </Button>
-                    <Button variant="outline" @click="isImportModalOpen = true">
-                        <FileSpreadsheet class="w-4 h-4 mr-2"/> Import Excel
-                    </Button>
+                <div class="flex items-center gap-2">
+                    <!-- Dropdown Menu Aksi Tambahan (Titik Tiga) -->
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <Button 
+                                variant="outline" 
+                                size="icon" 
+                                class="relative h-9 w-9" 
+                                title="Aksi Tambahan"
+                            >
+                                <MoreHorizontal class="w-4 h-4" />
+                                <span class="sr-only">Menu Aksi</span>
+                                <span 
+                                    v-if="unmappedCount > 0" 
+                                    class="absolute -top-1 -right-1 flex h-2.5 w-2.5" 
+                                    title="Terdapat rincian belanja belum selaras RBA"
+                                >
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                                </span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" class="w-56">
+                            <DropdownMenuLabel class="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                                Aksi Tambahan
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem @click="isImportModalOpen = true" class="cursor-pointer">
+                                <FileSpreadsheet class="w-4 h-4 mr-2 text-emerald-600 dark:text-emerald-400" />
+                                <span>Import Excel</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem @click="isAlignmentModalOpen = true" class="cursor-pointer flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <SlidersHorizontal class="w-4 h-4 mr-2 text-amber-600 dark:text-amber-400" />
+                                    <span>Penyelarasan RBA</span>
+                                </div>
+                                <Badge 
+                                    v-if="unmappedCount > 0" 
+                                    variant="destructive" 
+                                    class="ml-2 px-1.5 py-0 text-[10px] h-4 min-w-4 flex items-center justify-center font-bold bg-amber-600 text-white border-0"
+                                >
+                                    {{ unmappedCount }}
+                                </Badge>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <!-- Tombol Utama (Primary CTA) -->
                     <Link href="/expenditures/create">
                         <Button><Plus class="w-4 h-4 mr-2"/> Buat SPPD Baru</Button>
                     </Link>

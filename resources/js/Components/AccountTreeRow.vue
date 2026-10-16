@@ -1,8 +1,15 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { ChevronRight, ChevronDown, FileEdit, Trash2, Pencil, CalendarDays } from 'lucide-vue-next';
+import { ChevronRight, ChevronDown, FileEdit, Trash2, Pencil, CalendarDays, MoreHorizontal } from 'lucide-vue-next';
 import { Button } from '@/Components/ui/button';
 import { TableRow, TableCell } from '@/Components/ui/table';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
 import { Link } from '@inertiajs/vue3';
 
 const props = defineProps({
@@ -77,21 +84,36 @@ const paddingLeft = computed(() => {
         
         <TableCell class="text-right">
             <div class="flex items-center justify-end gap-1.5" v-if="!hasChildren && row.rba_document_id">
-                <Button as-child variant="default" size="sm">
+                <Button as-child variant="default" size="sm" class="h-8 text-xs font-medium">
                     <Link :href="`/rba/${row.rba_document_id}`">
-                        <FileEdit class="w-4 h-4 mr-1" />
+                        <FileEdit class="w-3.5 h-3.5 mr-1" />
                         Rincian
                     </Link>
                 </Button>
-                <Button variant="outline" size="icon" class="h-8 w-8 hover:bg-muted text-primary hover:text-primary/90" @click="$emit('open-cash-allocation', row)" title="Atur Anggaran Kas (RAK)">
-                    <CalendarDays class="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="icon" class="h-8 w-8 hover:bg-muted" @click="$emit('edit-document', row)" title="Edit Dokumen RBA">
-                    <Pencil class="w-4 h-4" />
-                </Button>
-                <Button variant="destructive" size="icon" class="h-8 w-8" @click="$emit('delete-document', row)" title="Hapus Dokumen RBA">
-                    <Trash2 class="w-4 h-4" />
-                </Button>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                        <Button variant="outline" size="icon" class="h-8 w-8 hover:bg-muted" title="Aksi Lainnya">
+                            <MoreHorizontal class="w-4 h-4" />
+                            <span class="sr-only">Menu Aksi</span>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" class="w-48">
+                        <DropdownMenuItem @click="$emit('open-cash-allocation', row)" class="cursor-pointer">
+                            <CalendarDays class="w-4 h-4 mr-2 text-primary" />
+                            <span>Anggaran Kas (RAK)</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem @click="$emit('edit-document', row)" class="cursor-pointer">
+                            <Pencil class="w-4 h-4 mr-2 text-muted-foreground" />
+                            <span>Edit Dokumen</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem @click="$emit('delete-document', row)" class="cursor-pointer text-destructive focus:text-destructive">
+                            <Trash2 class="w-4 h-4 mr-2" />
+                            <span>Hapus Dokumen</span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </TableCell>
     </TableRow>
