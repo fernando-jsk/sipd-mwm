@@ -475,5 +475,97 @@ class BudgetRealizationService
             ->where('receipts.status', 'submitted')
             ->sum('receipt_details.amount');
     }
+
+    /**
+     * Hitung pagu anggaran kas kumulatif s.d. bulan tertentu per akun rekening.
+     *
+     * @param string|int $year
+     * @param int $throughMonth
+     * @param array|null $accountIds
+     * @param int|null $version
+     * @return array [account_code_id => total_cumulative_cash_budget]
+     */
+    public function getCumulativeCashBudgetByAccount($year, int $throughMonth, ?array $accountIds = null, ?int $version = null): array
+    {
+        if ($version === null) {
+            $version = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
+        }
+
+        $query = DB::table('rba_cash_allocations')
+            ->join('rba_documents', 'rba_cash_allocations.rba_document_id', '=', 'rba_documents.id')
+            ->where('rba_documents.budget_year', $year)
+            ->where('rba_documents.version', $version)
+            ->where('rba_cash_allocations.month', '<=', $throughMonth);
+
+        if (!empty($accountIds)) {
+            $query->whereIn('rba_documents.account_code_id', $accountIds);
+        }
+
+        return $query->groupBy('rba_documents.account_code_id')
+            ->select('rba_documents.account_code_id', DB::raw('SUM(rba_cash_allocations.amount) as total'))
+            ->pluck('total', 'rba_documents.account_code_id')
+            ->toArray();
+    }
+
+    /**
+     * Hitung pagu anggaran kas untuk 1 bulan tertentu per akun rekening.
+     *
+     * @param string|int $year
+     * @param int $month
+     * @param array|null $accountIds
+     * @param int|null $version
+     * @return array [account_code_id => month_cash_budget]
+     */
+    public function getCashBudgetByAccount($year, int $month, ?array $accountIds = null, ?int $version = null): array
+    {
+        if ($version === null) {
+            $version = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
+        }
+
+        $query = DB::table('rba_cash_allocations')
+            ->join('rba_documents', 'rba_cash_allocations.rba_document_id', '=', 'rba_documents.id')
+            ->where('rba_documents.budget_year', $year)
+            ->where('rba_documents.version', $version)
+            ->where('rba_cash_allocations.month', $month);
+
+        if (!empty($accountIds)) {
+            $query->whereIn('rba_documents.account_code_id', $accountIds);
+        }
+
+        return $query->groupBy('rba_documents.account_code_id')
+            ->select('rba_documents.account_code_id', DB::raw('SUM(rba_cash_allocations.amount) as total'))
+            ->pluck('total', 'rba_documents.account_code_id')
+            ->toArray();
+    }
+
+    /**
+     * Ambil peta matriks alokasi kas bulanan (1 s.d. 12) per rba_document_id.
+     *
+     * @param string|int $year
+     * @param int|null $version
+     * @param string $rbaType
+     * @return array [rba_document_id => [month => amount]]
+     */
+    public function getMonthlyAllocationsMatrix($year, ?int $version = null, string $rbaType = 'gelondongan'): array
+    {
+        if ($version === null) {
+            $version = (int) (\App\Models\Setting::where('key', "rba_active_version_{$year}")->value('value') ?? 0);
+        }
+
+        $records = DB::table('rba_cash_allocations')
+            ->join('rba_documents', 'rba_cash_allocations.rba_document_id', '=', 'rba_documents.id')
+            ->where('rba_documents.budget_year', $year)
+            ->where('rba_documents.version', $version)
+            ->where('rba_documents.rba_type', $rbaType)
+            ->select('rba_cash_allocations.rba_document_id', 'rba_cash_allocations.month', 'rba_cash_allocations.amount')
+            ->get();
+
+        $matrix = [];
+        foreach ($records as $row) {
+            $matrix[$row->rba_document_id][$row->month] = (float) $row->amount;
+        }
+
+        return $matrix;
+    }
 }
 

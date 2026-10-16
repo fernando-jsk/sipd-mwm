@@ -12,6 +12,7 @@ import { Label } from '@/Components/ui/label';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { ArrowRight, FolderOpen, Plus, Search, Pencil, ArrowLeftRight, CheckCircle2 } from 'lucide-vue-next';
 import AccountTreeRow from '@/Components/AccountTreeRow.vue';
+import RbaCashAllocationModal from '@/Components/RbaCashAllocationModal.vue';
 
 const props = defineProps({
     activeTree: Array,
@@ -109,6 +110,25 @@ const deleteDocument = () => {
             documentToDelete.value = null;
         }
     });
+};
+
+// Cash Allocation Modal State
+const selectedCashDoc = ref(null);
+const isCashModalOpen = ref(false);
+
+const openCashAllocation = (row) => {
+    selectedCashDoc.value = {
+        id: row.rba_document_id,
+        rba_document_id: row.rba_document_id,
+        account_code_id: row.id,
+        code: row.code,
+        name: row.name,
+        account_code: row.code,
+        account_name: row.name,
+        total_budget: Number(row.tree_jumlah || 0),
+        pptk_name: '',
+    };
+    isCashModalOpen.value = true;
 };
 
 // Edit Document State & Methods
@@ -564,6 +584,7 @@ const submitEditDocument = () => {
                                         :level="0" 
                                         @edit-document="openEditDocument"
                                         @delete-document="confirmDeleteDocument"
+                                        @open-cash-allocation="openCashAllocation"
                                     />
                                 </template>
                                 <TableRow v-else>
@@ -580,6 +601,14 @@ const submitEditDocument = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            <!-- Modal Editor Anggaran Kas (RAK) -->
+            <RbaCashAllocationModal
+                v-if="selectedCashDoc"
+                v-model:open="isCashModalOpen"
+                :rba-document="selectedCashDoc"
+                @saved="router.reload({ preserveScroll: true })"
+            />
         </div>
     </AuthenticatedLayout>
 </template>

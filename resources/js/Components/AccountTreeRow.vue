@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { ChevronRight, ChevronDown, FileEdit, Trash2, Pencil } from 'lucide-vue-next';
+import { ChevronRight, ChevronDown, FileEdit, Trash2, Pencil, CalendarDays } from 'lucide-vue-next';
 import { Button } from '@/Components/ui/button';
 import { TableRow, TableCell } from '@/Components/ui/table';
 import { Link } from '@inertiajs/vue3';
@@ -16,7 +16,7 @@ const props = defineProps({
     }
 });
 
-const emit = defineEmits(['delete-document', 'edit-document']);
+const emit = defineEmits(['delete-document', 'edit-document', 'open-cash-allocation']);
 
 const isExpanded = ref(true);
 
@@ -83,6 +83,9 @@ const paddingLeft = computed(() => {
                         Rincian
                     </Link>
                 </Button>
+                <Button variant="outline" size="icon" class="h-8 w-8 hover:bg-muted text-primary hover:text-primary/90" @click="$emit('open-cash-allocation', row)" title="Atur Anggaran Kas (RAK)">
+                    <CalendarDays class="w-4 h-4" />
+                </Button>
                 <Button variant="outline" size="icon" class="h-8 w-8 hover:bg-muted" @click="$emit('edit-document', row)" title="Edit Dokumen RBA">
                     <Pencil class="w-4 h-4" />
                 </Button>
@@ -101,6 +104,7 @@ const paddingLeft = computed(() => {
             :level="level + 1"
             @delete-document="$emit('delete-document', $event)"
             @edit-document="$emit('edit-document', $event)"
+            @open-cash-allocation="$emit('open-cash-allocation', $event)"
         />
     </template>
 </template>

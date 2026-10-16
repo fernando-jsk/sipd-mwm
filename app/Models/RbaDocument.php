@@ -66,4 +66,14 @@ class RbaDocument extends Model
     {
         return $this->hasMany(RbaDocument::class, 'mapped_to_rba_id');
     }
+
+    public function cashAllocations(): HasMany
+    {
+        return $this->hasMany(RbaCashAllocation::class)->orderBy('month');
+    }
+
+    public function getAllocatedCashTotalAttribute(): float
+    {
+        return (float) $this->cashAllocations()->sum('amount');
+    }
 }

@@ -142,6 +142,14 @@ class SettingController extends Controller
                     $newDetail->save();
                     $idMap[$oldDetail->id] = $newDetail->id;
                 }
+
+                // Replikasi alokasi anggaran kas bulanan (RAK) jika ada
+                $oldAllocations = \App\Models\RbaCashAllocation::where('rba_document_id', $doc->id)->get();
+                foreach ($oldAllocations as $oldAlloc) {
+                    $newAlloc = $oldAlloc->replicate();
+                    $newAlloc->rba_document_id = $newDoc->id;
+                    $newAlloc->save();
+                }
             }
         });
 

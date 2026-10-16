@@ -93,6 +93,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:view rba')->group(function () {
         Route::get('/rba/pendapatan', [RbaDocumentController::class, 'index'])->name('rba.pendapatan');
         Route::get('/rba/belanja', [RbaDocumentController::class, 'index'])->name('rba.belanja');
+        Route::get('/rba/anggaran-kas', [\App\Http\Controllers\RbaCashAllocationController::class, 'index'])->name('rba.cash-allocations.index');
+        Route::get('/rba/{rbaDocument}/cash-allocations', [\App\Http\Controllers\RbaCashAllocationController::class, 'show'])->name('rba.cash-allocations.show');
         Route::get('/rba/{rbaDocument}', [RbaDetailController::class, 'builder'])->name('rba.builder');
     });
 
@@ -100,6 +102,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/rba/documents', [RbaDocumentController::class, 'store'])->name('rba.documents.store');
         Route::put('/rba/documents/{rbaDocument}', [RbaDocumentController::class, 'update'])->name('rba.documents.update');
         Route::delete('/rba/documents/{rbaDocument}', [RbaDocumentController::class, 'destroy'])->name('rba.documents.destroy');
+        Route::post('/rba/{rbaDocument}/cash-allocations', [\App\Http\Controllers\RbaCashAllocationController::class, 'update'])->name('rba.cash-allocations.update');
+        Route::post('/rba/{rbaDocument}/cash-allocations/distribute', [\App\Http\Controllers\RbaCashAllocationController::class, 'autoDistribute'])->name('rba.cash-allocations.distribute');
         Route::post('/rba/{rbaDocument}/details', [RbaDetailController::class, 'store'])->name('rba.store');
         Route::post('/rba/{rbaDocument}/details/bulk-change-parent', [RbaDetailController::class, 'bulkChangeParent'])->name('rba.bulk-change-parent');
         Route::post('/rba/{rbaDocument}/details/bulk-destroy', [RbaDetailController::class, 'bulkDestroy'])->name('rba.bulk-destroy');
