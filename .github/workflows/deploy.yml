@@ -61,12 +61,11 @@ jobs:
           # Kompresi menjadi deploy.zip
           cd package && zip -r ../deploy.zip core/ public/ && cd ..
           
-          # Siapkan folder upload minimalis
-          mkdir -p deploy-dist/public_html
+          # Siapkan folder upload minimalis (Hanya 1 file deploy.zip!)
+          mkdir -p deploy-dist
           mv deploy.zip deploy-dist/
-          cp public/deploy-helper.php deploy-dist/public_html/deploy-helper.php
 
-      # 2. Upload Single Zip & Deploy Helper via FTP (Hanya 2 file: cepat, stabil, tanpa error socket)
+      # 2. Upload Single Zip via FTP (Hanya 1 file: transfer 100% sukses dan stabil)
       - name: Upload Single Deploy Package
         uses: SamKirkland/ftp-deploy-action@v4.3.5
         with:
@@ -79,6 +78,7 @@ jobs:
           log-level: verbose
           local-dir: ./deploy-dist/
           server-dir: /
+
 
       # 3. Trigger Remote Unzip, Migrasi Database, & Cache Refresh via HTTP Webhook
       - name: Trigger Remote Extract & Deploy
