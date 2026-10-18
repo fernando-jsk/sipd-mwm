@@ -26,30 +26,51 @@ if (!hash_equals($expectedKey, (string) $providedKey)) {
     exit;
 }
 
-// Possible locations for deploy.zip
-$possibleZipPaths = [
-    __DIR__ . '/../deploy.zip',              // /home/user/deploy.zip (Recommended)
-    __DIR__ . '/deploy.zip',                 // /home/user/public_html/deploy.zip
-    __DIR__ . '/../laravel-app/deploy.zip',  // /home/user/laravel-app/deploy.zip
-];
-
-$zipPath = null;
-foreach ($possibleZipPaths as $path) {
-    if (file_exists($path)) {
-        $zipPath = $path;
-        break;
+// Check if a zip file was uploaded directly via POST
+if (isset($_FILES['deploy_zip']) && $_FILES['deploy_zip']['error'] === UPLOAD_ERR_OK) {
+    $uploadedPath = __DIR__ . '/../deploy.zip';
+    if (move_uploaded_file($_FILES['deploy_zip']['tmp_name'], $uploadedPath)) {
+        $zipPath = $uploadedPath;
     }
 }
 
-if (!$zipPath) {
-    http_response_code(404);
+// Possible locations for deploy.zip if not uploaded via POST
+if (!isset($zipPath)) {
+    $possibleZipPaths = [
+        __DIR__ . '/../deploy.zip',              // /home/user/deploy.zip (Recommended)
+        __DIR__ . '/deploy.zip',                 // /home/user/public_html/deploy.zip
+        __DIR__ . '/../laravel-app/deploy.zip',  // /home/user/laravel-app/deploy.zip
+    ];
+
+    $zipPath = null;
+    foreach ($possibleZipPaths as $path) {
+        if (file_exists($path)) {
+            $zipPath = $path;
+            break;
+        }
+    }
+
+    if (!$zipPath) {
+        http_response_code(404);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'deploy.zip not found in any expected location.',
+            'checked_paths' => $possibleZipPaths,
+        ], JSON_PRETTY_PRINT);
+        exit;
+    }
+}
+
+// Validate that deploy.zip is not empty or corrupted (must be at least 10KB)
+if (filesize($zipPath) < 10240) {
+    http_response_code(400);
     echo json_encode([
         'status' => 'error',
-        'message' => 'deploy.zip not found in any expected location.',
-        'checked_paths' => $possibleZipPaths,
+        'message' => 'deploy.zip is corrupted or incomplete (size: ' . filesize($zipPath) . ' bytes). Upload may have been interrupted.',
     ], JSON_PRETTY_PRINT);
     exit;
 }
+
 
 // Define destination directories
 $publicDir = realpath(__DIR__) ?: __DIR__;

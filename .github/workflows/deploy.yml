@@ -65,19 +65,24 @@ jobs:
           mkdir -p deploy-dist
           mv deploy.zip deploy-dist/
 
-      # 2. Upload Single Zip via FTP (Hanya 1 file: transfer 100% sukses dan stabil)
+      # 2. Upload Single Zip via FTP dengan Auto-Retry (Hingga 4x percobaan jika socket data terputus)
       - name: Upload Single Deploy Package
-        uses: SamKirkland/ftp-deploy-action@v4.3.5
+        uses: Wandalen/wretry.action@v3
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          security: loose
-          log-level: verbose
-          local-dir: ./deploy-dist/
-          server-dir: /
+          action: SamKirkland/ftp-deploy-action@v4.3.5
+          attempt_limit: 4
+          attempt_delay: 15s
+          with: |
+            server: ${{ secrets.FTP_SERVER }}
+            username: ${{ secrets.FTP_USERNAME }}
+            password: ${{ secrets.FTP_PASSWORD }}
+            protocol: ftps
+            port: 21
+            security: loose
+            log-level: verbose
+            local-dir: ./deploy-dist/
+            server-dir: /
+
 
 
       # 3. Trigger Remote Unzip, Migrasi Database, & Cache Refresh via HTTP Webhook
