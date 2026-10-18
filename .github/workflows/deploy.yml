@@ -1,4 +1,4 @@
-name: Deploy Laravel to cPanel (Fast Zip Method)
+name: Deploy Laravel to cPanel (Single Zip Deploy)
 
 on:
   push:
@@ -38,47 +38,67 @@ jobs:
           npm install
           npm run build
 
-      # 1. Compress folder vendor menjadi 1 file zip agar upload super cepat
-      - name: Zip Vendor Directory
+      # 1. Kemas seluruh aplikasi (core + public) menjadi 1 paket zip
+      - name: Package Application into Single Zip
         run: |
-          zip -r vendor.zip vendor/
+          mkdir -p package/core package/public
+          
+          # Salin file core Laravel (abaikan git, node_modules, tests, public, package)
+          rsync -av --exclude='.git*' \
+                    --exclude='node_modules' \
+                    --exclude='tests' \
+                    --exclude='public' \
+                    --exclude='package' \
+                    --exclude='deploy-dist' \
+                    --exclude='*.zip' \
+                    ./ package/core/
+          
+          # Salin file public yang sudah ter-build (kecuali file symlink storage dan hot)
+          rsync -av --exclude='hot' \
+                    --exclude='storage' \
+                    ./public/ package/public/
+          
+          # Kompresi menjadi deploy.zip
+          cd package && zip -r ../deploy.zip core/ public/ && cd ..
+          
+          # Siapkan folder upload minimalis
+          mkdir -p deploy-dist/public_html
+          mv deploy.zip deploy-dist/
+          cp public/deploy-helper.php deploy-dist/public_html/deploy-helper.php
 
-      # 2. Deploy Core App (Abaikan folder vendor uncompressed, hanya upload vendor.zip)
-      - name: Deploy Core App
+      # 2. Upload Single Zip & Deploy Helper via FTP (Hanya 2 file: cepat, stabil, tanpa error socket)
+      - name: Upload Single Deploy Package
         uses: SamKirkland/ftp-deploy-action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: /laravel-app/
           protocol: ftps
           port: 21
           security: loose
           log-level: verbose
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/tests/**
-            vendor/**
-            public/**
+          local-dir: ./deploy-dist/
+          server-dir: /
 
-      # 3. Trigger Unzip via URL HTTP ke cPanel
-      - name: Trigger Remote Unzip
+      # 3. Trigger Remote Unzip, Migrasi Database, & Cache Refresh via HTTP Webhook
+      - name: Trigger Remote Extract & Deploy
         run: |
-          curl -s "https://saskia.web.id/../laravel-app/unzip.php?key=my-secret-key-123" || true
-          # Catatan: Sesuaikan URL di atas atau buat route khusus jika perlu.
-
-      # 4. Deploy Public Assets
-      - name: Deploy Public Folder
-        uses: SamKirkland/ftp-deploy-action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          security: loose
-          log-level: verbose
-          local-dir: ./public/
-          server-dir: /public_html/
+          SECRET_KEY="${{ secrets.DEPLOY_SECRET_KEY }}"
+          if [ -z "$SECRET_KEY" ]; then
+            SECRET_KEY="sipd-mwm-deploy-key-2026"
+          fi
+          
+          echo "Memanggil script deploy helper di server cPanel..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" "https://saskia.web.id/deploy-helper.php?key=${SECRET_KEY}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Respon Server (HTTP $HTTP_CODE):"
+          echo "$BODY"
+          
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Ekstraksi deploy di server gagal dengan status HTTP $HTTP_CODE!"
+            exit 1
+          fi
+          
+          echo "Deploy berhasil selesai!"
