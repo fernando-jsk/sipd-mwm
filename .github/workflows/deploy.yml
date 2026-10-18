@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+# Cegah deploy bersamaan yang dapat memicu pembatasan koneksi FTP cPanel
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -46,6 +51,10 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: /laravel-app/
+          protocol: ftps
+          port: 21
+          security: loose
+          log-level: verbose
           exclude: |
             **/.git*
             **/.git*/**
@@ -57,7 +66,7 @@ jobs:
       # 3. Trigger Unzip via URL HTTP ke cPanel
       - name: Trigger Remote Unzip
         run: |
-          curl -s "https://domainanda.com/../laravel-app/unzip.php?key=my-secret-key-123" || true
+          curl -s "https://saskia.web.id/../laravel-app/unzip.php?key=my-secret-key-123" || true
           # Catatan: Sesuaikan URL di atas atau buat route khusus jika perlu.
 
       # 4. Deploy Public Assets
@@ -67,5 +76,9 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          security: loose
+          log-level: verbose
           local-dir: ./public/
           server-dir: /public_html/
