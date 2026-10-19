@@ -20,8 +20,20 @@ class DashboardController extends Controller
     public function index(\Illuminate\Http\Request $request)
     {
         $activeYear = session('active_budget_year', date('Y'));
+        $currentYear = (int) date('Y');
+        $currentMonth = (int) date('n');
+
+        // Default endMonth: bulan sebelum bulan sekarang (contoh: Oktober -> September).
+        // Jika saat ini Januari, minimal bulan 1 (Januari).
+        // Jika melihat tahun anggaran lampau, default penuh hingga Desember (12).
+        if ((int) $activeYear < $currentYear) {
+            $defaultEndMonth = 12;
+        } else {
+            $defaultEndMonth = max(1, $currentMonth - 1);
+        }
+
         $startMonth = (int) $request->input('startMonth', 1);
-        $endMonth = (int) $request->input('endMonth', date('n'));
+        $endMonth = (int) $request->input('endMonth', $defaultEndMonth);
         
         // Pastikan rentang bulan valid
         if ($startMonth < 1) $startMonth = 1;

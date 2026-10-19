@@ -89,7 +89,7 @@ const kpiGridClass = computed(() => {
 const months = computed(() => props.data.months || []);
 
 const startMonth = ref(props.data.startMonth?.toString() || '1');
-const endMonth = ref(props.data.endMonth?.toString() || (new Date().getMonth() + 1).toString());
+const endMonth = ref(props.data.endMonth?.toString() || Math.max(1, new Date().getMonth()).toString());
 
 watch(() => props.data.startMonth, (newVal) => {
     if (newVal) startMonth.value = newVal.toString();
