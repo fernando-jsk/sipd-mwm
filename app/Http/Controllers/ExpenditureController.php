@@ -1164,6 +1164,34 @@ class ExpenditureController extends Controller
     }
 
     /**
+     * Ambil daftar transaksi belanja individu untuk kelompok uraian yang belum terpetakan.
+     */
+    public function getUnmappedRbaDetailItems(Request $request)
+    {
+        $validated = $request->validate([
+            'account_code_id' => 'required|exists:account_codes,id',
+            'uraian' => 'required|string',
+        ]);
+
+        $items = ExpenditureDetail::where('account_code_id', $validated['account_code_id'])
+            ->where('uraian', $validated['uraian'])
+            ->whereNull('rba_detail_id')
+            ->with([
+                'expenditure:id,document_number,date,type,description,payment_method,vendor_id,status',
+                'expenditure.vendor:id,name'
+            ])
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'items' => $items,
+            'total_count' => $items->count(),
+            'total_amount' => (float) $items->sum('amount'),
+        ]);
+    }
+
+    /**
      * Selaraskan rincian belanja secara massal ke rincian RBA terpilih.
      */
     public function bulkMapRbaDetail(Request $request)
@@ -1172,25 +1200,44 @@ class ExpenditureController extends Controller
             'account_code_id' => 'required|exists:account_codes,id',
             'raw_uraian' => 'required|string',
             'rba_detail_id' => 'required|exists:rba_details,id',
+            'selected_detail_ids' => 'nullable|array',
+            'selected_detail_ids.*' => 'integer|exists:expenditure_details,id',
         ]);
 
         $rbaDetail = RbaDetail::with('rbaDocument.accountCode')->findOrFail($validated['rba_detail_id']);
 
-        $count = ExpenditureDetail::where('account_code_id', $validated['account_code_id'])
+        $query = ExpenditureDetail::where('account_code_id', $validated['account_code_id'])
             ->where('uraian', $validated['raw_uraian'])
-            ->whereNull('rba_detail_id')
-            ->update([
-                'rba_detail_id' => $rbaDetail->id,
-                'account_code_id' => $rbaDetail->rbaDocument->account_code_id ?? $validated['account_code_id'],
-                'uraian' => $rbaDetail->uraian, // Selaraskan ke teks resmi RBA
-            ]);
+            ->whereNull('rba_detail_id');
+
+        if (!empty($validated['selected_detail_ids'])) {
+            $query->whereIn('id', $validated['selected_detail_ids']);
+        }
+
+        $count = $query->update([
+            'rba_detail_id' => $rbaDetail->id,
+            'account_code_id' => $rbaDetail->rbaDocument->account_code_id ?? $validated['account_code_id'],
+            'uraian' => $rbaDetail->uraian, // Selaraskan ke teks resmi RBA
+        ]);
 
         activity('expenditure')
             ->log("Menyelaraskan secara massal {$count} rincian belanja '{$validated['raw_uraian']}' ke RBA '{$rbaDetail->uraian}'");
 
+        $remainingCount = ExpenditureDetail::where('account_code_id', $validated['account_code_id'])
+            ->where('uraian', $validated['raw_uraian'])
+            ->whereNull('rba_detail_id')
+            ->count();
+
+        $remainingAmount = (float) ExpenditureDetail::where('account_code_id', $validated['account_code_id'])
+            ->where('uraian', $validated['raw_uraian'])
+            ->whereNull('rba_detail_id')
+            ->sum('amount');
+
         return response()->json([
             'status' => 'success',
             'updated_count' => $count,
+            'remaining_count' => $remainingCount,
+            'remaining_amount' => $remainingAmount,
             'official_uraian' => $rbaDetail->uraian,
             'message' => "Berhasil menyelaraskan {$count} rincian belanja ke '{$rbaDetail->uraian}'."
         ]);
