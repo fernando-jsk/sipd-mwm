@@ -60,15 +60,15 @@ jobs:
 
           # Sisipkan default cPanel MultiPHP handler (PHP 8.2) ke package/public/.htaccess agar tidak pernah ter-reset
           if ! grep -q "cPanel-generated handler" package/public/.htaccess; then
-            cat << 'EOF' > package/public/.htaccess.tmp
-# php -- BEGIN cPanel-generated handler, do not edit
-# Set the “ea-php82” package as the default “PHP” programming language.
-<IfModule mime_module>
-  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
-</IfModule>
-# php -- END cPanel-generated handler, do not edit
-
-EOF
+            {
+              echo '# php -- BEGIN cPanel-generated handler, do not edit'
+              echo '# Set the "ea-php82" package as the default "PHP" programming language.'
+              echo '<IfModule mime_module>'
+              echo '  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml'
+              echo '</IfModule>'
+              echo '# php -- END cPanel-generated handler, do not edit'
+              echo ''
+            } > package/public/.htaccess.tmp
             cat package/public/.htaccess >> package/public/.htaccess.tmp
             mv package/public/.htaccess.tmp package/public/.htaccess
           fi
