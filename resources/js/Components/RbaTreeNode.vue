@@ -32,6 +32,21 @@ const isLeaf = computed(() => props.node.is_leaf_header);
 const isItem = computed(() => props.node.type === 'item');
 const isSelected = computed(() => props.selectedId != null && props.selectedId.toString() === props.node.id.toString());
 
+const parentBreadcrumb = computed(() => {
+    if (!props.node.breadcrumb) return '';
+    const parts = props.node.breadcrumb.split(' ❯ ');
+    if (parts.length <= 1) return '';
+    return parts.slice(0, -1).join(' ❯ ');
+});
+
+const tooltipText = computed(() => {
+    const parts = [];
+    if (props.node?.uraian) parts.push(props.node.uraian);
+    if (parentBreadcrumb.value) parts.push(`Jalur Hirarki: ${parentBreadcrumb.value}`);
+    if (isItem.value && formatVolumes(props.node)) parts.push(`Volume: ${formatVolumes(props.node)}`);
+    return parts.join('\n');
+});
+
 const highlightedParts = computed(() => {
     const text = props.node.uraian || '';
     const q = (props.searchQuery || '').trim();
@@ -117,25 +132,33 @@ const formatVolumes = (item) => {
                     </svg>
                 </span>
 
-                <!-- Node Title -->
-                <span class="truncate" :class="{ 'font-semibold text-foreground': !isItem, 'text-muted-foreground': isItem }">
-                    <template v-if="searchQuery && searchQuery.trim()">
-                        <template v-for="(part, idx) in highlightedParts" :key="idx">
-                            <mark v-if="part.match" class="bg-amber-400/30 text-amber-950 dark:text-amber-200 font-bold px-0.5 rounded">
-                                {{ part.text }}
-                            </mark>
-                            <span v-else>{{ part.text }}</span>
+                <!-- Node Title (with Browser Native Tooltip via title attribute) -->
+                <div 
+                    class="min-w-0 flex-1 flex items-center gap-1.5"
+                    :title="tooltipText"
+                >
+                    <span 
+                        class="truncate" 
+                        :class="{ 'font-semibold text-foreground': !isItem, 'text-muted-foreground': isItem }"
+                    >
+                        <template v-if="searchQuery && searchQuery.trim()">
+                            <template v-for="(part, idx) in highlightedParts" :key="idx">
+                                <mark v-if="part.match" class="bg-amber-400/30 text-amber-950 dark:text-amber-200 font-bold px-0.5 rounded">
+                                    {{ part.text }}
+                                </mark>
+                                <span v-else>{{ part.text }}</span>
+                            </template>
                         </template>
-                    </template>
-                    <template v-else>
-                        {{ node.uraian }}
-                    </template>
-                </span>
-                
-                <!-- Volume / Satuan for item -->
-                <span v-if="isItem && formatVolumes(node)" class="text-[10px] text-muted-foreground/80 font-mono truncate">
-                    ({{ formatVolumes(node) }})
-                </span>
+                        <template v-else>
+                            {{ node.uraian }}
+                        </template>
+                    </span>
+                    
+                    <!-- Volume / Satuan for item -->
+                    <span v-if="isItem && formatVolumes(node)" class="text-[10px] text-muted-foreground/80 font-mono truncate flex-shrink-0">
+                        ({{ formatVolumes(node) }})
+                    </span>
+                </div>
             </div>
 
             <!-- Right Side: Nominal & Button -->
