@@ -96,6 +96,85 @@ if ($openResult !== true) {
 $extractedCount = 0;
 $errors = [];
 
+/**
+ * Safely merge new .htaccess with existing cPanel PHP handlers and configurations.
+ */
+function mergeHtaccess(string $existingContent, string $newContent): string
+{
+    $cpanelBlocks = [];
+
+    // 1. Standard cPanel generated handlers & directives enclosed in comment tags
+    if (preg_match_all('/# (?:php -- )?BEGIN cPanel-generated.*?(?:# (?:php -- )?END cPanel-generated[^\r\n]*)/is', $existingContent, $matches)) {
+        foreach ($matches[0] as $block) {
+            $trimmed = trim($block);
+            if (!empty($trimmed) && !in_array($trimmed, $cpanelBlocks, true)) {
+                $cpanelBlocks[] = $trimmed;
+            }
+        }
+    }
+
+    // 2. MultiPHP ea-php / alt-php MIME handler (only if NOT already inside an extracted block)
+    if (preg_match_all('/<IfModule\s+mime_module>\s*AddHandler\s+application\/x-httpd-(?:ea|alt)-php\d+\s+.*?<\/IfModule>/is', $existingContent, $matches)) {
+        foreach ($matches[0] as $block) {
+            $trimmed = trim($block);
+            $alreadyIncluded = false;
+            foreach ($cpanelBlocks as $existingBlock) {
+                if (str_contains($existingBlock, $trimmed)) {
+                    $alreadyIncluded = true;
+                    break;
+                }
+            }
+            if (!$alreadyIncluded && !in_array($trimmed, $cpanelBlocks, true)) {
+                $cpanelBlocks[] = $trimmed;
+            }
+        }
+    }
+
+    // 3. LiteSpeed / CloudLinux lsphp handler (only if NOT already inside an extracted block)
+    if (preg_match_all('/<FilesMatch\s+["\'].*?php.*?["\']>\s*SetHandler\s+application\/x-lsphp\d+.*?<\/FilesMatch>/is', $existingContent, $matches)) {
+        foreach ($matches[0] as $block) {
+            $trimmed = trim($block);
+            $alreadyIncluded = false;
+            foreach ($cpanelBlocks as $existingBlock) {
+                if (str_contains($existingBlock, $trimmed)) {
+                    $alreadyIncluded = true;
+                    break;
+                }
+            }
+            if (!$alreadyIncluded && !in_array($trimmed, $cpanelBlocks, true)) {
+                $cpanelBlocks[] = $trimmed;
+            }
+        }
+    }
+
+    // If existing .htaccess has cPanel blocks, preserve them at the top
+    if (!empty($cpanelBlocks)) {
+        $blocksToPrepend = [];
+        foreach ($cpanelBlocks as $b) {
+            if (!str_contains($newContent, $b)) {
+                $blocksToPrepend[] = $b;
+            }
+        }
+        if (!empty($blocksToPrepend)) {
+            return implode("\n\n", $blocksToPrepend) . "\n\n" . $newContent;
+        }
+    }
+
+    // Fallback: If no cPanel block was found in existing or new content, ensure ea-php82 is set
+    if (!str_contains($newContent, 'x-httpd-ea-php') && !str_contains($newContent, 'x-httpd-alt-php') && !str_contains($newContent, 'x-lsphp')) {
+        $defaultHandler = "# php -- BEGIN cPanel-generated handler, do not edit\n"
+            . "# Set the “ea-php82” package as the default “PHP” programming language.\n"
+            . "<IfModule mime_module>\n"
+            . "  AddHandler application/x-httpd-ea-php82 .php .php8 .phtml\n"
+            . "</IfModule>\n"
+            . "# php -- END cPanel-generated handler, do not edit\n\n";
+
+        return $defaultHandler . $newContent;
+    }
+
+    return $newContent;
+}
+
 for ($i = 0; $i < $zip->numFiles; $i++) {
     $entryName = $zip->getNameIndex($i);
 
@@ -106,6 +185,7 @@ for ($i = 0; $i < $zip->numFiles; $i++) {
 
     $isDir = str_ends_with($entryName, '/');
     $targetPath = null;
+    $relativePath = null;
 
     if (str_starts_with($entryName, 'core/')) {
         $relativePath = substr($entryName, 5);
@@ -113,7 +193,7 @@ for ($i = 0; $i < $zip->numFiles; $i++) {
         $targetPath = $coreDir . '/' . $relativePath;
     } elseif (str_starts_with($entryName, 'public/')) {
         $relativePath = substr($entryName, 7);
-        if ($relativePath === '' || $relativePath === 'deploy-helper.php') continue;
+        if ($relativePath === '') continue;
         $targetPath = $publicDir . '/' . $relativePath;
     } else {
         // Fallback to core directory
@@ -132,13 +212,26 @@ for ($i = 0; $i < $zip->numFiles; $i++) {
 
         $stream = $zip->getStream($entryName);
         if ($stream) {
-            $dest = fopen($targetPath, 'wb');
-            if ($dest) {
-                stream_copy_to_stream($stream, $dest);
-                fclose($dest);
-                $extractedCount++;
+            // Khusus file .htaccess: Lindungi dan gabungkan konfigurasi cPanel MultiPHP yang ada di server
+            if ($relativePath === '.htaccess' && file_exists($targetPath)) {
+                $existingContent = (string) file_get_contents($targetPath);
+                $newContent = (string) stream_get_contents($stream);
+                $finalContent = mergeHtaccess($existingContent, $newContent);
+
+                if (file_put_contents($targetPath, $finalContent) !== false) {
+                    $extractedCount++;
+                } else {
+                    $errors[] = "Failed to write: $targetPath";
+                }
             } else {
-                $errors[] = "Failed to write: $targetPath";
+                $dest = fopen($targetPath, 'wb');
+                if ($dest) {
+                    stream_copy_to_stream($stream, $dest);
+                    fclose($dest);
+                    $extractedCount++;
+                } else {
+                    $errors[] = "Failed to write: $targetPath";
+                }
             }
             fclose($stream);
         }
