@@ -4,7 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
-import { Search, Plus, Eye, FileSpreadsheet, Upload, Calendar, Coins, RotateCcw } from '@lucide/vue';
+import { Search, Plus, Eye, FileSpreadsheet, Upload, Calendar, Coins, RotateCcw, BookOpen } from '@lucide/vue';
 import { SlidersHorizontal, MoreHorizontal } from 'lucide-vue-next';
 import {
   DropdownMenu,
@@ -50,6 +50,10 @@ const props = defineProps({
     unmappedCount: {
         type: Number,
         default: 0
+    },
+    accountCodes: {
+        type: Array,
+        default: () => []
     }
 });
 
@@ -86,6 +90,7 @@ const statusFilter = ref(props.filters?.status || 'all');
 const sortFilter = ref(props.filters?.sort || 'doc_desc');
 const startDate = ref(props.filters?.start_date || props.filters?.date || '');
 const endDate = ref(props.filters?.end_date || props.filters?.date || '');
+const accountCodeFilter = ref(props.filters?.account_code_id || 'all');
 
 const isSearchFocused = ref(false);
 let lastSentSearch = search.value;
@@ -95,6 +100,7 @@ const hasActiveFilters = computed(() => {
         search.value ||
         (searchBy.value && searchBy.value !== 'all') ||
         (statusFilter.value && statusFilter.value !== 'all') ||
+        (accountCodeFilter.value && accountCodeFilter.value !== 'all') ||
         startDate.value ||
         endDate.value ||
         sortFilter.value !== 'doc_desc'
@@ -105,13 +111,14 @@ const resetFilters = () => {
     search.value = '';
     searchBy.value = 'all';
     statusFilter.value = 'all';
+    accountCodeFilter.value = 'all';
     startDate.value = '';
     endDate.value = '';
     sortFilter.value = 'doc_desc';
     lastSentSearch = '';
 };
 
-watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSearch, newSearchBy, newStatus, newSort, newStartDate, newEndDate], oldValue, onCleanup) => {
+watch([search, searchBy, statusFilter, sortFilter, startDate, endDate, accountCodeFilter], ([newSearch, newSearchBy, newStatus, newSort, newStartDate, newEndDate, newAccountCodeId], oldValue, onCleanup) => {
     const searchTimeout = setTimeout(() => {
         lastSentSearch = newSearch;
         const params = {};
@@ -121,6 +128,7 @@ watch([search, searchBy, statusFilter, sortFilter, startDate, endDate], ([newSea
         if (newSort) params.sort = newSort;
         if (newStartDate) params.start_date = newStartDate;
         if (newEndDate) params.end_date = newEndDate;
+        if (newAccountCodeId && newAccountCodeId !== 'all') params.account_code_id = newAccountCodeId;
 
         const routeUrl = window.location.pathname.startsWith('/expenditures/sppd') ? '/expenditures/sppd' : '/expenditures';
         router.get(routeUrl, params, { preserveState: true, replace: true });
@@ -142,6 +150,7 @@ watch(() => props.filters, (newFilters) => {
         if (newFilters.start_date !== undefined && newFilters.start_date !== startDate.value) startDate.value = newFilters.start_date || '';
         if (newFilters.end_date !== undefined && newFilters.end_date !== endDate.value) endDate.value = newFilters.end_date || '';
         if (newFilters.sort !== undefined && newFilters.sort !== sortFilter.value) sortFilter.value = newFilters.sort || 'doc_desc';
+        if (newFilters.account_code_id !== undefined && newFilters.account_code_id !== accountCodeFilter.value) accountCodeFilter.value = newFilters.account_code_id || 'all';
     }
 }, { deep: true });
 
@@ -406,8 +415,32 @@ const getStatusLabel = (status) => {
                     </div>
                 </div>
 
-                <!-- Baris 2: Filter Rentang Tanggal -->
+                <!-- Baris 2: Filter Rentang Tanggal & Kode Rekening -->
                 <div class="pt-3 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <!-- Kode Rekening -->
+                    <div class="grid gap-1.5 sm:col-span-2 lg:col-span-2">
+                        <Label for="account_code_filter" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                            <BookOpen class="size-3.5 text-primary" />
+                            Kode Rekening
+                        </Label>
+                        <Select v-model="accountCodeFilter">
+                            <SelectTrigger id="account_code_filter" class="w-full shadow-sm bg-background">
+                                <SelectValue placeholder="Semua Kode Rekening" />
+                            </SelectTrigger>
+                            <SelectContent class="max-h-64">
+                                <SelectItem value="all">Semua Kode Rekening</SelectItem>
+                                <SelectItem
+                                    v-for="ac in accountCodes"
+                                    :key="ac.id"
+                                    :value="ac.id.toString()"
+                                >
+                                    <span class="font-mono text-xs font-semibold">{{ ac.code }}</span>
+                                    <span class="ml-2 text-muted-foreground">{{ ac.name }}</span>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <!-- Tanggal Mulai -->
                     <div class="grid gap-1.5">
                         <Label for="start_date" class="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">

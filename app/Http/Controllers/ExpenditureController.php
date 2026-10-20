@@ -50,7 +50,7 @@ class ExpenditureController extends Controller
 
         $filters = (object) array_merge(
             ['sort' => 'doc_desc'],
-            $request->only('search', 'search_by', 'status', 'start_date', 'end_date', 'date', 'sort')
+            $request->only('search', 'search_by', 'status', 'start_date', 'end_date', 'date', 'sort', 'account_code_id')
         );
 
         $unmappedCount = ExpenditureDetail::whereNull('rba_detail_id')
@@ -58,12 +58,18 @@ class ExpenditureController extends Controller
             ->where('uraian', '!=', '')
             ->count();
 
+        // Ambil daftar kode rekening yang digunakan di detail pengeluaran
+        $accountCodes = AccountCode::whereHas('expenditureDetails')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name']);
+
         return Inertia::render('Expenditures/SppdIndex', [
             'expenditures' => $expenditures,
             'filters' => $filters,
             'totalAmount' => $totalAmount,
             'users' => User::all(['id', 'name']),
             'unmappedCount' => $unmappedCount,
+            'accountCodes' => $accountCodes,
         ]);
     }
 
@@ -716,6 +722,13 @@ class ExpenditureController extends Controller
         
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+
+        // Filter kode rekening: SPPD yang memiliki minimal 1 rincian dengan kode rekening tersebut
+        if ($request->filled('account_code_id')) {
+            $query->whereHas('details', function ($q) use ($request) {
+                $q->where('account_code_id', $request->account_code_id);
+            });
         }
 
         // Date range filter (start_date & end_date) with fallback to single date

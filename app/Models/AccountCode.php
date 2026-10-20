@@ -40,6 +40,11 @@ class AccountCode extends Model
         return $this->belongsTo(FundingSource::class);
     }
 
+    public function expenditureDetails(): HasMany
+    {
+        return $this->hasMany(ExpenditureDetail::class);
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
