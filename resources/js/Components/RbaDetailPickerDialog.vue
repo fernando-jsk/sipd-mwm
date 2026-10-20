@@ -713,8 +713,11 @@ const selectAccountOnly = () => {
                                             <Folder class="w-3 h-3 flex-shrink-0 text-muted-foreground/70" />
                                             <span class="truncate">{{ item.breadcrumb }}</span>
                                         </div>
-                                        <!-- Uraian Title -->
-                                        <div class="font-semibold text-xs text-foreground flex items-center gap-2">
+                                        <!-- Uraian Title (with Browser Native Tooltip via title attribute) -->
+                                        <div 
+                                            class="font-semibold text-xs text-foreground flex items-center gap-2"
+                                            :title="item.breadcrumb && item.breadcrumb !== item.uraian ? `${item.uraian}\nJalur Hirarki: ${item.breadcrumb}` : item.uraian"
+                                        >
                                             <span class="truncate font-semibold">{{ item.uraian }}</span>
                                         </div>
                                     </div>
