@@ -87,6 +87,30 @@ class DashboardController extends Controller
         $breakdownLabels = $expBreakdown['labels'];
         $breakdownValues = $expBreakdown['values'];
 
+        $expUraianGlobal = $this->budgetRealizationService->getExpenditureBreakdownByUraian($activeYear, $startMonth, $endMonth, null, 10);
+        $activeExpAccounts = $this->budgetRealizationService->getActiveExpenditureAccounts($activeYear, $startMonth, $endMonth);
+
+        $expUraianByAccount = [];
+        foreach ($activeExpAccounts as $acc) {
+            $expUraianByAccount[(string) $acc['id']] = $this->budgetRealizationService->getExpenditureBreakdownByUraian(
+                $activeYear,
+                $startMonth,
+                $endMonth,
+                $acc['id'],
+                10
+            );
+        }
+
+        $expenditureBreakdown = [
+            'byAccount' => [
+                'labels' => $breakdownLabels,
+                'values' => $breakdownValues,
+            ],
+            'byUraianGlobal' => $expUraianGlobal,
+            'accounts' => $activeExpAccounts,
+            'byAccountUraian' => $expUraianByAccount,
+        ];
+
         // --- 5b. Breakdown Penerimaan (Filtered by Active Year & Month Range) ---
         $receiptBreakdownParent = DB::table('receipts')
             ->join('receipt_details', 'receipts.id', '=', 'receipt_details.receipt_id')
@@ -155,6 +179,7 @@ class DashboardController extends Controller
             'minimumSafeBalance' => $minimumSafeBalance,
             'breakdownLabels' => $breakdownLabels,
             'breakdownValues' => $breakdownValues,
+            'expenditureBreakdown' => $expenditureBreakdown,
             'receiptBreakdown' => [
                 'parents' => $receiptBreakdownParent,
                 'subs' => $receiptBreakdownSub,
@@ -198,7 +223,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'cashFlowData' => $cashFlowData,
             'varianceData' => $varianceData,
-            'dashboardWidgets' => $request->user()->dashboard_widgets,
+            'dashboardWidgets' => $request->user()?->dashboard_widgets,
         ]);
     }
 

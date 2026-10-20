@@ -436,6 +436,175 @@ class BudgetRealizationService
     }
 
     /**
+     * Ambil top N breakdown pengeluaran riil berdasarkan uraian rincian rekening untuk Dashboard.
+     * Menggabungkan belanja dokumen (prioritas teks RBA detail jika ada) dan kuitansi kas UP cair.
+     *
+     * @param string|int $year
+     * @param int $startMonth
+     * @param int $endMonth
+     * @param int|null $accountCodeId
+     * @param int $limit
+     * @return array ['labels' => string[], 'values' => float[], 'total' => float]
+     */
+    public function getExpenditureBreakdownByUraian($year, int $startMonth, int $endMonth, ?int $accountCodeId = null, int $limit = 10): array
+    {
+        $breakdownMap = [];
+
+        // 1. Belanja dokumen
+        $docQuery = DB::table('expenditures')
+            ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
+            ->leftJoin('rba_details', 'expenditure_details.rba_detail_id', '=', 'rba_details.id')
+            ->whereYear('expenditures.date', $year)
+            ->where('expenditures.status', 'disbursed')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
+            ->where(function ($q) {
+                $q->where('expenditures.type', '!=', 'GU')
+                  ->orWhereNotExists(function ($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('expenditure_receipts')
+                          ->whereColumn('expenditure_receipts.expenditure_id', 'expenditures.id');
+                  });
+            })
+            ->whereMonth('expenditures.date', '>=', $startMonth)
+            ->whereMonth('expenditures.date', '<=', $endMonth);
+
+        if ($accountCodeId) {
+            $docQuery->where('expenditure_details.account_code_id', $accountCodeId);
+        }
+
+        $docBreakdown = $docQuery
+            ->select(
+                DB::raw('TRIM(COALESCE(rba_details.uraian, expenditure_details.uraian, "Tanpa Uraian")) as name'),
+                DB::raw('SUM(expenditure_details.amount) as total')
+            )
+            ->groupBy('name')
+            ->get();
+
+        foreach ($docBreakdown as $b) {
+            $breakdownMap[$b->name] = ($breakdownMap[$b->name] ?? 0.0) + (float) $b->total;
+        }
+
+        // 2. Belanja kuitansi kas UP
+        $receiptQuery = DB::table('expenditure_receipts')
+            ->whereYear('expenditure_receipts.date', $year)
+            ->whereIn('expenditure_receipts.status', ['paid', 'in_gu', 'completed'])
+            ->whereMonth('expenditure_receipts.date', '>=', $startMonth)
+            ->whereMonth('expenditure_receipts.date', '<=', $endMonth);
+
+        if ($accountCodeId) {
+            $receiptQuery->where('expenditure_receipts.account_code_id', $accountCodeId);
+        }
+
+        $receiptBreakdown = $receiptQuery
+            ->select(
+                DB::raw('TRIM(COALESCE(expenditure_receipts.description, "Belanja Kas UP")) as name'),
+                DB::raw('SUM(expenditure_receipts.amount) as total')
+            )
+            ->groupBy('name')
+            ->get();
+
+        foreach ($receiptBreakdown as $b) {
+            $breakdownMap[$b->name] = ($breakdownMap[$b->name] ?? 0.0) + (float) $b->total;
+        }
+
+        arsort($breakdownMap);
+
+        $totalAll = (float) array_sum($breakdownMap);
+        $topItems = array_slice($breakdownMap, 0, $limit, true);
+        $otherItems = array_slice($breakdownMap, $limit, null, true);
+        $otherTotal = (float) array_sum($otherItems);
+
+        $labels = [];
+        $values = [];
+        foreach ($topItems as $name => $val) {
+            $labels[] = $name;
+            $values[] = (float) $val;
+        }
+
+        if ($otherTotal > 0) {
+            $labels[] = 'Lainnya (' . count($otherItems) . ' Komponen)';
+            $values[] = $otherTotal;
+        }
+
+        return [
+            'labels' => $labels,
+            'values' => $values,
+            'total' => $totalAll,
+        ];
+    }
+
+    /**
+     * Ambil daftar kode rekening belanja yang memiliki realisasi pada periode tertentu.
+     *
+     * @param string|int $year
+     * @param int $startMonth
+     * @param int $endMonth
+     * @return array [ ['id' => int, 'code' => string, 'name' => string, 'total' => float] ]
+     */
+    public function getActiveExpenditureAccounts($year, int $startMonth, int $endMonth): array
+    {
+        $accountMap = [];
+
+        // Dokumen belanja
+        $docAccounts = DB::table('expenditures')
+            ->join('expenditure_details', 'expenditures.id', '=', 'expenditure_details.expenditure_id')
+            ->join('account_codes', 'expenditure_details.account_code_id', '=', 'account_codes.id')
+            ->whereYear('expenditures.date', $year)
+            ->where('expenditures.status', 'disbursed')
+            ->whereNotIn('expenditures.type', $this->getNonBudgetaryTypes())
+            ->where(function ($q) {
+                $q->where('expenditures.type', '!=', 'GU')
+                  ->orWhereNotExists(function ($sub) {
+                      $sub->select(DB::raw(1))
+                          ->from('expenditure_receipts')
+                          ->whereColumn('expenditure_receipts.expenditure_id', 'expenditures.id');
+                  });
+            })
+            ->whereMonth('expenditures.date', '>=', $startMonth)
+            ->whereMonth('expenditures.date', '<=', $endMonth)
+            ->select('account_codes.id', 'account_codes.code', 'account_codes.name', DB::raw('SUM(expenditure_details.amount) as total'))
+            ->groupBy('account_codes.id', 'account_codes.code', 'account_codes.name')
+            ->get();
+
+        foreach ($docAccounts as $a) {
+            $accountMap[$a->id] = [
+                'id' => (int) $a->id,
+                'code' => $a->code,
+                'name' => $a->name,
+                'total' => (float) $a->total,
+            ];
+        }
+
+        // Kuitansi kas UP
+        $receiptAccounts = DB::table('expenditure_receipts')
+            ->join('account_codes', 'expenditure_receipts.account_code_id', '=', 'account_codes.id')
+            ->whereYear('expenditure_receipts.date', $year)
+            ->whereIn('expenditure_receipts.status', ['paid', 'in_gu', 'completed'])
+            ->whereMonth('expenditure_receipts.date', '>=', $startMonth)
+            ->whereMonth('expenditure_receipts.date', '<=', $endMonth)
+            ->select('account_codes.id', 'account_codes.code', 'account_codes.name', DB::raw('SUM(expenditure_receipts.amount) as total'))
+            ->groupBy('account_codes.id', 'account_codes.code', 'account_codes.name')
+            ->get();
+
+        foreach ($receiptAccounts as $a) {
+            if (isset($accountMap[$a->id])) {
+                $accountMap[$a->id]['total'] += (float) $a->total;
+            } else {
+                $accountMap[$a->id] = [
+                    'id' => (int) $a->id,
+                    'code' => $a->code,
+                    'name' => $a->name,
+                    'total' => (float) $a->total,
+                ];
+            }
+        }
+
+        usort($accountMap, fn($a, $b) => $b['total'] <=> $a['total']);
+
+        return array_values($accountMap);
+    }
+
+    /**
      * Hitung total belanja riil sepanjang masa (All Time) untuk perhitungan saldo akhir.
      *
      * @return float
