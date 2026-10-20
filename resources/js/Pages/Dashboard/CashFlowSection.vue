@@ -320,30 +320,114 @@ const receiptDoughnutOptions = computed(() => ({
 }));
 
 // ============================================================
-// CHART 2b — Doughnut: Breakdown pengeluaran
+// CHART 2b — Doughnut: Breakdown pengeluaran (Akun & Uraian)
 // ============================================================
-const baseBg     = ['rgba(255,135,129,0.80)', 'rgba(74,222,128,0.80)', 'rgba(96,165,250,0.80)', 'rgba(251,191,36,0.80)', 'rgba(167,139,250,0.80)', 'rgba(244,114,182,0.80)', 'rgba(56,189,248,0.80)', 'rgba(250,204,21,0.80)', 'rgba(163,230,53,0.80)', 'rgba(168,162,158,0.80)'];
-const baseBorder = ['#E64E47', '#22c55e', '#3b82f6', '#F59E0B', '#8B5CF6', '#ec4899', '#0ea5e9', '#eab308', '#84cc16', '#78716c'];
+const selectedExpenseType = ref('top_uraian');
 
-const breakdownBg = computed(() => {
-    return (props.data.breakdownValues || []).map((_, i) => baseBg[i % baseBg.length]);
+const expenseCategoryOptions = computed(() => {
+    const expData = props.data.expenditureBreakdown || {};
+    const accounts = expData.accounts || [];
+
+    const options = [
+        { id: 'top_uraian', label: 'Semua Komponen Belanja (Top 10)' },
+        { id: 'by_account', label: 'Per Kode Rekening (Akun Anggaran)' },
+    ];
+
+    accounts.forEach(acc => {
+        options.push({
+            id: `account_${acc.id}`,
+            label: `Uraian: ${acc.name}`
+        });
+    });
+
+    return options;
 });
-const breakdownBorder = computed(() => {
-    return (props.data.breakdownValues || []).map((_, i) => baseBorder[i % baseBorder.length]);
+
+watch(() => expenseCategoryOptions.value, (newOptions) => {
+    const exists = newOptions.some(opt => opt.id === selectedExpenseType.value);
+    if (!exists) {
+        selectedExpenseType.value = 'top_uraian';
+    }
 });
 
-const doughnutData = computed(() => ({
-    labels: props.data.breakdownLabels || [],
-    datasets: [{
-        data: props.data.breakdownValues || [],
-        backgroundColor: breakdownBg.value,
-        borderColor:     breakdownBorder.value,
-        borderWidth: 2,
-        hoverOffset: 8,
-    }],
-}));
+const activeExpenseItems = computed(() => {
+    const expData = props.data.expenditureBreakdown || {};
 
-const doughnutOptions = {
+    if (selectedExpenseType.value === 'by_account') {
+        const labels = expData.byAccount?.labels || props.data.breakdownLabels || [];
+        const values = expData.byAccount?.values || props.data.breakdownValues || [];
+        return labels.map((l, i) => ({
+            label: l,
+            total: values[i] || 0
+        }));
+    } else if (selectedExpenseType.value === 'top_uraian') {
+        const labels = expData.byUraianGlobal?.labels || [];
+        const values = expData.byUraianGlobal?.values || [];
+        return labels.map((l, i) => ({
+            label: l,
+            total: values[i] || 0
+        }));
+    } else if (selectedExpenseType.value.startsWith('account_')) {
+        const accId = selectedExpenseType.value.replace('account_', '');
+        const accBreakdown = expData.byAccountUraian?.[accId] || {};
+        const labels = accBreakdown.labels || [];
+        const values = accBreakdown.values || [];
+        return labels.map((l, i) => ({
+            label: l,
+            total: values[i] || 0
+        }));
+    }
+
+    return [];
+});
+
+const activeExpenseTotal = computed(() => {
+    return activeExpenseItems.value.reduce((sum, item) => sum + item.total, 0);
+});
+
+const expenseBaseBg = [
+    'rgba(255, 135, 129, 0.82)', // Soft Coral Pink (Primary Brand)
+    'rgba(59, 130, 246, 0.82)',  // Blue
+    'rgba(245, 158, 11, 0.82)',  // Amber
+    'rgba(16, 185, 129, 0.82)',  // Emerald
+    'rgba(139, 92, 246, 0.82)',  // Purple
+    'rgba(236, 72, 153, 0.82)',  // Pink
+    'rgba(20, 184, 166, 0.82)',  // Teal
+    'rgba(249, 115, 22, 0.82)',  // Orange
+    'rgba(99, 102, 241, 0.82)',  // Indigo
+    'rgba(132, 204, 22, 0.82)',  // Lime
+    'rgba(100, 116, 139, 0.82)', // Slate (Lainnya)
+];
+
+const expenseBaseBorder = [
+    '#E64E47', // Primary Dark
+    '#2563eb',
+    '#d97706',
+    '#059669',
+    '#7c3aed',
+    '#db2777',
+    '#0d9488',
+    '#ea580c',
+    '#4f46e5',
+    '#65a30d',
+    '#475569',
+];
+
+const expenseDoughnutData = computed(() => {
+    const items = activeExpenseItems.value;
+    return {
+        labels: items.map(i => i.label),
+        datasets: [{
+            data: items.map(i => i.total),
+            backgroundColor: items.map((_, i) => expenseBaseBg[i % expenseBaseBg.length]),
+            borderColor: items.map((_, i) => expenseBaseBorder[i % expenseBaseBorder.length]),
+            borderWidth: 2,
+            hoverOffset: 8,
+        }]
+    };
+});
+
+const expenseDoughnutOptions = computed(() => ({
     responsive: true,
     maintainAspectRatio: false,
     cutout: '66%',
@@ -361,11 +445,15 @@ const doughnutOptions = {
         },
         tooltip: {
             callbacks: {
-                label: (ctx) => ` ${ctx.label}: ${formatRupiah(ctx.raw)} (${((ctx.raw / (currentMonthOut.value || 1)) * 100).toFixed(1)}%)`,
+                label: (ctx) => {
+                    const total = activeExpenseTotal.value || 1;
+                    const pct = ((ctx.raw / total) * 100).toFixed(1);
+                    return ` ${ctx.label}: ${formatRupiah(ctx.raw)} (${pct}%)`;
+                },
             },
         },
     },
-};
+}));
 
 // ============================================================
 // CHART 3 — Line: Akumulasi Cash In vs Cash Out
@@ -629,18 +717,27 @@ function formatRupiahShort(val) {
 
             <!-- Doughnut 2: Rincian Pengeluaran -->
             <div v-if="isVisible('chart_expense_breakdown')" class="bg-card border border-border/80 rounded-xl shadow-sm overflow-hidden flex flex-col">
-                <div class="px-5 py-4 border-b border-border/60 flex items-center justify-between">
+                <div class="px-5 py-4 border-b border-border/60 flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <h3 class="text-sm font-semibold text-secondary">Rincian Pengeluaran</h3>
                         <p class="text-xs text-muted-foreground mt-0.5">Distribusi pengeluaran {{ selectedMonthLabel }}</p>
                     </div>
-                    <span class="text-[10px] bg-muted text-muted-foreground rounded-full px-2.5 py-1 font-semibold uppercase tracking-wide">Per Akun</span>
+                    <div class="flex items-center gap-1.5">
+                        <select 
+                            v-model="selectedExpenseType"
+                            class="text-xs border-border/80 rounded-lg bg-card text-secondary shadow-sm focus:ring-primary focus:border-primary px-2.5 py-1 cursor-pointer max-w-[210px] truncate"
+                        >
+                            <option v-for="opt in expenseCategoryOptions" :key="opt.id" :value="opt.id">
+                                {{ opt.label }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
                 <div class="p-4 flex items-center justify-center flex-1 relative" style="min-height: 288px;">
-                    <div v-if="(props.data.breakdownValues || []).length === 0" class="flex flex-col items-center justify-center text-muted-foreground text-xs py-8">
+                    <div v-if="activeExpenseItems.length === 0" class="flex flex-col items-center justify-center text-muted-foreground text-xs py-8">
                         <span>Tidak ada transaksi pengeluaran pada periode ini</span>
                     </div>
-                    <Doughnut v-else :data="doughnutData" :options="doughnutOptions" />
+                    <Doughnut v-else :data="expenseDoughnutData" :options="expenseDoughnutOptions" />
                 </div>
             </div>
 
