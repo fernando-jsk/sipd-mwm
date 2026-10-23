@@ -1,12 +1,12 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/Components/ui/card';
-import { Search, Eye, CheckCircle, RotateCcw, Calendar, Coins, FileSpreadsheet, Loader2 } from '@lucide/vue';
+import { Search, Eye, CheckCircle, RotateCcw, Calendar, Coins, FileSpreadsheet, Loader2, Pencil } from '@lucide/vue';
 import axios from 'axios';
 import { Badge } from '@/Components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/Components/ui/select';
@@ -26,6 +26,12 @@ const props = defineProps({
     expenditures: Object,
     filters: Object,
     totalAmount: Number,
+});
+
+const page = usePage();
+const isSuperAdmin = computed(() => {
+    const roles = page.props.auth?.roles || [];
+    return roles.includes('super-admin') || roles.includes('super admin');
 });
 
 const search = ref(props.filters?.search || '');
@@ -399,13 +405,20 @@ const exportExcel = async () => {
                                 </Badge>
                             </TableCell>
                             <TableCell class="sticky right-0 z-10 bg-card group-hover:bg-muted/40 transition-colors border-l border-border/60 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] text-right py-3 px-4 whitespace-nowrap">
-                                <Link :href="`/expenditures/${item.id}`">
-                                    <Button :variant="item.status === 'authorized' ? 'default' : 'outline'" size="sm" class="h-8 px-3 text-xs" :class="item.status === 'authorized' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''">
-                                        <CheckCircle v-if="item.status === 'authorized'" class="w-3.5 h-3.5 mr-1" />
-                                        <Eye v-else class="w-3.5 h-3.5 mr-1" />
-                                        {{ item.status === 'authorized' ? 'Cairkan SPD' : 'Detail' }}
-                                    </Button>
-                                </Link>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <Link :href="`/expenditures/${item.id}`">
+                                        <Button :variant="item.status === 'authorized' ? 'default' : 'outline'" size="sm" class="h-8 px-3 text-xs" :class="item.status === 'authorized' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''">
+                                            <CheckCircle v-if="item.status === 'authorized'" class="w-3.5 h-3.5 mr-1" />
+                                            <Eye v-else class="w-3.5 h-3.5 mr-1" />
+                                            {{ item.status === 'authorized' ? 'Cairkan SPD' : 'Detail' }}
+                                        </Button>
+                                    </Link>
+                                    <Link v-if="isSuperAdmin" :href="`/expenditures/${item.id}/edit`">
+                                        <Button variant="outline" size="sm" class="h-8 px-2.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30" title="Edit Dokumen (Super Admin)">
+                                            <Pencil class="w-3.5 h-3.5" />
+                                        </Button>
+                                    </Link>
+                                </div>
                             </TableCell>
                         </TableRow>
                         <TableRow v-if="expenditures.data.length === 0">

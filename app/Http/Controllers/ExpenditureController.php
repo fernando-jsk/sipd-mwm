@@ -295,7 +295,10 @@ class ExpenditureController extends Controller
 
     public function edit(Request $request, Expenditure $expenditure)
     {
-        if ($expenditure->status !== 'draft' && $expenditure->status !== 'rejected') {
+        $user = auth()->user();
+        $isSuperAdmin = $user && ($user->hasRole('super-admin') || $user->hasRole('super admin'));
+
+        if (!$isSuperAdmin && $expenditure->status !== 'draft' && $expenditure->status !== 'rejected') {
             return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen Draft atau Ditolak yang dapat diedit.');
         }
 
@@ -336,9 +339,16 @@ class ExpenditureController extends Controller
 
     public function update(Request $request, Expenditure $expenditure)
     {
-        if ($expenditure->status !== 'draft' && $expenditure->status !== 'rejected') {
+        $user = auth()->user();
+        $isSuperAdmin = $user && ($user->hasRole('super-admin') || $user->hasRole('super admin'));
+
+        if (!$isSuperAdmin && $expenditure->status !== 'draft' && $expenditure->status !== 'rejected') {
             return redirect()->route('expenditures.sppd')->with('error', 'Hanya dokumen Draft atau Ditolak yang dapat diedit.');
         }
+
+        $statusValidation = $isSuperAdmin 
+            ? 'required|in:draft,submitted,sppd_submitted,authorized,opd_authorized,verified,disbursed,spd_disbursed,rejected'
+            : 'required|in:draft,submitted,sppd_submitted';
 
         $validated = $request->validate([
             'document_number' => 'required|string|unique:expenditures,document_number,' . $expenditure->id,
@@ -355,7 +365,7 @@ class ExpenditureController extends Controller
             'bank_name' => 'nullable|string',
             'bank_account_number' => 'nullable|string',
             'contract_number' => 'nullable|string',
-            'status' => 'required|in:draft,submitted,sppd_submitted',
+            'status' => $statusValidation,
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'details' => 'required|array|min:1',
             'details.*.account_code_id' => 'required|exists:account_codes,id',
@@ -427,9 +437,14 @@ class ExpenditureController extends Controller
                 if (!empty($selectedReceiptIds)) {
                     ExpenditureReceipt::whereIn('id', $selectedReceiptIds)->update([
                         'expenditure_id' => $expenditure->id,
-                        'status' => 'in_gu'
+                        'status' => $expenditure->status === 'disbursed' ? 'completed' : 'in_gu'
                     ]);
                 }
+            }
+
+            // Jika dokumen berstatus cair (disbursed), perbarui jurnal otomatis agar nominal & rincian terbaru tersinkronisasi
+            if ($expenditure->status === 'disbursed') {
+                app(\App\Services\JournalService::class)->createFromExpenditure($expenditure->fresh(['details.accountCode', 'journal']));
             }
 
             DB::commit();

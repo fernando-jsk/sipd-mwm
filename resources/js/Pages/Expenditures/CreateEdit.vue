@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -24,7 +24,7 @@ import {
 import { 
     Trash2, Plus, UploadCloud, ChevronRight, ChevronLeft, Save, Send, Info, CheckCircle2, ArrowRightLeft,
     Receipt, CheckSquare, Square, Search, Filter, X, ExternalLink, Calendar, AlertCircle, Check, Folder,
-    CornerDownRight, Pencil
+    CornerDownRight, Pencil, ShieldCheck
 } from '@lucide/vue';
 import {
   Dialog,
@@ -62,6 +62,23 @@ const props = defineProps({
 });
 
 const isEdit = !!props.expenditure;
+
+const page = usePage();
+const isSuperAdmin = computed(() => {
+    const roles = page.props.auth?.roles || [];
+    return roles.includes('super-admin') || roles.includes('super admin');
+});
+
+const getStatusLabel = (status) => {
+    switch (status) {
+        case 'draft': return 'Draft SPPD';
+        case 'submitted': return 'Diajukan (Menunggu OPD Direktur)';
+        case 'authorized': return 'Diotorisasi (Menunggu SPD Kabag)';
+        case 'disbursed': return 'Dana Cair (SPD Terbit)';
+        case 'rejected': return 'Ditolak';
+        default: return status;
+    }
+};
 
 const form = useForm({
     document_number: props.expenditure?.document_number || '',
@@ -729,6 +746,15 @@ const submitForm = (status) => {
                         {{ step === 1 ? 'Informasi Umum' : (step === 2 ? 'Rincian Anggaran' : 'Upload & Submit') }}
                     </span>
                 </button>
+            </div>
+        </div>
+
+        <!-- Banner Mode Edit Super Admin -->
+        <div v-if="isSuperAdmin && expenditure && !['draft', 'rejected'].includes(expenditure.status)" class="mb-5 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 p-3.5 rounded-xl text-xs flex items-start gap-2.5 shadow-sm">
+            <ShieldCheck class="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+            <div>
+                <span class="font-bold">Mode Edit Khusus Super Admin:</span>
+                <span> Dokumen SPPD ini berstatus <strong>{{ getStatusLabel(expenditure.status) }}</strong>. Anda memiliki hak akses untuk memutakhirkan informasi umum, rincian anggaran, rekening belanja, maupun lampiran dokumen. Jika dokumen berstatus cair (disbursed), pencatatan jurnal otomatis akan diperbarui sesuai rincian terbaru.</span>
             </div>
         </div>
 
@@ -1533,6 +1559,25 @@ const submitForm = (status) => {
                             class="bg-secondary hover:bg-secondary/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Lanjut <ChevronRight class="w-4 h-4 ml-2" />
+                        </Button>
+                    </template>
+                    <template v-else-if="isSuperAdmin && expenditure && !['draft', 'rejected'].includes(expenditure.status)">
+                        <Button 
+                            type="button" 
+                            variant="outline" 
+                            @click="submitForm('draft')" 
+                            :disabled="form.processing || form.details.length === 0 || totalAmount <= 0"
+                            class="text-muted-foreground hover:text-foreground"
+                        >
+                            <Save class="w-4 h-4 mr-2" /> Ubah ke Draft
+                        </Button>
+                        <Button 
+                            type="button" 
+                            @click="submitForm(expenditure.status)" 
+                            :disabled="form.processing || form.details.length === 0 || totalAmount <= 0"
+                            class="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
+                        >
+                            <Save class="w-4 h-4 mr-2" /> Simpan Perubahan (Status: {{ getStatusLabel(expenditure.status) }})
                         </Button>
                     </template>
                     <template v-else>

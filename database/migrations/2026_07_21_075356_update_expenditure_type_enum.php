@@ -12,7 +12,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE expenditures MODIFY type ENUM('UP', 'GU', 'TU', 'LS', 'LS_Pegawai', 'LS_Barang_Jasa_Modal') NOT NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE expenditures MODIFY type ENUM('UP', 'GU', 'TU', 'LS', 'LS_Pegawai', 'LS_Barang_Jasa_Modal') NOT NULL");
+        }
     }
 
     /**
@@ -20,6 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        DB::statement("ALTER TABLE expenditures MODIFY type ENUM('UP', 'GU', 'TU', 'LS') NOT NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE expenditures MODIFY type ENUM('UP', 'GU', 'TU', 'LS') NOT NULL");
+        }
     }
 };
