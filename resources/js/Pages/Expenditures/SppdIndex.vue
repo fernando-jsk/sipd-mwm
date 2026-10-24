@@ -1,10 +1,10 @@
 <script setup>
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/Components/ui/breadcrumb';
 import { Input } from '@/Components/ui/input';
-import { Search, Plus, Eye, FileSpreadsheet, Upload, Calendar, Coins, RotateCcw, BookOpen } from '@lucide/vue';
+import { Search, Plus, Eye, FileSpreadsheet, Upload, Calendar, Coins, RotateCcw, BookOpen, Pencil } from '@lucide/vue';
 import { SlidersHorizontal, MoreHorizontal } from 'lucide-vue-next';
 import {
   DropdownMenu,
@@ -55,6 +55,12 @@ const props = defineProps({
         type: Array,
         default: () => []
     }
+});
+
+const page = usePage();
+const isSuperAdmin = computed(() => {
+    const roles = page.props.auth?.roles || [];
+    return roles.includes('super-admin') || roles.includes('super admin');
 });
 
 const isAlignmentModalOpen = ref(false);
@@ -512,11 +518,18 @@ const getStatusLabel = (status) => {
                                 </Badge>
                             </TableCell>
                             <TableCell class="sticky right-0 z-10 bg-card group-hover:bg-muted/40 transition-colors border-l border-border/60 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] text-right py-3 px-4 whitespace-nowrap">
-                                <Link :href="`/expenditures/${item.id}`">
-                                    <Button variant="outline" size="sm" class="h-8 px-3 text-xs">
-                                        <Eye class="w-3.5 h-3.5 mr-1" /> Detail
-                                    </Button>
-                                </Link>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <Link :href="`/expenditures/${item.id}`">
+                                        <Button variant="outline" size="sm" class="h-8 px-3 text-xs">
+                                            <Eye class="w-3.5 h-3.5 mr-1" /> Detail
+                                        </Button>
+                                    </Link>
+                                    <Link v-if="isSuperAdmin || item.status === 'draft' || item.status === 'rejected'" :href="`/expenditures/${item.id}/edit`">
+                                        <Button variant="outline" size="sm" class="h-8 px-2.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30" title="Edit Dokumen">
+                                            <Pencil class="w-3.5 h-3.5" />
+                                        </Button>
+                                    </Link>
+                                </div>
                             </TableCell>
                         </TableRow>
                         <TableRow v-if="expenditures.data.length === 0">

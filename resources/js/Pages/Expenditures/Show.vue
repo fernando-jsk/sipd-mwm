@@ -18,7 +18,7 @@ import {
     Download, FileText, CheckCircle, XCircle, Send, ArrowRight, UserCheck, ShieldCheck, 
     Printer, Receipt, ExternalLink, Image as ImageIcon, FileSearch, ArrowLeft, Trash2,
     Calendar, User, Building, Paperclip, CreditCard, Clock, AlertCircle, CheckCircle2,
-    FileCheck2, Hash, Layers, Copy, Check
+    FileCheck2, Hash, Layers, Copy, Check, Pencil
 } from '@lucide/vue';
 import {
   Dialog,
@@ -160,6 +160,11 @@ const isDeletable = computed(() => {
     return ['draft', 'submitted'].includes(props.expenditure.status);
 });
 
+const isEditable = computed(() => {
+    if (isSuperAdmin.value) return true;
+    return ['draft', 'rejected'].includes(props.expenditure.status);
+});
+
 const deleteExpenditure = () => {
     deleteForm.delete(`/expenditures/${props.expenditure.id}`, {
         onSuccess: () => {
@@ -214,8 +219,10 @@ const deleteExpenditure = () => {
                             <ArrowLeft class="w-4 h-4 mr-1.5" /> Kembali
                         </Button>
                     </Link>
-                    <Link v-if="expenditure.status === 'draft' || expenditure.status === 'rejected'" :href="`/expenditures/${expenditure.id}/edit`">
-                        <Button variant="outline" size="sm" class="h-9">Edit Pengajuan</Button>
+                    <Link v-if="isEditable" :href="`/expenditures/${expenditure.id}/edit`">
+                        <Button variant="outline" size="sm" class="h-9">
+                            <Pencil class="w-4 h-4 mr-1.5" /> {{ isSuperAdmin && !['draft', 'rejected'].includes(expenditure.status) ? 'Edit Dokumen' : 'Edit Pengajuan' }}
+                        </Button>
                     </Link>
                 </div>
             </div>
@@ -848,6 +855,21 @@ const deleteExpenditure = () => {
                                         <CheckCircle class="w-5 h-5"/> Dana Telah Cair &amp; SPD Terbit
                                     </div>
                                 </template>
+
+                                <!-- Tombol Edit Dokumen Khusus Super Admin jika bukan status draft/rejected -->
+                                <div v-if="isSuperAdmin && !['draft', 'rejected'].includes(expenditure.status)" class="pt-3 border-t border-border/80">
+                                    <Link :href="`/expenditures/${expenditure.id}/edit`" class="w-full">
+                                        <Button 
+                                            variant="outline" 
+                                            class="w-full text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 border-amber-500/30 hover:border-amber-500/50 transition-colors"
+                                        >
+                                            <Pencil class="w-4 h-4 mr-2" /> Edit Dokumen SPPD
+                                        </Button>
+                                    </Link>
+                                    <p class="text-[11px] text-amber-600 dark:text-amber-400 text-center mt-1.5 font-medium flex items-center justify-center gap-1">
+                                        <ShieldCheck class="w-3.5 h-3.5 shrink-0" /> Akses Super Admin: Edit aktif untuk semua status.
+                                    </p>
+                                </div>
 
                                 <!-- Tombol Hapus Pengajuan -->
                                 <div class="pt-3 border-t border-border/80">
